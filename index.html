@@ -47,7 +47,7 @@
         </section>
 
         <section id="stageBar" class="stage-bar hidden">
-          <button class="btn ghost" id="backToHub" type="button">← 빠른 이동으로</button>
+          <button class="icon-btn stage-home-btn" id="backToHub" type="button" title="홈으로" aria-label="홈으로"></button>
           <div class="stage-menu-scroll" id="stageMenuScroll">
             <a class="stage-chip" href="#pdfToImage" data-stage-target="pdfToImage">PDF → 이미지</a>
             <a class="stage-chip" href="#imageToPdf" data-stage-target="imageToPdf">이미지 → PDF</a>
@@ -93,12 +93,12 @@
 
             <section class="tool-subpanel">
               <h3 class="subpanel-title">PDF</h3>
-              <div class="drop-zone large" data-file-input="pdfToImageFile" data-file-kind="PDF" data-drop-multiple="false">
+              <div class="drop-zone large" data-file-input="pdfToImageFile" data-file-kind="PDF" data-drop-multiple="true" data-preserve-files="true">
                 <p class="drop-main">PDF를 끌거나 클릭해 업로드</p>
                 <p class="drop-sub">각 페이지의 미리보기가 나옵니다</p>
                 <p class="drop-file-name" id="pdfToImageDropName">선택된 파일 없음</p>
               </div>
-              <input class="visually-hidden" type="file" id="pdfToImageFile" accept=".pdf" />
+              <input class="visually-hidden" type="file" id="pdfToImageFile" accept=".pdf" multiple />
             </section>
           </div>
 
@@ -123,7 +123,7 @@
         <article class="tool-card tool-stage" id="imageToPdf">
           <h2><span class="icon">🖼</span> 2. 이미지 → PDF 변환기</h2>
           <p class="sub">다중 이미지를 순서대로 한 PDF로 병합</p>
-          <div class="drop-zone" data-file-input="imageToPdfFiles" data-file-kind="이미지" data-drop-multiple="true">
+          <div class="drop-zone" data-file-input="imageToPdfFiles" data-file-kind="이미지" data-drop-multiple="true" data-preserve-files="true">
             <p class="drop-main">이미지를 끌거나 클릭해 업로드</p>
             <p class="drop-file-name" id="imageToPdfFilesDropName">선택된 파일 없음</p>
           </div>
@@ -206,7 +206,7 @@
         <article class="tool-card tool-stage" id="pdfMerge">
           <h2><span class="icon">⊞</span> 4. PDF 합치기</h2>
           <p class="sub">다중 PDF 파일 병합</p>
-          <div class="drop-zone" data-file-input="mergePdfFiles" data-file-kind="PDF" data-drop-multiple="true">
+          <div class="drop-zone" data-file-input="mergePdfFiles" data-file-kind="PDF" data-drop-multiple="true" data-preserve-files="true">
             <p class="drop-main">병합할 PDF를 끌거나 클릭해 업로드</p>
             <p class="drop-file-name" id="mergePdfFilesDropName">선택된 파일 없음</p>
           </div>
@@ -229,12 +229,20 @@
 
         <article class="tool-card tool-stage" id="imageResize">
           <h2><span class="icon">⬚</span> 5. 이미지 크기 조정기</h2>
-          <p class="sub">너비/높이 기준 리사이즈 후 ZIP 저장</p>
+          <p class="sub">너비/높이 리사이즈 + 압축 품질 조절 후 ZIP 저장</p>
           <div class="form-grid">
             <label>너비(px)<input type="number" id="resizeWidth" placeholder="예: 1280" /></label>
             <label>높이(px)<input type="number" id="resizeHeight" placeholder="예: 720" /></label>
+            <label>출력 포맷
+              <select id="resizeFormat">
+                <option value="webp">WebP</option>
+                <option value="jpeg">JPG</option>
+                <option value="png">PNG</option>
+              </select>
+            </label>
+            <label>압축 품질(1~100)<input type="range" id="resizeQuality" min="1" max="100" step="1" value="82" /></label>
           </div>
-          <div class="drop-zone" data-file-input="resizeFiles" data-file-kind="이미지" data-drop-multiple="true">
+          <div class="drop-zone" data-file-input="resizeFiles" data-file-kind="이미지" data-drop-multiple="true" data-preserve-files="true">
             <p class="drop-main">리사이즈할 이미지를 끌거나 클릭해 업로드</p>
             <p class="drop-file-name" id="resizeFilesDropName">선택된 파일 없음</p>
           </div>
@@ -264,7 +272,7 @@
             </label>
             <label>품질(0.1~1.0)<input type="range" id="targetQuality" min="0.1" max="1" step="0.1" value="0.9" /></label>
           </div>
-          <div class="drop-zone" data-file-input="formatFiles" data-file-kind="이미지" data-drop-multiple="true">
+          <div class="drop-zone" data-file-input="formatFiles" data-file-kind="이미지" data-drop-multiple="true" data-preserve-files="true">
             <p class="drop-main">변환할 이미지를 끌거나 클릭해 업로드</p>
             <p class="drop-file-name" id="formatFilesDropName">선택된 파일 없음</p>
           </div>
@@ -287,42 +295,46 @@
 
         <article class="tool-card tool-stage" id="processTimer">
           <h2><span class="icon">⏱</span> 7. 공정 작업시간 측정기</h2>
-          <p class="sub">공정정보 + 사진/동영상 첨부·촬영 + 시간 기록</p>
-          <div class="form-grid">
-            <label>공정명<input type="text" id="procName" placeholder="예: 조립 1공정" /></label>
-            <label>고객사<input type="text" id="procCustomer" placeholder="예: Kunhwa" /></label>
-            <label class="span-2">간단 내용<textarea id="procMemo" rows="3" placeholder="작업 중 이슈/특이사항"></textarea></label>
-            <label>모바일 즉시 촬영(기기 지원시)<input type="file" id="procCapture" accept="image/*,video/*" capture="environment" /></label>
-          </div>
-          <div class="drop-zone" data-file-input="procMediaFiles" data-file-kind="사진/동영상" data-drop-multiple="true">
-            <p class="drop-main">사진/동영상 파일을 끌거나 클릭해 첨부</p>
-            <p class="drop-file-name" id="procMediaFilesDropName">선택된 파일 없음</p>
-          </div>
-          <input class="visually-hidden" type="file" id="procMediaFiles" accept="image/*,video/*" multiple />
-          <div class="capture-box">
-            <video id="cameraPreview" autoplay muted playsinline></video>
-            <div class="btn-row">
-              <button class="btn ghost" id="startCamera">카메라 시작</button>
-              <button class="btn ghost" id="capturePhoto">사진 촬영</button>
-              <button class="btn ghost" id="startVideoRec">영상 기록 시작</button>
-              <button class="btn ghost" id="stopVideoRec">영상 기록 종료</button>
-              <button class="btn ghost" id="stopCamera">카메라 종료</button>
-            </div>
-          </div>
-          <div id="capturedMediaPreview" class="media-grid"></div>
-          <div class="timer-view" id="timerDisplay">00:00:00</div>
-          <div class="btn-row">
-            <button class="btn primary" id="timerStart">시작</button>
-            <button class="btn ghost" id="timerPause">일시정지</button>
-            <button class="btn ghost" id="timerResume">재개</button>
-            <button class="btn danger" id="timerStop">종료 및 기록</button>
+          <p class="sub">POS 스타일의 간결한 입력/기록 흐름 · 사진 첨부 중심</p>
+          <div class="pos-layout">
+            <section class="pos-main">
+              <div class="form-grid">
+                <label>공정명<input type="text" id="procName" placeholder="예: 조립 1공정" /></label>
+                <label>고객사<input type="text" id="procCustomer" placeholder="예: Kunhwa" /></label>
+                <label class="span-2">간단 내용<textarea id="procMemo" rows="3" placeholder="작업 중 이슈/특이사항"></textarea></label>
+              </div>
+              <div class="drop-zone" data-file-input="procMediaFiles" data-file-kind="사진" data-drop-multiple="true" data-preserve-files="true">
+                <p class="drop-main">사진 파일을 끌거나 클릭해 첨부</p>
+                <p class="drop-file-name" id="procMediaFilesDropName">선택된 파일 없음</p>
+              </div>
+              <input class="visually-hidden" type="file" id="procMediaFiles" accept="image/*" multiple />
+              <div id="capturedMediaPreview" class="media-grid"></div>
+            </section>
+            <aside class="pos-side">
+              <div class="pos-panel">
+                <p class="panel-kicker">실시간</p>
+                <div class="timer-view" id="timerDisplay">00:00:00</div>
+                <div class="btn-row">
+                  <button class="btn primary" id="timerStart">시작</button>
+                  <button class="btn ghost" id="timerPause">일시정지</button>
+                  <button class="btn ghost" id="timerResume">재개</button>
+                  <button class="btn danger" id="timerStop">종료 및 저장</button>
+                </div>
+              </div>
+              <div class="pos-panel">
+                <p class="panel-kicker">내보내기</p>
+                <div class="btn-row">
+                  <button class="btn ghost" id="exportProcessJson">JSON 내보내기</button>
+                  <button class="btn ghost" id="exportProcessCsv">CSV 내보내기</button>
+                </div>
+              </div>
+              <div class="pos-panel">
+                <p class="panel-kicker">저장 기록</p>
+                <div id="timerLog" class="session-list"></div>
+              </div>
+            </aside>
           </div>
           <p class="status" id="timerStatus"></p>
-          <div class="btn-row">
-            <button class="btn ghost" id="exportProcessJson">기록 JSON 내보내기</button>
-            <button class="btn ghost" id="exportProcessCsv">기록 CSV 내보내기</button>
-          </div>
-          <div id="timerLog" class="session-list"></div>
         </article>
 
         <article class="tool-card tool-stage" id="qrGenerator">

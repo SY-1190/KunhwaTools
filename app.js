@@ -143,10 +143,27 @@ const readAsText = (file) =>
     fr.readAsText(file, "utf-8");
   });
 
+const dedupeFiles = (files) => {
+  const seen = new Set();
+  const out = [];
+  files.forEach((f) => {
+    const key = `${f.name}__${f.size}__${f.lastModified}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(f);
+  });
+  return out;
+};
+
+const sameFileSignature = (a, b) =>
+  a.length === b.length &&
+  a.every((f, i) => f.name === b[i].name && f.size === b[i].size && f.lastModified === b[i].lastModified);
+
 const ICONS = {
   trash3: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/></svg>`,
   undo: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>`,
   download: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>`,
+  house: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m8.354 1.146 6.5 6.5A.5.5 0 0 1 14.5 8.5H13v5a1 1 0 0 1-1 1h-2.5a.5.5 0 0 1-.5-.5V11a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v3a.5.5 0 0 1-.5.5H4a1 1 0 0 1-1-1v-5H1.5a.5.5 0 0 1-.354-.854l6.5-6.5a.5.5 0 0 1 .708 0"/></svg>`,
 };
 
 const setIconButton = (id, iconKey) => {
@@ -161,10 +178,13 @@ const syncFilesToInput = (inputId, files) => {
   const dt = new DataTransfer();
   files.forEach((f) => dt.items.add(f));
   input.files = dt.files;
+  input.dataset.replaceFilesOnce = "1";
   input.dispatchEvent(new Event("change", { bubbles: true }));
 };
 
 const setupDropZones = () => {
+  const fileStoreByInput = new Map();
+
   const updateDropLabel = (inputId) => {
     const input = $(inputId);
     const nameEl = $(`${inputId}DropName`);
@@ -185,6 +205,7 @@ const setupDropZones = () => {
     const inputId = zone.dataset.fileInput;
     const input = $(inputId);
     if (!input) return;
+    const preserveFiles = input.multiple && zone.dataset.preserveFiles === "true";
 
     zone.addEventListener("click", () => input.click());
     zone.addEventListener("dragover", (e) => {
@@ -206,11 +227,34 @@ const setupDropZones = () => {
         dt.items.add(dropped[0]);
       }
       input.files = dt.files;
+      fileStoreByInput.set(inputId, [...input.files]);
       input.dispatchEvent(new Event("change", { bubbles: true }));
       updateDropLabel(inputId);
     });
 
-    input.addEventListener("change", () => updateDropLabel(inputId));
+    input.addEventListener("change", () => {
+      const current = [...(input.files || [])];
+      if (!preserveFiles) {
+        fileStoreByInput.set(inputId, current);
+        updateDropLabel(inputId);
+        return;
+      }
+      if (input.dataset.replaceFilesOnce === "1") {
+        input.dataset.replaceFilesOnce = "0";
+        fileStoreByInput.set(inputId, current);
+        updateDropLabel(inputId);
+        return;
+      }
+      const prev = fileStoreByInput.get(inputId) || [];
+      const merged = dedupeFiles([...prev, ...current]);
+      if (!sameFileSignature(current, merged)) {
+        const dt = new DataTransfer();
+        merged.forEach((f) => dt.items.add(f));
+        input.files = dt.files;
+      }
+      fileStoreByInput.set(inputId, [...(input.files || [])]);
+      updateDropLabel(inputId);
+    });
     updateDropLabel(inputId);
   });
 };
@@ -370,9 +414,10 @@ const parsePageTokens = (value, maxPages) => {
 };
 
 const pdfToImageState = {
+  files: [],
   pages: [],
   deletedStack: [],
-  draggingPageNo: null,
+  draggingPageId: null,
   placeholder: null,
 };
 
@@ -389,6 +434,13 @@ const removePdfToImagePlaceholder = () => {
   if (ph?.parentElement) ph.parentElement.removeChild(ph);
 };
 
+const clearDropIndicators = (container) => {
+  if (!container) return;
+  container.querySelectorAll(".thumb-item.drop-before, .thumb-item.drop-after").forEach((el) => {
+    el.classList.remove("drop-before", "drop-after");
+  });
+};
+
 const renderPdfToImageGrid = () => {
   const previewBox = $("pdfToImagePreview");
   if (!previewBox) return;
@@ -397,8 +449,8 @@ const renderPdfToImageGrid = () => {
     const item = document.createElement("div");
     item.className = "thumb-item";
     item.draggable = true;
-    item.dataset.page = String(page.pageNo);
-    item.innerHTML = `<button class="thumb-delete" type="button" title="페이지 제외" aria-label="페이지 제외">${ICONS.trash3}</button><div class="thumb-label">p.${page.pageNo}</div>`;
+    item.dataset.pageId = page.id;
+    item.innerHTML = `<button class="thumb-delete" type="button" title="페이지 제외" aria-label="페이지 제외">${ICONS.trash3}</button><div class="thumb-label">${page.fileLabel} · p.${page.pageNo}</div>`;
     const img = document.createElement("img");
     img.src = page.thumbDataUrl;
     img.alt = `page-${page.pageNo}`;
@@ -413,28 +465,38 @@ const renderPdfToImageGrid = () => {
 
 const getPdfToImageDragAfterElement = (container, x, y) => {
   const items = [...container.querySelectorAll(".thumb-item:not(.dragging)")];
-  return items.reduce(
-    (closest, child) => {
-      const box = child.getBoundingClientRect();
-      const offset = y - (box.top + box.height / 2) + (x - (box.left + box.width / 2)) * 0.08;
-      if (offset < 0 && offset > closest.offset) return { offset, element: child };
-      return closest;
-    },
-    { offset: Number.NEGATIVE_INFINITY, element: null }
-  ).element;
+  if (!items.length) return { afterEl: null, nearestEl: null, before: false };
+  let nearest = null;
+  let nearestDist = Number.POSITIVE_INFINITY;
+  items.forEach((child) => {
+    const box = child.getBoundingClientRect();
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    const dist = (cx - x) * (cx - x) + (cy - y) * (cy - y);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearest = child;
+    }
+  });
+  if (!nearest) return { afterEl: null, nearestEl: null, before: false };
+  const box = nearest.getBoundingClientRect();
+  const before = y < box.top + box.height / 2 || (y <= box.bottom && x < box.left + box.width / 2);
+  if (before) return { afterEl: nearest, nearestEl: nearest, before: true };
+  const next = nearest.nextElementSibling?.closest?.(".thumb-item");
+  return { afterEl: next || null, nearestEl: nearest, before: false };
 };
 
 const applyPdfToImageDrop = () => {
   const grid = $("pdfToImagePreview");
   const ph = pdfToImageState.placeholder;
-  if (!grid || !ph?.parentElement || !pdfToImageState.draggingPageNo) return;
+  if (!grid || !ph?.parentElement || !pdfToImageState.draggingPageId) return;
   const nextThumb = ph.nextElementSibling?.closest?.(".thumb-item");
-  const moving = pdfToImageState.pages.find((p) => p.pageNo === pdfToImageState.draggingPageNo);
+  const moving = pdfToImageState.pages.find((p) => p.id === pdfToImageState.draggingPageId);
   if (!moving) return;
-  const filtered = pdfToImageState.pages.filter((p) => p.pageNo !== moving.pageNo);
+  const filtered = pdfToImageState.pages.filter((p) => p.id !== moving.id);
   if (nextThumb) {
-    const nextNo = Number(nextThumb.dataset.page);
-    const idx = filtered.findIndex((p) => p.pageNo === nextNo);
+    const nextId = nextThumb.dataset.pageId;
+    const idx = filtered.findIndex((p) => p.id === nextId);
     if (idx >= 0) filtered.splice(idx, 0, moving);
     else filtered.push(moving);
   } else {
@@ -450,70 +512,93 @@ const setupPdfToImagePreviewDnD = () => {
   grid.addEventListener("dragstart", (e) => {
     const item = e.target.closest(".thumb-item");
     if (!item) return;
-    pdfToImageState.draggingPageNo = Number(item.dataset.page);
+    pdfToImageState.draggingPageId = item.dataset.pageId;
     item.classList.add("dragging");
     e.dataTransfer.effectAllowed = "move";
   });
   grid.addEventListener("dragend", () => {
-    pdfToImageState.draggingPageNo = null;
+    pdfToImageState.draggingPageId = null;
     removePdfToImagePlaceholder();
+    clearDropIndicators(grid);
     grid.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
   });
   grid.addEventListener("dragover", (e) => {
-    if (!pdfToImageState.draggingPageNo) return;
+    if (!pdfToImageState.draggingPageId) return;
     e.preventDefault();
     const placeholder = ensurePdfToImagePlaceholder();
-    const after = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
-    if (!after) grid.appendChild(placeholder);
-    else grid.insertBefore(placeholder, after);
+    const intent = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
+    clearDropIndicators(grid);
+    intent.nearestEl?.classList.add(intent.before ? "drop-before" : "drop-after");
+    if (!intent.afterEl) grid.appendChild(placeholder);
+    else grid.insertBefore(placeholder, intent.afterEl);
   });
   grid.addEventListener("drop", (e) => {
-    if (!pdfToImageState.draggingPageNo) return;
+    if (!pdfToImageState.draggingPageId) return;
     e.preventDefault();
     applyPdfToImageDrop();
     removePdfToImagePlaceholder();
+    clearDropIndicators(grid);
   });
   grid.addEventListener("click", (e) => {
     const del = e.target.closest(".thumb-delete");
     if (!del) return;
     const item = e.target.closest(".thumb-item");
     if (!item) return;
-    const pageNo = Number(item.dataset.page);
-    const idx = pdfToImageState.pages.findIndex((p) => p.pageNo === pageNo);
+    const pageId = item.dataset.pageId;
+    const idx = pdfToImageState.pages.findIndex((p) => p.id === pageId);
     if (idx < 0) return;
     const removed = pdfToImageState.pages[idx];
     pdfToImageState.deletedStack.push({ page: removed, index: idx });
     pdfToImageState.pages.splice(idx, 1);
     renderPdfToImageGrid();
-    setStatus("pdfToImageStatus", `페이지 ${pageNo}가 제외되었습니다.`);
+    setStatus("pdfToImageStatus", `${removed.fileLabel} p.${removed.pageNo}가 제외되었습니다.`);
   });
 };
 
-const renderPdfToImagePreview = async (file) => {
+const renderPdfToImagePreview = async (files) => {
   const previewBox = $("pdfToImagePreview");
   if (!previewBox) return;
   previewBox.innerHTML = "";
+  pdfToImageState.files = [...files];
   pdfToImageState.pages = [];
   pdfToImageState.deletedStack = [];
-  if (!file) return;
+  if (!files.length) return;
   beginGlobalBusy("PDF 미리보기를 준비 중입니다...");
   try {
-    const buffer = await readAsArrayBuffer(file);
-    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-    for (let i = 1; i <= pdf.numPages; i += 1) {
-      setGlobalBusyMessage(`PDF 미리보기 생성 중 (${i}/${pdf.numPages})`);
-      const page = await pdf.getPage(i);
-      const baseViewport = page.getViewport({ scale: 1 });
-      const scale = 130 / baseViewport.width;
-      const viewport = page.getViewport({ scale });
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-      pdfToImageState.pages.push({ pageNo: i, thumbDataUrl: canvas.toDataURL("image/png") });
+    let renderedCount = 0;
+    let totalPages = 0;
+    const docs = [];
+    for (let fi = 0; fi < files.length; fi += 1) {
+      const buffer = await readAsArrayBuffer(files[fi]);
+      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      docs.push(pdf);
+      totalPages += pdf.numPages;
+    }
+    for (let fi = 0; fi < docs.length; fi += 1) {
+      const pdf = docs[fi];
+      const fileLabel = files[fi].name;
+      for (let i = 1; i <= pdf.numPages; i += 1) {
+        renderedCount += 1;
+        setGlobalBusyMessage(`PDF 미리보기 생성 중 (${renderedCount}/${totalPages})`);
+        const page = await pdf.getPage(i);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = 130 / baseViewport.width;
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        pdfToImageState.pages.push({
+          id: `${fi}:${i}`,
+          fileIndex: fi,
+          fileLabel,
+          pageNo: i,
+          thumbDataUrl: canvas.toDataURL("image/png"),
+        });
+      }
     }
     renderPdfToImageGrid();
-    setStatus("pdfToImageStatus", `미리보기 완료: ${pdf.numPages}페이지`);
+    setStatus("pdfToImageStatus", `미리보기 완료: ${files.length}개 PDF, 총 ${pdfToImageState.pages.length}페이지`);
   } catch (err) {
     const note = document.createElement("div");
     note.className = "thumb-label";
@@ -697,9 +782,9 @@ const setupPdfToImage = () => {
   setupPdfToImagePreviewDnD();
 
   $("pdfToImageFile").addEventListener("change", () => {
-    const file = $("pdfToImageFile").files[0];
-    setStatus("pdfToImageStatus", file ? "PDF를 읽는 중..." : "");
-    renderPdfToImagePreview(file);
+    const files = [...$("pdfToImageFile").files];
+    setStatus("pdfToImageStatus", files.length ? "PDF를 읽는 중..." : "");
+    renderPdfToImagePreview(files);
   });
 
   $("undoPdfToImageDelete")?.addEventListener("click", () => {
@@ -719,37 +804,57 @@ const setupPdfToImage = () => {
   });
 
   $("runPdfToImage").addEventListener("click", async () => {
-    const file = $("pdfToImageFile").files[0];
+    const files = [...$("pdfToImageFile").files];
     const format = $("pdfToImageFormat").value;
     const dpi = Number($("pdfToImageDpi").value || 200);
     const quality = Math.min(1, Math.max(0.01, Number($("pdfToImageQuality").value || 80) / 100));
     const scale = Math.max(1, dpi / 96);
-    if (!file) {
+    if (!files.length) {
       setStatus("pdfToImageStatus", "PDF 파일을 선택해주세요.");
       return;
     }
 
     startOperation("pdfToImage", "PDF 로딩 중...");
     try {
-      const buffer = await readAsArrayBuffer(file);
-      checkCancelled("pdfToImage");
-      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-      const selectedPages = parsePageTokens($("pdfToImagePages").value, pdf.numPages);
-      const ordered = pdfToImageState.pages.length
-        ? pdfToImageState.pages.map((p) => p.pageNo)
-        : Array.from({ length: pdf.numPages }, (_, i) => i + 1);
-      const selectedSet = new Set(selectedPages);
-      const finalPages = ordered.filter((n) => selectedSet.has(n));
-      if (!finalPages.length) {
+      const pageFilter = ($("pdfToImagePages").value || "").trim();
+      const docs = [];
+      for (let fi = 0; fi < files.length; fi += 1) {
+        checkCancelled("pdfToImage");
+        const buffer = await readAsArrayBuffer(files[fi]);
+        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+        docs.push(pdf);
+      }
+
+      const finalPages = pdfToImageState.pages.length
+        ? [...pdfToImageState.pages]
+        : docs.flatMap((pdf, fi) =>
+            Array.from({ length: pdf.numPages }, (_, i) => ({
+              id: `${fi}:${i + 1}`,
+              fileIndex: fi,
+              fileLabel: files[fi].name,
+              pageNo: i + 1,
+            }))
+          );
+
+      const filteredFinalPages =
+        pageFilter && docs.length === 1
+          ? (() => {
+              const selected = new Set(parsePageTokens(pageFilter, docs[0].numPages));
+              return finalPages.filter((p) => selected.has(p.pageNo));
+            })()
+          : finalPages;
+
+      if (!filteredFinalPages.length) {
         throw new Error("변환할 페이지가 없습니다. 페이지 필터/삭제 상태를 확인해주세요.");
       }
       const zip = new JSZip();
 
-      for (let i = 0; i < finalPages.length; i += 1) {
+      for (let i = 0; i < filteredFinalPages.length; i += 1) {
         checkCancelled("pdfToImage");
-        const pageNo = finalPages[i];
-        setStatus("pdfToImageStatus", `페이지 변환 중 (${i + 1}/${finalPages.length})`);
-        const page = await pdf.getPage(pageNo);
+        const pageMeta = filteredFinalPages[i];
+        const pageNo = pageMeta.pageNo;
+        setStatus("pdfToImageStatus", `페이지 변환 중 (${i + 1}/${filteredFinalPages.length})`);
+        const page = await docs[pageMeta.fileIndex].getPage(pageNo);
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");
         canvas.width = viewport.width;
@@ -763,15 +868,16 @@ const setupPdfToImage = () => {
         const realMime = dataUrl.startsWith("data:image/png") && mime !== "image/png" ? "image/png" : mime;
         const ext = realMime === "image/jpeg" ? "jpg" : realMime === "image/webp" ? "webp" : "png";
         const base64 = dataUrl.split(",")[1];
-        zip.file(`page-${pageNo}.${ext}`, base64, { base64: true });
-        updateProgress("pdfToImage", i + 1, finalPages.length);
+        const safeName = pageMeta.fileLabel.replace(/\.[^.]+$/, "").replace(/[\\/:*?"<>|]/g, "_");
+        zip.file(`${safeName}_p${pageNo}.${ext}`, base64, { base64: true });
+        updateProgress("pdfToImage", i + 1, filteredFinalPages.length);
       }
 
       checkCancelled("pdfToImage");
       const blob = await zip.generateAsync({ type: "blob" });
       downloadBlob(blob, "pdf-to-images.zip");
       updateProgress("pdfToImage", 100, 100);
-      endOperation("pdfToImage", `완료: ${finalPages.length}페이지 (${formatBytes(blob.size)})`);
+      endOperation("pdfToImage", `완료: ${filteredFinalPages.length}페이지 (${formatBytes(blob.size)})`);
     } catch (err) {
       handleOperationError("pdfToImage", err);
     }
@@ -902,14 +1008,17 @@ const renderImageThumbPreview = async (previewId, stateKey, inputId, reorderable
   grid.ondragend = () => {
     dragIdx = -1;
     if (placeholder.parentElement) placeholder.parentElement.removeChild(placeholder);
+    clearDropIndicators(grid);
     grid.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
   };
   grid.ondragover = (e) => {
     if (dragIdx < 0) return;
     e.preventDefault();
-    const after = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
-    if (!after) grid.appendChild(placeholder);
-    else grid.insertBefore(placeholder, after);
+    const intent = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
+    clearDropIndicators(grid);
+    intent.nearestEl?.classList.add(intent.before ? "drop-before" : "drop-after");
+    if (!intent.afterEl) grid.appendChild(placeholder);
+    else grid.insertBefore(placeholder, intent.afterEl);
   };
   grid.ondrop = (e) => {
     if (dragIdx < 0) return;
@@ -925,6 +1034,7 @@ const renderImageThumbPreview = async (previewId, stateKey, inputId, reorderable
     }
     toolFileState[stateKey] = filtered;
     syncFilesToInput(inputId, filtered);
+    clearDropIndicators(grid);
   };
 };
 
@@ -985,14 +1095,17 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
   grid.ondragend = () => {
     dragIdx = -1;
     if (placeholder.parentElement) placeholder.parentElement.removeChild(placeholder);
+    clearDropIndicators(grid);
     grid.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
   };
   grid.ondragover = (e) => {
     if (dragIdx < 0) return;
     e.preventDefault();
-    const after = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
-    if (!after) grid.appendChild(placeholder);
-    else grid.insertBefore(placeholder, after);
+    const intent = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
+    clearDropIndicators(grid);
+    intent.nearestEl?.classList.add(intent.before ? "drop-before" : "drop-after");
+    if (!intent.afterEl) grid.appendChild(placeholder);
+    else grid.insertBefore(placeholder, intent.afterEl);
   };
   grid.ondrop = (e) => {
     if (dragIdx < 0) return;
@@ -1008,6 +1121,7 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
     }
     toolFileState[stateKey] = filtered;
     syncFilesToInput(inputId, filtered);
+    clearDropIndicators(grid);
   };
 };
 
@@ -1268,21 +1382,15 @@ const applyShiftSelection = (pane, clickedPageNo, shiftKey) => {
 };
 
 const getDragAfterElement = (container, x, y) => {
-  const items = [...container.querySelectorAll(".thumb-item:not(.dragging)")];
-  return items.reduce(
-    (closest, child) => {
-      const box = child.getBoundingClientRect();
-      const offset = y - (box.top + box.height / 2) + (x - (box.left + box.width / 2)) * 0.08;
-      if (offset < 0 && offset > closest.offset) return { offset, element: child };
-      return closest;
-    },
-    { offset: Number.NEGATIVE_INFINITY, element: null }
-  ).element;
+  return getPdfToImageDragAfterElement(container, x, y).afterEl;
 };
 
 const placePlaceholderInGrid = (grid, x, y) => {
   const placeholder = ensureArrangePlaceholder();
-  const afterEl = getDragAfterElement(grid, x, y);
+  const intent = getPdfToImageDragAfterElement(grid, x, y);
+  clearDropIndicators(grid);
+  intent.nearestEl?.classList.add(intent.before ? "drop-before" : "drop-after");
+  const afterEl = intent.afterEl;
   if (!afterEl) grid.appendChild(placeholder);
   else grid.insertBefore(placeholder, afterEl);
 };
@@ -1354,6 +1462,8 @@ const setupArrangeDnD = () => {
   const handleDragEnd = () => {
     removePlaceholder();
     arrangeState.dragCtx = null;
+    clearDropIndicators(reorderGrid);
+    splitWrap.querySelectorAll(".split-bucket-grid").forEach((g) => clearDropIndicators(g));
     document.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
   };
 
@@ -1416,6 +1526,7 @@ const setupArrangeDnD = () => {
     e.preventDefault();
     applyDropToReorder();
     removePlaceholder();
+    clearDropIndicators(reorderGrid);
   });
 
   splitWrap.addEventListener("click", (e) => {
@@ -1451,6 +1562,7 @@ const setupArrangeDnD = () => {
     const bucketId = Number(grid.dataset.bucketGrid);
     applyDropToSplitBucket(bucketId);
     removePlaceholder();
+    clearDropIndicators(grid);
   });
 };
 
@@ -1662,6 +1774,8 @@ const setupImageResize = () => {
     const files = [...$("resizeFiles").files];
     const width = Number($("resizeWidth").value);
     const height = Number($("resizeHeight").value);
+    const fmt = $("resizeFormat")?.value || "webp";
+    const quality = Math.min(1, Math.max(0.01, Number($("resizeQuality")?.value || 82) / 100));
     if (!files.length || (!width && !height)) {
       setStatus("resizeStatus", "이미지 파일과 너비/높이 중 하나 이상을 입력해주세요.");
       return;
@@ -1681,9 +1795,11 @@ const setupImageResize = () => {
         canvas.width = targetW;
         canvas.height = targetH;
         canvas.getContext("2d").drawImage(img, 0, 0, targetW, targetH);
+        const mime = fmt === "png" ? "image/png" : fmt === "jpeg" ? "image/jpeg" : "image/webp";
+        const ext = fmt === "jpeg" ? "jpg" : fmt;
         zip.file(
-          `${files[i].name.replace(/\.[^.]+$/, "")}_${targetW}x${targetH}.png`,
-          canvas.toDataURL("image/png").split(",")[1],
+          `${files[i].name.replace(/\.[^.]+$/, "")}_${targetW}x${targetH}.${ext}`,
+          canvas.toDataURL(mime, quality).split(",")[1],
           { base64: true }
         );
         updateProgress("resize", i + 1, files.length);
@@ -1752,32 +1868,36 @@ const escapeCsv = (value) => {
   return str;
 };
 
-const processMediaState = {
-  captured: [],
-  stream: null,
-  recorder: null,
-  chunks: [],
-};
-
-const renderCapturedMediaPreview = () => {
+const renderProcessMediaPreview = () => {
   const box = $("capturedMediaPreview");
+  const input = $("procMediaFiles");
+  if (!box || !input) return;
   box.innerHTML = "";
-  processMediaState.captured.forEach((item) => {
+  const files = [...input.files];
+  files.forEach((file, idx) => {
     const card = document.createElement("div");
     card.className = "media-item";
-    const mediaTag =
-      item.type.startsWith("video")
-        ? `<video src="${item.url}" controls></video>`
-        : `<img src="${item.url}" alt="${item.name}" />`;
-    card.innerHTML = `${mediaTag}<div class="media-name">${item.name}</div>`;
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    img.alt = file.name;
+    const btn = document.createElement("button");
+    btn.className = "thumb-delete";
+    btn.type = "button";
+    btn.title = "사진 제거";
+    btn.setAttribute("aria-label", "사진 제거");
+    btn.innerHTML = ICONS.trash3;
+    btn.addEventListener("click", () => {
+      const remain = files.filter((_, i) => i !== idx);
+      syncFilesToInput("procMediaFiles", remain);
+    });
+    const name = document.createElement("div");
+    name.className = "media-name";
+    name.textContent = file.name;
+    card.appendChild(btn);
+    card.appendChild(img);
+    card.appendChild(name);
     box.appendChild(card);
   });
-};
-
-const addCapturedBlob = (blob, name, type) => {
-  const url = URL.createObjectURL(blob);
-  processMediaState.captured.push({ blob, name, type, url });
-  renderCapturedMediaPreview();
 };
 
 const setupProcessTimer = () => {
@@ -1790,6 +1910,8 @@ const setupProcessTimer = () => {
   ) {
     return;
   }
+  $("procMediaFiles")?.addEventListener("change", renderProcessMediaPreview);
+
   let running = false;
   let startTime = 0;
   let elapsed = 0;
@@ -1809,14 +1931,7 @@ const setupProcessTimer = () => {
     interval = setInterval(renderTime, 300);
   };
 
-  const addSessionCard = ({
-    durationText,
-    name,
-    customer,
-    memo,
-    mediaItems,
-    timestamp,
-  }) => {
+  const addSessionCard = ({ durationText, name, customer, memo, mediaItems, timestamp }) => {
     const wrap = document.createElement("div");
     wrap.className = "session-item";
     const now = new Date(timestamp).toLocaleString("ko-KR");
@@ -1834,9 +1949,7 @@ const setupProcessTimer = () => {
       mediaItems.forEach((m) => {
         const card = document.createElement("div");
         card.className = "media-item";
-        card.innerHTML = m.type.startsWith("video")
-          ? `<video src="${m.url}" controls></video><div class="media-name">${m.name}</div>`
-          : `<img src="${m.url}" alt="${m.name}" /><div class="media-name">${m.name}</div>`;
+        card.innerHTML = `<img src="${m.url}" alt="${m.name}" /><div class="media-name">${m.name}</div>`;
         grid.appendChild(card);
       });
       wrap.appendChild(grid);
@@ -1845,19 +1958,12 @@ const setupProcessTimer = () => {
     $("timerLog").prepend(wrap);
   };
 
-  const gatherAllMedia = () => {
-    const fileMedia = [...$("procMediaFiles").files, ...$("procCapture").files].map((f) => ({
+  const gatherAllMedia = () =>
+    [...$("procMediaFiles").files].map((f) => ({
       name: f.name,
       type: f.type || "application/octet-stream",
       url: URL.createObjectURL(f),
     }));
-    const captured = processMediaState.captured.map((m) => ({
-      name: m.name,
-      type: m.type,
-      url: m.url,
-    }));
-    return [...fileMedia, ...captured];
-  };
 
   $("timerStart").addEventListener("click", () => {
     if (running) return;
@@ -1928,6 +2034,8 @@ const setupProcessTimer = () => {
 
     elapsed = 0;
     renderTime();
+    $("procMediaFiles").value = "";
+    renderProcessMediaPreview();
     setStatus("timerStatus", "기록이 저장되었습니다.");
   });
 
@@ -1967,76 +2075,6 @@ const setupProcessTimer = () => {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     downloadBlob(blob, `process-records-${Date.now()}.csv`);
     setStatus("timerStatus", "CSV 내보내기를 완료했습니다.");
-  });
-
-  $("startCamera").addEventListener("click", async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      processMediaState.stream = stream;
-      $("cameraPreview").srcObject = stream;
-      setStatus("timerStatus", "카메라가 시작되었습니다.");
-    } catch (err) {
-      setStatus("timerStatus", `카메라 시작 실패: ${err.message}`);
-    }
-  });
-
-  $("stopCamera").addEventListener("click", () => {
-    if (!processMediaState.stream) return;
-    processMediaState.stream.getTracks().forEach((track) => track.stop());
-    processMediaState.stream = null;
-    $("cameraPreview").srcObject = null;
-    setStatus("timerStatus", "카메라를 종료했습니다.");
-  });
-
-  $("capturePhoto").addEventListener("click", () => {
-    const video = $("cameraPreview");
-    if (!video.srcObject) {
-      setStatus("timerStatus", "카메라를 먼저 시작해주세요.");
-      return;
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      addCapturedBlob(blob, `captured-${Date.now()}.png`, "image/png");
-      setStatus("timerStatus", "사진이 추가되었습니다.");
-    }, "image/png");
-  });
-
-  $("startVideoRec").addEventListener("click", () => {
-    if (!processMediaState.stream) {
-      setStatus("timerStatus", "카메라를 먼저 시작해주세요.");
-      return;
-    }
-    if (typeof MediaRecorder === "undefined") {
-      setStatus("timerStatus", "이 브라우저는 영상 녹화를 지원하지 않습니다.");
-      return;
-    }
-    try {
-      processMediaState.chunks = [];
-      processMediaState.recorder = new MediaRecorder(processMediaState.stream);
-      processMediaState.recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) processMediaState.chunks.push(e.data);
-      };
-      processMediaState.recorder.onstop = () => {
-        const blob = new Blob(processMediaState.chunks, { type: "video/webm" });
-        addCapturedBlob(blob, `recorded-${Date.now()}.webm`, "video/webm");
-        setStatus("timerStatus", "영상이 추가되었습니다.");
-      };
-      processMediaState.recorder.start();
-      setStatus("timerStatus", "영상 기록을 시작했습니다.");
-    } catch (err) {
-      setStatus("timerStatus", `영상 기록 시작 실패: ${err.message}`);
-    }
-  });
-
-  $("stopVideoRec").addEventListener("click", () => {
-    if (!processMediaState.recorder) return;
-    if (processMediaState.recorder.state !== "inactive") {
-      processMediaState.recorder.stop();
-    }
   });
 };
 
@@ -2188,7 +2226,11 @@ const setupQr = () => {
   });
 
   $("downloadQrBulkTemplate").addEventListener("click", () => {
-    const csv = ["text,filename,size", "https://tools.mytory.net,example-1,800", "HELLO QR,example-2,600"].join("\n");
+    const csv = [
+      "text,filename,size,margin,fg,bg,transparent,format",
+      "https://tools.mytory.net,example-1,800,40,#000000,#ffffff,false,png",
+      "HELLO QR,example-2,600,20,#1f4f8f,#ffffff,false,webp",
+    ].join("\n");
     downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), "qr-bulk-template.csv");
     setStatus("qrStatus", "CSV 양식을 다운로드했습니다.");
   });
@@ -2213,11 +2255,26 @@ const setupQr = () => {
         const text = parts[0] || "";
         const filename = (parts[1] || `qr-${i + 1}`).replace(/[\\/:*?"<>|]/g, "_");
         const rowSize = Number(parts[2] || optionsBase.size);
+        const rowMargin = Number(parts[3] || optionsBase.margin);
+        const rowFg = /^#[0-9a-fA-F]{6}$/.test(parts[4] || "") ? parts[4] : optionsBase.fg;
+        const rowBg = /^#[0-9a-fA-F]{6}$/.test(parts[5] || "") ? parts[5] : optionsBase.bg;
+        const rowTransparent = (parts[6] || "").toLowerCase() === "true" || (parts[6] || "") === "1";
+        const rowFormatRaw = (parts[7] || optionsBase.format).toLowerCase();
+        const rowFormat = ["png", "jpeg", "jpg", "webp", "svg"].includes(rowFormatRaw)
+          ? rowFormatRaw === "jpg"
+            ? "jpeg"
+            : rowFormatRaw
+          : optionsBase.format;
         if (!text) continue;
         const asset = await buildQrAsset({
           ...optionsBase,
           text,
           size: Number.isFinite(rowSize) ? Math.max(120, Math.min(2000, rowSize)) : optionsBase.size,
+          margin: Number.isFinite(rowMargin) ? Math.max(0, Math.min(200, rowMargin)) : optionsBase.margin,
+          fg: rowFg,
+          bg: rowBg,
+          transparent: rowTransparent,
+          format: rowFormat,
         });
         zip.file(`${filename}.${asset.ext}`, asset.blob);
       }
@@ -2236,6 +2293,7 @@ const init = () => {
   document.body.classList.add("home-mode");
   initOperations();
   setupThemeToggle();
+  setIconButton("backToHub", "house");
   setupNavActive();
   setupDropZones();
   setupHashStageRouter();
