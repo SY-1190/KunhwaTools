@@ -98,6 +98,86 @@ const readAsDataURL = (file) =>
     fr.readAsDataURL(file);
   });
 
+const readAsText = (file) =>
+  new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsText(file, "utf-8");
+  });
+
+const ICONS = {
+  trash3: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/></svg>`,
+  undo: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>`,
+  download: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>`,
+};
+
+const setIconButton = (id, iconKey) => {
+  const btn = $(id);
+  if (!btn || !ICONS[iconKey]) return;
+  btn.innerHTML = ICONS[iconKey];
+};
+
+const syncFilesToInput = (inputId, files) => {
+  const input = $(inputId);
+  if (!input) return;
+  const dt = new DataTransfer();
+  files.forEach((f) => dt.items.add(f));
+  input.files = dt.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+};
+
+const setupDropZones = () => {
+  const updateDropLabel = (inputId) => {
+    const input = $(inputId);
+    const nameEl = $(`${inputId}DropName`);
+    if (!input || !nameEl) return;
+    const files = [...(input.files || [])];
+    if (!files.length) {
+      nameEl.textContent = "선택된 파일 없음";
+      return;
+    }
+    if (files.length === 1) {
+      nameEl.textContent = files[0].name;
+      return;
+    }
+    nameEl.textContent = `${files[0].name} 외 ${files.length - 1}개`;
+  };
+
+  document.querySelectorAll(".drop-zone[data-file-input]").forEach((zone) => {
+    const inputId = zone.dataset.fileInput;
+    const input = $(inputId);
+    if (!input) return;
+
+    zone.addEventListener("click", () => input.click());
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      zone.classList.add("dragover");
+    });
+    zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+    zone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      zone.classList.remove("dragover");
+      const dropped = [...(e.dataTransfer?.files || [])];
+      if (!dropped.length) return;
+      const allowMultiple = input.multiple;
+      const dt = new DataTransfer();
+      if (allowMultiple) {
+        [...(input.files || [])].forEach((f) => dt.items.add(f));
+        dropped.forEach((f) => dt.items.add(f));
+      } else {
+        dt.items.add(dropped[0]);
+      }
+      input.files = dt.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      updateDropLabel(inputId);
+    });
+
+    input.addEventListener("change", () => updateDropLabel(inputId));
+    updateDropLabel(inputId);
+  });
+};
+
 const loadImageFromFile = async (file) => {
   const dataUrl = await readAsDataURL(file);
   return new Promise((resolve, reject) => {
@@ -226,6 +306,181 @@ const parseSplitGroups = (input, maxPages) => {
   });
 };
 
+const parsePageTokens = (value, maxPages) => {
+  const txt = (value || "").trim();
+  if (!txt) return Array.from({ length: maxPages }, (_, i) => i + 1);
+  const result = [];
+  txt.split(",").map((v) => v.trim()).filter(Boolean).forEach((token) => {
+    if (token.includes("-")) {
+      const [aRaw, bRaw] = token.split("-");
+      const a = Number(aRaw.trim());
+      const b = Number(bRaw.trim());
+      if (!Number.isInteger(a) || !Number.isInteger(b)) return;
+      const start = Math.min(a, b);
+      const end = Math.max(a, b);
+      for (let i = start; i <= end; i += 1) {
+        if (i >= 1 && i <= maxPages) result.push(i);
+      }
+    } else {
+      const n = Number(token);
+      if (Number.isInteger(n) && n >= 1 && n <= maxPages) result.push(n);
+    }
+  });
+  const uniq = [...new Set(result)];
+  return uniq.length ? uniq : Array.from({ length: maxPages }, (_, i) => i + 1);
+};
+
+const pdfToImageState = {
+  pages: [],
+  deletedStack: [],
+  draggingPageNo: null,
+  placeholder: null,
+};
+
+const ensurePdfToImagePlaceholder = () => {
+  if (pdfToImageState.placeholder) return pdfToImageState.placeholder;
+  const ph = document.createElement("div");
+  ph.className = "drag-placeholder";
+  pdfToImageState.placeholder = ph;
+  return ph;
+};
+
+const removePdfToImagePlaceholder = () => {
+  const ph = pdfToImageState.placeholder;
+  if (ph?.parentElement) ph.parentElement.removeChild(ph);
+};
+
+const renderPdfToImageGrid = () => {
+  const previewBox = $("pdfToImagePreview");
+  if (!previewBox) return;
+  previewBox.innerHTML = "";
+  pdfToImageState.pages.forEach((page) => {
+    const item = document.createElement("div");
+    item.className = "thumb-item";
+    item.draggable = true;
+    item.dataset.page = String(page.pageNo);
+    item.innerHTML = `<button class="thumb-delete" type="button" title="페이지 제외" aria-label="페이지 제외">${ICONS.trash3}</button><div class="thumb-label">p.${page.pageNo}</div>`;
+    const img = document.createElement("img");
+    img.src = page.thumbDataUrl;
+    img.alt = `page-${page.pageNo}`;
+    img.draggable = false;
+    img.style.width = "100%";
+    img.style.border = "1px solid #d4e2f1";
+    img.style.borderRadius = "6px";
+    item.prepend(img);
+    previewBox.appendChild(item);
+  });
+};
+
+const getPdfToImageDragAfterElement = (container, x, y) => {
+  const items = [...container.querySelectorAll(".thumb-item:not(.dragging)")];
+  return items.reduce(
+    (closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - (box.top + box.height / 2) + (x - (box.left + box.width / 2)) * 0.08;
+      if (offset < 0 && offset > closest.offset) return { offset, element: child };
+      return closest;
+    },
+    { offset: Number.NEGATIVE_INFINITY, element: null }
+  ).element;
+};
+
+const applyPdfToImageDrop = () => {
+  const grid = $("pdfToImagePreview");
+  const ph = pdfToImageState.placeholder;
+  if (!grid || !ph?.parentElement || !pdfToImageState.draggingPageNo) return;
+  const nextThumb = ph.nextElementSibling?.closest?.(".thumb-item");
+  const moving = pdfToImageState.pages.find((p) => p.pageNo === pdfToImageState.draggingPageNo);
+  if (!moving) return;
+  const filtered = pdfToImageState.pages.filter((p) => p.pageNo !== moving.pageNo);
+  if (nextThumb) {
+    const nextNo = Number(nextThumb.dataset.page);
+    const idx = filtered.findIndex((p) => p.pageNo === nextNo);
+    if (idx >= 0) filtered.splice(idx, 0, moving);
+    else filtered.push(moving);
+  } else {
+    filtered.push(moving);
+  }
+  pdfToImageState.pages = filtered;
+  renderPdfToImageGrid();
+};
+
+const setupPdfToImagePreviewDnD = () => {
+  const grid = $("pdfToImagePreview");
+  if (!grid) return;
+  grid.addEventListener("dragstart", (e) => {
+    const item = e.target.closest(".thumb-item");
+    if (!item) return;
+    pdfToImageState.draggingPageNo = Number(item.dataset.page);
+    item.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+  });
+  grid.addEventListener("dragend", () => {
+    pdfToImageState.draggingPageNo = null;
+    removePdfToImagePlaceholder();
+    grid.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
+  });
+  grid.addEventListener("dragover", (e) => {
+    if (!pdfToImageState.draggingPageNo) return;
+    e.preventDefault();
+    const placeholder = ensurePdfToImagePlaceholder();
+    const after = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
+    if (!after) grid.appendChild(placeholder);
+    else grid.insertBefore(placeholder, after);
+  });
+  grid.addEventListener("drop", (e) => {
+    if (!pdfToImageState.draggingPageNo) return;
+    e.preventDefault();
+    applyPdfToImageDrop();
+    removePdfToImagePlaceholder();
+  });
+  grid.addEventListener("click", (e) => {
+    const del = e.target.closest(".thumb-delete");
+    if (!del) return;
+    const item = e.target.closest(".thumb-item");
+    if (!item) return;
+    const pageNo = Number(item.dataset.page);
+    const idx = pdfToImageState.pages.findIndex((p) => p.pageNo === pageNo);
+    if (idx < 0) return;
+    const removed = pdfToImageState.pages[idx];
+    pdfToImageState.deletedStack.push({ page: removed, index: idx });
+    pdfToImageState.pages.splice(idx, 1);
+    renderPdfToImageGrid();
+    setStatus("pdfToImageStatus", `페이지 ${pageNo}가 제외되었습니다.`);
+  });
+};
+
+const renderPdfToImagePreview = async (file) => {
+  const previewBox = $("pdfToImagePreview");
+  if (!previewBox) return;
+  previewBox.innerHTML = "";
+  pdfToImageState.pages = [];
+  pdfToImageState.deletedStack = [];
+  if (!file) return;
+  try {
+    const buffer = await readAsArrayBuffer(file);
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    for (let i = 1; i <= pdf.numPages; i += 1) {
+      const page = await pdf.getPage(i);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = 130 / baseViewport.width;
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      pdfToImageState.pages.push({ pageNo: i, thumbDataUrl: canvas.toDataURL("image/png") });
+    }
+    renderPdfToImageGrid();
+    setStatus("pdfToImageStatus", `미리보기 완료: ${pdf.numPages}페이지`);
+  } catch (err) {
+    const note = document.createElement("div");
+    note.className = "thumb-label";
+    note.textContent = `미리보기 오류: ${err.message}`;
+    previewBox.appendChild(note);
+  }
+};
+
 const buildNav = () => {
   const cards = [...document.querySelectorAll(".tool-card")];
   $("toolNav").innerHTML = cards
@@ -242,7 +497,9 @@ const setupThemeToggle = () => {
   const key = "kunhwa-tools-theme";
   const setThemeButtonLabel = () => {
     const isDark = document.body.classList.contains("dark");
-    button.textContent = isDark ? "🌙 다크 모드" : "☀ 화이트 모드";
+    button.textContent = isDark ? "🌙" : "☀";
+    button.setAttribute("aria-label", isDark ? "다크 모드" : "화이트 모드");
+    button.title = isDark ? "다크 모드" : "화이트 모드";
   };
   const saved = localStorage.getItem(key);
   if (saved === "dark") document.body.classList.add("dark");
@@ -260,6 +517,75 @@ const setupNavActive = () => {
   document.querySelectorAll(".tool-nav a[data-page]").forEach((link) => {
     link.classList.toggle("active", link.dataset.page === page);
   });
+};
+
+const setupHashStageRouter = () => {
+  const hub = $("quickHub");
+  const stageBar = $("stageBar");
+  const stageTitle = $("stageTitleText");
+  const stageMenu = $("stageMenuScroll");
+  const stages = [...document.querySelectorAll(".tool-stage")];
+  const validIds = new Set(stages.map((s) => s.id));
+  if (!hub || !stageBar || !stageTitle || !stages.length) return;
+
+  const setMenuActive = (id) => {
+    if (!stageMenu) return;
+    const chips = [...stageMenu.querySelectorAll(".stage-chip[data-stage-target]")];
+    chips.forEach((chip) => chip.classList.toggle("active", chip.dataset.stageTarget === id));
+    const active = chips.find((chip) => chip.dataset.stageTarget === id);
+    active?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  };
+
+  const setHome = (replaceHash = true) => {
+    document.body.classList.remove("stage-mode");
+    document.body.classList.add("home-mode");
+    hub.classList.remove("hidden");
+    stageBar.classList.add("hidden");
+    stages.forEach((s) => s.classList.remove("active-stage"));
+    setMenuActive("");
+    if (replaceHash) history.replaceState(null, "", "#");
+  };
+
+  const setStage = (id, replaceHash = true) => {
+    const target = stages.find((s) => s.id === id);
+    if (!target) {
+      setHome(replaceHash);
+      return;
+    }
+    document.body.classList.remove("home-mode");
+    document.body.classList.add("stage-mode");
+    hub.classList.add("hidden");
+    stageBar.classList.remove("hidden");
+    stages.forEach((s) => s.classList.toggle("active-stage", s.id === id));
+    setMenuActive(id);
+    stageTitle.textContent = target.querySelector("h2")?.textContent || id;
+    if (replaceHash) history.replaceState(null, "", `#${id}`);
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  $("backToHub")?.addEventListener("click", () => setHome());
+
+  document.querySelectorAll("a[href^='#']").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      const id = (link.getAttribute("href") || "").replace("#", "").trim();
+      if (!id) return;
+      if (!validIds.has(id)) return;
+      e.preventDefault();
+      setStage(id);
+    });
+  });
+
+  const applyFromHash = () => {
+    const hash = (window.location.hash || "").replace("#", "").trim();
+    if (!hash || !validIds.has(hash)) {
+      setHome(false);
+      return;
+    }
+    setStage(hash, false);
+  };
+
+  window.addEventListener("hashchange", applyFromHash);
+  applyFromHash();
 };
 
 const setupStageRouter = () => {
@@ -323,10 +649,38 @@ const setupStageRouter = () => {
 
 const setupPdfToImage = () => {
   if (!$("runPdfToImage")) return;
+  setIconButton("undoPdfToImageDelete", "undo");
+  setIconButton("runPdfToImageFromPreview", "download");
+  setupPdfToImagePreviewDnD();
+
+  $("pdfToImageFile").addEventListener("change", () => {
+    const file = $("pdfToImageFile").files[0];
+    setStatus("pdfToImageStatus", file ? "PDF를 읽는 중..." : "");
+    renderPdfToImagePreview(file);
+  });
+
+  $("undoPdfToImageDelete")?.addEventListener("click", () => {
+    const last = pdfToImageState.deletedStack.pop();
+    if (!last) {
+      setStatus("pdfToImageStatus", "되돌릴 삭제 내역이 없습니다.");
+      return;
+    }
+    const insertAt = Math.max(0, Math.min(last.index, pdfToImageState.pages.length));
+    pdfToImageState.pages.splice(insertAt, 0, last.page);
+    renderPdfToImageGrid();
+    setStatus("pdfToImageStatus", `페이지 ${last.page.pageNo} 복원 완료`);
+  });
+
+  $("runPdfToImageFromPreview")?.addEventListener("click", () => {
+    $("runPdfToImage").click();
+  });
+
   $("runPdfToImage").addEventListener("click", async () => {
     const file = $("pdfToImageFile").files[0];
     const format = $("pdfToImageFormat").value;
-    const scale = Number($("pdfToImageScale").value);
+    const dpi = Number($("pdfToImageDpi").value || 200);
+    const quality = Math.min(1, Math.max(0.01, Number($("pdfToImageQuality").value || 80) / 100));
+    const scale = Math.max(1, dpi / 96);
     if (!file) {
       setStatus("pdfToImageStatus", "PDF 파일을 선택해주세요.");
       return;
@@ -337,12 +691,22 @@ const setupPdfToImage = () => {
       const buffer = await readAsArrayBuffer(file);
       checkCancelled("pdfToImage");
       const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      const selectedPages = parsePageTokens($("pdfToImagePages").value, pdf.numPages);
+      const ordered = pdfToImageState.pages.length
+        ? pdfToImageState.pages.map((p) => p.pageNo)
+        : Array.from({ length: pdf.numPages }, (_, i) => i + 1);
+      const selectedSet = new Set(selectedPages);
+      const finalPages = ordered.filter((n) => selectedSet.has(n));
+      if (!finalPages.length) {
+        throw new Error("변환할 페이지가 없습니다. 페이지 필터/삭제 상태를 확인해주세요.");
+      }
       const zip = new JSZip();
 
-      for (let i = 1; i <= pdf.numPages; i += 1) {
+      for (let i = 0; i < finalPages.length; i += 1) {
         checkCancelled("pdfToImage");
-        setStatus("pdfToImageStatus", `페이지 변환 중 (${i}/${pdf.numPages})`);
-        const page = await pdf.getPage(i);
+        const pageNo = finalPages[i];
+        setStatus("pdfToImageStatus", `페이지 변환 중 (${i + 1}/${finalPages.length})`);
+        const page = await pdf.getPage(pageNo);
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");
         canvas.width = viewport.width;
@@ -351,25 +715,229 @@ const setupPdfToImage = () => {
           canvasContext: canvas.getContext("2d"),
           viewport,
         }).promise;
-        const mime = format === "png" ? "image/png" : "image/jpeg";
-        const base64 = canvas.toDataURL(mime, 0.95).split(",")[1];
-        zip.file(`page-${i}.${format === "png" ? "png" : "jpg"}`, base64, { base64: true });
-        updateProgress("pdfToImage", i, pdf.numPages);
+        const mime = format === "png" ? "image/png" : format === "webp" ? "image/webp" : "image/jpeg";
+        const dataUrl = canvas.toDataURL(mime, quality);
+        const realMime = dataUrl.startsWith("data:image/png") && mime !== "image/png" ? "image/png" : mime;
+        const ext = realMime === "image/jpeg" ? "jpg" : realMime === "image/webp" ? "webp" : "png";
+        const base64 = dataUrl.split(",")[1];
+        zip.file(`page-${pageNo}.${ext}`, base64, { base64: true });
+        updateProgress("pdfToImage", i + 1, finalPages.length);
       }
 
       checkCancelled("pdfToImage");
       const blob = await zip.generateAsync({ type: "blob" });
       downloadBlob(blob, "pdf-to-images.zip");
       updateProgress("pdfToImage", 100, 100);
-      endOperation("pdfToImage", `완료: ${pdf.numPages}페이지 (${formatBytes(blob.size)})`);
+      endOperation("pdfToImage", `완료: ${finalPages.length}페이지 (${formatBytes(blob.size)})`);
     } catch (err) {
       handleOperationError("pdfToImage", err);
     }
   });
 };
 
+const toolFileState = {
+  imageToPdf: [],
+  mergePdf: [],
+  resize: [],
+  format: [],
+};
+
+const loadThumbFromImageFile = async (file, maxSize = 130) => {
+  const { img } = await loadImageFromFile(file);
+  const ratio = img.width / img.height;
+  const width = ratio >= 1 ? maxSize : Math.round(maxSize * ratio);
+  const height = ratio >= 1 ? Math.round(maxSize / ratio) : maxSize;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+  return canvas.toDataURL("image/png");
+};
+
+const loadPdfFrontThumb = async (file, maxWidth = 130) => {
+  const buffer = await readAsArrayBuffer(file);
+  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const page = await pdf.getPage(1);
+  const base = page.getViewport({ scale: 1 });
+  const scale = maxWidth / base.width;
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  return canvas.toDataURL("image/png");
+};
+
+const removeFileAtIndex = (stateKey, inputId, index) => {
+  const files = toolFileState[stateKey];
+  if (!files?.length) return;
+  files.splice(index, 1);
+  syncFilesToInput(inputId, files);
+};
+
+const renderImageThumbPreview = async (previewId, stateKey, inputId, reorderable = false) => {
+  const grid = $(previewId);
+  if (!grid) return;
+  grid.innerHTML = "";
+  const files = toolFileState[stateKey];
+  if (!files.length) return;
+  for (let i = 0; i < files.length; i += 1) {
+    const item = document.createElement("div");
+    item.className = "thumb-item";
+    item.draggable = reorderable;
+    item.dataset.idx = String(i);
+    item.innerHTML = `<button class="thumb-delete" type="button" title="파일 제거" aria-label="파일 제거">${ICONS.trash3}</button><div class="thumb-label">${files[i].name}</div>`;
+    try {
+      const dataUrl = await loadThumbFromImageFile(files[i]);
+      const img = document.createElement("img");
+      img.src = dataUrl;
+      img.alt = files[i].name;
+      img.draggable = false;
+      img.style.width = "100%";
+      img.style.border = "1px solid #d4e2f1";
+      img.style.borderRadius = "6px";
+      item.prepend(img);
+    } catch {
+      const stub = document.createElement("div");
+      stub.className = "thumb-label";
+      stub.textContent = "미리보기 불가";
+      item.prepend(stub);
+    }
+    grid.appendChild(item);
+  }
+  grid.onclick = (e) => {
+    const del = e.target.closest(".thumb-delete");
+    if (!del) return;
+    const cell = e.target.closest(".thumb-item");
+    if (!cell) return;
+    removeFileAtIndex(stateKey, inputId, Number(cell.dataset.idx));
+  };
+  if (!reorderable) return;
+  let dragIdx = -1;
+  const placeholder = document.createElement("div");
+  placeholder.className = "drag-placeholder";
+  grid.ondragstart = (e) => {
+    const cell = e.target.closest(".thumb-item");
+    if (!cell) return;
+    dragIdx = Number(cell.dataset.idx);
+    cell.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+  };
+  grid.ondragend = () => {
+    dragIdx = -1;
+    if (placeholder.parentElement) placeholder.parentElement.removeChild(placeholder);
+    grid.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
+  };
+  grid.ondragover = (e) => {
+    if (dragIdx < 0) return;
+    e.preventDefault();
+    const after = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
+    if (!after) grid.appendChild(placeholder);
+    else grid.insertBefore(placeholder, after);
+  };
+  grid.ondrop = (e) => {
+    if (dragIdx < 0) return;
+    e.preventDefault();
+    const moving = toolFileState[stateKey][dragIdx];
+    const filtered = toolFileState[stateKey].filter((_, i) => i !== dragIdx);
+    const next = placeholder.nextElementSibling?.closest?.(".thumb-item");
+    if (next) {
+      const nextIdx = Number(next.dataset.idx);
+      filtered.splice(nextIdx, 0, moving);
+    } else {
+      filtered.push(moving);
+    }
+    toolFileState[stateKey] = filtered;
+    syncFilesToInput(inputId, filtered);
+  };
+};
+
+const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
+  const grid = $(previewId);
+  if (!grid) return;
+  grid.innerHTML = "";
+  const files = toolFileState[stateKey];
+  if (!files.length) return;
+  for (let idx = 0; idx < files.length; idx += 1) {
+    const file = files[idx];
+    const item = document.createElement("div");
+    item.className = "thumb-item";
+    item.draggable = true;
+    item.dataset.idx = String(idx);
+    item.innerHTML = `<button class="thumb-delete" type="button" title="파일 제거" aria-label="파일 제거">${ICONS.trash3}</button><div class="thumb-label">${idx + 1}. ${file.name}</div>`;
+    try {
+      const thumb = await loadPdfFrontThumb(file, 130);
+      const img = document.createElement("img");
+      img.src = thumb;
+      img.alt = `${file.name} first page`;
+      img.draggable = false;
+      img.style.width = "100%";
+      img.style.border = "1px solid #d4e2f1";
+      img.style.borderRadius = "6px";
+      item.prepend(img);
+    } catch {
+      const stub = document.createElement("div");
+      stub.className = "thumb-label";
+      stub.textContent = "미리보기 불가";
+      item.prepend(stub);
+    }
+    grid.appendChild(item);
+  }
+  grid.onclick = (e) => {
+    const del = e.target.closest(".thumb-delete");
+    if (!del) return;
+    const cell = e.target.closest(".thumb-item");
+    if (!cell) return;
+    removeFileAtIndex(stateKey, inputId, Number(cell.dataset.idx));
+  };
+  let dragIdx = -1;
+  const placeholder = document.createElement("div");
+  placeholder.className = "drag-placeholder";
+  grid.ondragstart = (e) => {
+    const cell = e.target.closest(".thumb-item");
+    if (!cell) return;
+    dragIdx = Number(cell.dataset.idx);
+    cell.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+  };
+  grid.ondragend = () => {
+    dragIdx = -1;
+    if (placeholder.parentElement) placeholder.parentElement.removeChild(placeholder);
+    grid.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
+  };
+  grid.ondragover = (e) => {
+    if (dragIdx < 0) return;
+    e.preventDefault();
+    const after = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
+    if (!after) grid.appendChild(placeholder);
+    else grid.insertBefore(placeholder, after);
+  };
+  grid.ondrop = (e) => {
+    if (dragIdx < 0) return;
+    e.preventDefault();
+    const moving = toolFileState[stateKey][dragIdx];
+    const filtered = toolFileState[stateKey].filter((_, i) => i !== dragIdx);
+    const next = placeholder.nextElementSibling?.closest?.(".thumb-item");
+    if (next) {
+      const nextIdx = Number(next.dataset.idx);
+      filtered.splice(nextIdx, 0, moving);
+    } else {
+      filtered.push(moving);
+    }
+    toolFileState[stateKey] = filtered;
+    syncFilesToInput(inputId, filtered);
+  };
+};
+
 const setupImageToPdf = () => {
   if (!$("runImageToPdf")) return;
+  setIconButton("runImageToPdfFromPreview", "download");
+  $("imageToPdfFiles")?.addEventListener("change", async () => {
+    toolFileState.imageToPdf = [...$("imageToPdfFiles").files];
+    await renderImageThumbPreview("imageToPdfPreview", "imageToPdf", "imageToPdfFiles", true);
+  });
+  $("runImageToPdfFromPreview")?.addEventListener("click", () => $("runImageToPdf").click());
+
   $("runImageToPdf").addEventListener("click", async () => {
     const files = [...$("imageToPdfFiles").files];
     if (!files.length) {
@@ -421,161 +989,412 @@ const setupImageToPdf = () => {
 };
 
 const arrangeState = {
-  pageOrder: [],
-  renderDoc: null,
   file: null,
-  splitSelectMode: false,
-  splitBlocks: [],
+  pages: [],
+  deletedStack: [],
+  reorderOrder: [],
+  splitBuckets: [],
+  nextBucketId: 1,
+  selection: {
+    source: new Set(),
+    reorder: new Set(),
+  },
+  anchorIndex: {
+    source: null,
+    reorder: null,
+  },
+  dragCtx: null,
+  placeholder: null,
 };
 
-const getThumbItems = () => [...$("pdfThumbGrid").querySelectorAll(".thumb-item")];
-
-const clearThumbSelection = () => {
-  getThumbItems().forEach((el) => el.classList.remove("selected-range"));
+const ensureArrangePlaceholder = () => {
+  if (arrangeState.placeholder) return arrangeState.placeholder;
+  const ph = document.createElement("div");
+  ph.className = "drag-placeholder";
+  arrangeState.placeholder = ph;
+  return ph;
 };
 
-const refreshArrangeOrderText = () => {
-  const order = getThumbItems().map((el) => Number(el.dataset.page));
-  arrangeState.pageOrder = order;
-  $("arrangeOrderText").textContent = order.length ? order.join(", ") : "-";
+const getArrangePageByNo = (pageNo) => arrangeState.pages.find((p) => p.pageNo === pageNo);
+const isPageDeleted = (pageNo) => !!getArrangePageByNo(pageNo)?.deleted;
+const getAvailablePageNos = () =>
+  arrangeState.pages.filter((p) => !p.deleted).map((p) => p.pageNo);
+
+const cleanArrangeState = () => {
+  const available = new Set(getAvailablePageNos());
+  arrangeState.reorderOrder = arrangeState.reorderOrder.filter((n) => available.has(n));
+  arrangeState.splitBuckets.forEach((bucket) => {
+    bucket.pages = bucket.pages.filter((n) => available.has(n));
+  });
+  arrangeState.selection.source = new Set(
+    [...arrangeState.selection.source].filter((n) => available.has(n))
+  );
+  arrangeState.selection.reorder = new Set(
+    [...arrangeState.selection.reorder].filter((n) => available.has(n))
+  );
 };
 
-const renderSplitBlocks = () => {
-  const box = $("splitBlocksList");
-  if (!arrangeState.splitBlocks.length) {
-    box.innerHTML = `<div class="split-block-item"><span class="block-pages">등록된 블록 없음</span></div>`;
+const updateArrangeOrderText = () => {
+  $("arrangeOrderText").textContent = arrangeState.reorderOrder.length
+    ? arrangeState.reorderOrder.join(", ")
+    : "-";
+};
+
+const createThumbNode = (pageNo, pane) => {
+  const page = getArrangePageByNo(pageNo);
+  if (!page || page.deleted) return null;
+  const item = document.createElement("div");
+  item.className = "thumb-item";
+  item.draggable = true;
+  item.dataset.page = String(pageNo);
+  item.dataset.pane = pane;
+  item.innerHTML = `<button class="thumb-delete" type="button" title="페이지 삭제" aria-label="페이지 삭제">${ICONS.trash3}</button><div class="thumb-label">p.${pageNo}</div>`;
+  const img = document.createElement("img");
+  img.src = page.thumbDataUrl;
+  img.alt = `page-${pageNo}`;
+  img.draggable = false;
+  img.style.width = "100%";
+  img.style.border = "1px solid #d4e2f1";
+  img.style.borderRadius = "6px";
+  item.prepend(img);
+  const selectedSet =
+    pane === "source"
+      ? arrangeState.selection.source
+      : pane === "reorder"
+        ? arrangeState.selection.reorder
+        : null;
+  if (selectedSet?.has(pageNo)) item.classList.add("selected-range");
+  return item;
+};
+
+const renderSourceGrid = () => {
+  const grid = $("pdfThumbGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  getAvailablePageNos().forEach((pageNo) => {
+    const node = createThumbNode(pageNo, "source");
+    if (node) grid.appendChild(node);
+  });
+};
+
+const renderReorderGrid = () => {
+  const grid = $("reorderThumbGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  arrangeState.reorderOrder.forEach((pageNo) => {
+    if (isPageDeleted(pageNo)) return;
+    const node = createThumbNode(pageNo, "reorder");
+    if (node) grid.appendChild(node);
+  });
+  updateArrangeOrderText();
+};
+
+const renderSplitBuckets = () => {
+  const wrap = $("splitBucketWrap");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  arrangeState.splitBuckets.forEach((bucket, idx) => {
+    const panel = document.createElement("div");
+    panel.className = "split-bucket";
+    panel.dataset.bucketId = String(bucket.id);
+    panel.innerHTML = `
+      <div class="split-bucket-head">
+        <span class="split-bucket-title">분할 ${idx + 1}</span>
+        <div class="split-bucket-actions">
+          <button type="button" data-bucket-action="clear">비우기</button>
+          <button type="button" data-bucket-action="remove">삭제</button>
+        </div>
+      </div>
+      <div class="thumb-grid split-bucket-grid drop-target-grid" data-bucket-grid="${bucket.id}"></div>
+    `;
+    const grid = panel.querySelector(".split-bucket-grid");
+    bucket.pages.forEach((pageNo) => {
+      if (isPageDeleted(pageNo)) return;
+      const node = createThumbNode(pageNo, "split");
+      if (node) {
+        node.dataset.bucketId = String(bucket.id);
+        grid.appendChild(node);
+      }
+    });
+    wrap.appendChild(panel);
+  });
+  if (!arrangeState.splitBuckets.length) {
+    wrap.innerHTML = `<div class="split-bucket"><div class="split-bucket-title">분할 박스가 없습니다. "분할 박스 추가"를 눌러주세요.</div></div>`;
+  }
+};
+
+const rerenderArrangeWorkspace = () => {
+  cleanArrangeState();
+  renderSourceGrid();
+  renderReorderGrid();
+  renderSplitBuckets();
+};
+
+const removeArrangePage = (pageNo) => {
+  const page = getArrangePageByNo(pageNo);
+  if (!page) return;
+  const idx = arrangeState.pages.findIndex((p) => p.pageNo === pageNo);
+  if (idx >= 0) {
+    arrangeState.deletedStack.push({
+      pageNo,
+      pageSnapshot: { ...arrangeState.pages[idx] },
+      sourceIndex: idx,
+    });
+  }
+  page.deleted = true;
+  cleanArrangeState();
+  rerenderArrangeWorkspace();
+};
+
+const undoArrangeDelete = () => {
+  const last = arrangeState.deletedStack.pop();
+  if (!last) return null;
+  const target = getArrangePageByNo(last.pageNo);
+  if (target) {
+    target.deleted = false;
+  } else {
+    const insertAt = Math.max(0, Math.min(last.sourceIndex, arrangeState.pages.length));
+    arrangeState.pages.splice(insertAt, 0, last.pageSnapshot);
+  }
+  cleanArrangeState();
+  rerenderArrangeWorkspace();
+  return last.pageNo;
+};
+
+const setPaneSelection = (pane, selectedNos) => {
+  if (pane === "source") arrangeState.selection.source = new Set(selectedNos);
+  if (pane === "reorder") arrangeState.selection.reorder = new Set(selectedNos);
+};
+
+const applyShiftSelection = (pane, clickedPageNo, shiftKey) => {
+  const grid = pane === "source" ? $("pdfThumbGrid") : $("reorderThumbGrid");
+  if (!grid) return;
+  const items = [...grid.querySelectorAll(".thumb-item")];
+  const indexMap = items.map((el) => Number(el.dataset.page));
+  const clickedIndex = indexMap.indexOf(clickedPageNo);
+  if (clickedIndex < 0) return;
+  if (!shiftKey || arrangeState.anchorIndex[pane] === null) {
+    arrangeState.anchorIndex[pane] = clickedIndex;
+    setPaneSelection(pane, [clickedPageNo]);
+    rerenderArrangeWorkspace();
     return;
   }
-  box.innerHTML = arrangeState.splitBlocks
-    .map(
-      (block, idx) => `
-        <div class="split-block-item" data-block-index="${idx}">
-          <span class="block-pages">블록 ${idx + 1}: ${block.join(", ")}</span>
-          <button class="remove-block" data-block-index="${idx}" type="button">삭제</button>
-        </div>
-      `
-    )
-    .join("");
+  const start = Math.min(arrangeState.anchorIndex[pane], clickedIndex);
+  const end = Math.max(arrangeState.anchorIndex[pane], clickedIndex);
+  setPaneSelection(pane, indexMap.slice(start, end + 1));
+  rerenderArrangeWorkspace();
 };
 
-const setSplitSelectionMode = (enabled) => {
-  arrangeState.splitSelectMode = enabled;
-  $("toggleSplitSelectMode").textContent = `분할 선택 모드: ${enabled ? "ON" : "OFF"}`;
-  getThumbItems().forEach((item) => {
-    item.draggable = !enabled;
-  });
-  if (!enabled) clearThumbSelection();
+const getDragAfterElement = (container, x, y) => {
+  const items = [...container.querySelectorAll(".thumb-item:not(.dragging)")];
+  return items.reduce(
+    (closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - (box.top + box.height / 2) + (x - (box.left + box.width / 2)) * 0.08;
+      if (offset < 0 && offset > closest.offset) return { offset, element: child };
+      return closest;
+    },
+    { offset: Number.NEGATIVE_INFINITY, element: null }
+  ).element;
 };
 
-const applyRangeSelection = (aIdx, bIdx) => {
-  const items = getThumbItems();
-  const start = Math.min(aIdx, bIdx);
-  const end = Math.max(aIdx, bIdx);
-  items.forEach((item, idx) => {
-    item.classList.toggle("selected-range", idx >= start && idx <= end);
-  });
+const placePlaceholderInGrid = (grid, x, y) => {
+  const placeholder = ensureArrangePlaceholder();
+  const afterEl = getDragAfterElement(grid, x, y);
+  if (!afterEl) grid.appendChild(placeholder);
+  else grid.insertBefore(placeholder, afterEl);
 };
 
-const setupThumbDnD = () => {
-  const grid = $("pdfThumbGrid");
-  let dragging = null;
-  let selecting = false;
-  let anchorIndex = -1;
+const removePlaceholder = () => {
+  const ph = arrangeState.placeholder;
+  if (ph && ph.parentElement) ph.parentElement.removeChild(ph);
+};
 
-  const getDragAfterElement = (container, x, y) => {
-    const items = [...container.querySelectorAll(".thumb-item:not(.dragging)")];
-    return items.reduce(
-      (closest, child) => {
-        const box = child.getBoundingClientRect();
-        const centerY = box.top + box.height / 2;
-        const centerX = box.left + box.width / 2;
-        const offset = y - centerY + (x - centerX) * 0.1;
-        if (offset < 0 && offset > closest.offset) return { offset, element: child };
-        return closest;
-      },
-      { offset: Number.NEGATIVE_INFINITY, element: null }
-    ).element;
+const setupArrangeDnD = () => {
+  const sourceGrid = $("pdfThumbGrid");
+  const reorderGrid = $("reorderThumbGrid");
+  const splitWrap = $("splitBucketWrap");
+  if (!sourceGrid || !reorderGrid || !splitWrap) return;
+
+  const onThumbClick = (e) => {
+    const item = e.target.closest(".thumb-item");
+    if (!item) return;
+    if (e.target.closest(".thumb-delete")) return;
+    const pane = item.dataset.pane;
+    const pageNo = Number(item.dataset.page);
+    if (pane === "source" || pane === "reorder") {
+      applyShiftSelection(pane, pageNo, e.shiftKey);
+    }
   };
 
-  grid.addEventListener("dragstart", (e) => {
-    if (arrangeState.splitSelectMode) {
-      e.preventDefault();
-      return;
-    }
+  const onDeleteClick = (e) => {
+    const btn = e.target.closest(".thumb-delete");
+    if (!btn) return;
     const item = e.target.closest(".thumb-item");
     if (!item) return;
-    dragging = item;
+    const pageNo = Number(item.dataset.page);
+    removeArrangePage(pageNo);
+    setStatus("arrangePdfStatus", `페이지 ${pageNo} 삭제됨`);
+  };
+
+  const handleDragStart = (e) => {
+    const item = e.target.closest(".thumb-item");
+    if (!item) return;
+    const pane = item.dataset.pane;
+    const pageNo = Number(item.dataset.page);
+    if (pane === "source" && !arrangeState.selection.source.has(pageNo)) {
+      setPaneSelection("source", [pageNo]);
+    }
+    if (pane === "reorder" && !arrangeState.selection.reorder.has(pageNo)) {
+      setPaneSelection("reorder", [pageNo]);
+    }
+
+    document.querySelectorAll("#pdfThumbGrid .thumb-item, #reorderThumbGrid .thumb-item").forEach((el) => {
+      const elPane = el.dataset.pane;
+      const elPage = Number(el.dataset.page);
+      const selected =
+        (elPane === "source" && arrangeState.selection.source.has(elPage)) ||
+        (elPane === "reorder" && arrangeState.selection.reorder.has(elPage));
+      el.classList.toggle("selected-range", selected);
+    });
+
+    const selected =
+      pane === "source"
+        ? [...arrangeState.selection.source]
+        : pane === "reorder"
+          ? [...arrangeState.selection.reorder]
+          : [pageNo];
+    arrangeState.dragCtx = { pane, pageNos: selected, bucketId: item.dataset.bucketId || null };
     item.classList.add("dragging");
     e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    removePlaceholder();
+    arrangeState.dragCtx = null;
+    document.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
+  };
+
+  const applyDropToReorder = () => {
+    const ph = arrangeState.placeholder;
+    const ctx = arrangeState.dragCtx;
+    if (!ctx || !ph || !ph.parentElement) return;
+    const moving = ctx.pageNos.filter((n) => !isPageDeleted(n));
+    if (!moving.length) return;
+    const filtered = arrangeState.reorderOrder.filter((n) => !moving.includes(n));
+    const nextThumb = ph.nextElementSibling?.closest?.(".thumb-item");
+    if (nextThumb) {
+      const nextPage = Number(nextThumb.dataset.page);
+      const idx = filtered.indexOf(nextPage);
+      if (idx >= 0) filtered.splice(idx, 0, ...moving);
+      else filtered.push(...moving);
+    } else {
+      filtered.push(...moving);
+    }
+    arrangeState.reorderOrder = filtered;
+    rerenderArrangeWorkspace();
+  };
+
+  const applyDropToSplitBucket = (bucketId) => {
+    const ctx = arrangeState.dragCtx;
+    const ph = arrangeState.placeholder;
+    if (!ctx || !ph || !ph.parentElement) return;
+    const bucket = arrangeState.splitBuckets.find((b) => b.id === bucketId);
+    if (!bucket) return;
+    const moving = ctx.pageNos.filter((n) => !isPageDeleted(n));
+    if (!moving.length) return;
+    const filtered = bucket.pages.filter((n) => !moving.includes(n));
+    const nextThumb = ph.nextElementSibling?.closest?.(".thumb-item");
+    if (nextThumb) {
+      const nextPage = Number(nextThumb.dataset.page);
+      const idx = filtered.indexOf(nextPage);
+      if (idx >= 0) filtered.splice(idx, 0, ...moving);
+      else filtered.push(...moving);
+    } else {
+      filtered.push(...moving);
+    }
+    bucket.pages = [...new Set(filtered)];
+    rerenderArrangeWorkspace();
+  };
+
+  [sourceGrid, reorderGrid].forEach((grid) => {
+    grid.addEventListener("click", onThumbClick);
+    grid.addEventListener("click", onDeleteClick);
+    grid.addEventListener("dragstart", handleDragStart);
+    grid.addEventListener("dragend", handleDragEnd);
   });
 
-  grid.addEventListener("dragover", (e) => {
-    if (!dragging || arrangeState.splitSelectMode) return;
+  reorderGrid.addEventListener("dragover", (e) => {
+    if (!arrangeState.dragCtx) return;
     e.preventDefault();
-    const afterElement = getDragAfterElement(grid, e.clientX, e.clientY);
-    if (afterElement == null) grid.appendChild(dragging);
-    else grid.insertBefore(dragging, afterElement);
+    placePlaceholderInGrid(reorderGrid, e.clientX, e.clientY);
   });
-
-  grid.addEventListener("drop", (e) => {
-    if (!dragging || arrangeState.splitSelectMode) return;
+  reorderGrid.addEventListener("drop", (e) => {
+    if (!arrangeState.dragCtx) return;
     e.preventDefault();
-    refreshArrangeOrderText();
+    applyDropToReorder();
+    removePlaceholder();
   });
 
-  grid.addEventListener("dragend", () => {
-    if (!dragging) return;
-    dragging.classList.remove("dragging");
-    dragging = null;
-    refreshArrangeOrderText();
+  splitWrap.addEventListener("click", (e) => {
+    const actionBtn = e.target.closest("[data-bucket-action]");
+    if (!actionBtn) return;
+    const bucketEl = e.target.closest(".split-bucket");
+    if (!bucketEl) return;
+    const bucketId = Number(bucketEl.dataset.bucketId);
+    const bucket = arrangeState.splitBuckets.find((b) => b.id === bucketId);
+    if (!bucket) return;
+    const action = actionBtn.dataset.bucketAction;
+    if (action === "clear") {
+      bucket.pages = [];
+    } else if (action === "remove") {
+      arrangeState.splitBuckets = arrangeState.splitBuckets.filter((b) => b.id !== bucketId);
+    }
+    rerenderArrangeWorkspace();
   });
 
-  grid.addEventListener("mousedown", (e) => {
-    if (!arrangeState.splitSelectMode) return;
-    const item = e.target.closest(".thumb-item");
-    if (!item) return;
-    const idx = getThumbItems().indexOf(item);
-    if (idx < 0) return;
-    selecting = true;
-    anchorIndex = idx;
-    applyRangeSelection(anchorIndex, idx);
+  splitWrap.addEventListener("click", onDeleteClick);
+  splitWrap.addEventListener("dragstart", handleDragStart);
+  splitWrap.addEventListener("dragend", handleDragEnd);
+  splitWrap.addEventListener("dragover", (e) => {
+    const grid = e.target.closest(".split-bucket-grid");
+    if (!arrangeState.dragCtx || !grid) return;
+    e.preventDefault();
+    placePlaceholderInGrid(grid, e.clientX, e.clientY);
   });
-
-  grid.addEventListener("mouseover", (e) => {
-    if (!arrangeState.splitSelectMode || !selecting) return;
-    const item = e.target.closest(".thumb-item");
-    if (!item) return;
-    const idx = getThumbItems().indexOf(item);
-    if (idx < 0) return;
-    applyRangeSelection(anchorIndex, idx);
-  });
-
-  document.addEventListener("mouseup", () => {
-    selecting = false;
+  splitWrap.addEventListener("drop", (e) => {
+    const grid = e.target.closest(".split-bucket-grid");
+    if (!arrangeState.dragCtx || !grid) return;
+    e.preventDefault();
+    const bucketId = Number(grid.dataset.bucketGrid);
+    applyDropToSplitBucket(bucketId);
+    removePlaceholder();
   });
 };
 
 const renderArrangeThumbs = async (file) => {
-  startOperation("arrange", "썸네일 렌더링 준비 중...");
+  startOperation("arrange", "썸네일 자동 불러오는 중...");
   try {
-    const grid = $("pdfThumbGrid");
-    grid.innerHTML = "";
     const buffer = await readAsArrayBuffer(file);
     checkCancelled("arrange");
     const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-    arrangeState.renderDoc = pdf;
     arrangeState.file = file;
-    arrangeState.pageOrder = [];
-    arrangeState.splitBlocks = [];
-    renderSplitBlocks();
-    setSplitSelectionMode(false);
+    arrangeState.pages = [];
+    arrangeState.deletedStack = [];
+    arrangeState.reorderOrder = [];
+    arrangeState.splitBuckets = [];
+    arrangeState.nextBucketId = 1;
+    arrangeState.selection.source = new Set();
+    arrangeState.selection.reorder = new Set();
+    arrangeState.anchorIndex.source = null;
+    arrangeState.anchorIndex.reorder = null;
 
     for (let i = 1; i <= pdf.numPages; i += 1) {
       checkCancelled("arrange");
       setStatus("arrangePdfStatus", `썸네일 렌더링 중 (${i}/${pdf.numPages})`);
       const page = await pdf.getPage(i);
       const baseViewport = page.getViewport({ scale: 1 });
-      const targetWidth = 120;
+      const targetWidth = 130;
       const scale = targetWidth / baseViewport.width;
       const viewport = page.getViewport({ scale });
       const canvas = document.createElement("canvas");
@@ -585,20 +1404,18 @@ const renderArrangeThumbs = async (file) => {
         canvasContext: canvas.getContext("2d"),
         viewport,
       }).promise;
-
-      const item = document.createElement("div");
-      item.className = "thumb-item";
-      item.draggable = true;
-      item.dataset.page = String(i);
-      item.innerHTML = `<div class="thumb-label">p.${i}</div>`;
-      item.prepend(canvas);
-      grid.appendChild(item);
+      const thumbDataUrl = canvas.toDataURL("image/png");
+      arrangeState.pages.push({ pageNo: i, thumbDataUrl, deleted: false });
+      arrangeState.reorderOrder.push(i);
       updateProgress("arrange", i, pdf.numPages);
     }
 
-    refreshArrangeOrderText();
+    if (!arrangeState.splitBuckets.length) {
+      arrangeState.splitBuckets.push({ id: arrangeState.nextBucketId++, pages: [] });
+    }
+    rerenderArrangeWorkspace();
     updateProgress("arrange", 100, 100);
-    endOperation("arrange", `완료: ${pdf.numPages}개 페이지를 드래그 정렬할 수 있습니다.`);
+    endOperation("arrange", `완료: ${pdf.numPages}개 페이지 자동 로드됨`);
   } catch (err) {
     handleOperationError("arrange", err);
   }
@@ -606,51 +1423,35 @@ const renderArrangeThumbs = async (file) => {
 
 const setupPdfArrange = () => {
   if (!$("runReorderPdf") || !$("pdfThumbGrid")) return;
-  setupThumbDnD();
-  renderSplitBlocks();
+  setIconButton("undoArrangeDelete", "undo");
+  setIconButton("runReorderPdf", "download");
+  setIconButton("runSplitPdf", "download");
+  setupArrangeDnD();
+  rerenderArrangeWorkspace();
 
-  $("toggleSplitSelectMode").addEventListener("click", () => {
-    setSplitSelectionMode(!arrangeState.splitSelectMode);
-  });
-
-  $("addSplitBlock").addEventListener("click", () => {
-    const selectedItems = getThumbItems().filter((item) =>
-      item.classList.contains("selected-range")
-    );
-    if (!selectedItems.length) {
-      setStatus("arrangePdfStatus", "분할 선택 모드에서 썸네일 구간을 먼저 드래그 선택해주세요.");
-      return;
-    }
-    const blockPages = selectedItems.map((item) => Number(item.dataset.page));
-    arrangeState.splitBlocks.push(blockPages);
-    renderSplitBlocks();
-    clearThumbSelection();
-    setStatus("arrangePdfStatus", `블록 ${arrangeState.splitBlocks.length} 추가됨`);
-  });
-
-  $("clearSplitBlocks").addEventListener("click", () => {
-    arrangeState.splitBlocks = [];
-    renderSplitBlocks();
-    clearThumbSelection();
-    setStatus("arrangePdfStatus", "분할 블록이 초기화되었습니다.");
-  });
-
-  $("splitBlocksList").addEventListener("click", (e) => {
-    const btn = e.target.closest(".remove-block");
-    if (!btn) return;
-    const idx = Number(btn.dataset.blockIndex);
-    if (!Number.isInteger(idx)) return;
-    arrangeState.splitBlocks.splice(idx, 1);
-    renderSplitBlocks();
-  });
-
-  $("loadArrangePdf").addEventListener("click", async () => {
+  $("arrangePdfFile").addEventListener("change", async () => {
     const file = $("arrangePdfFile").files[0];
-    if (!file) {
-      setStatus("arrangePdfStatus", "PDF 파일을 선택해주세요.");
+    if (!file) return;
+    await renderArrangeThumbs(file);
+  });
+
+  $("undoArrangeDelete")?.addEventListener("click", () => {
+    const restored = undoArrangeDelete();
+    if (!restored) {
+      setStatus("arrangePdfStatus", "되돌릴 삭제 내역이 없습니다.");
       return;
     }
-    await renderArrangeThumbs(file);
+    setStatus("arrangePdfStatus", `페이지 ${restored} 복원 완료`);
+  });
+
+  $("addSplitBucket").addEventListener("click", () => {
+    arrangeState.splitBuckets.push({ id: arrangeState.nextBucketId++, pages: [] });
+    rerenderArrangeWorkspace();
+  });
+
+  $("clearSplitBuckets").addEventListener("click", () => {
+    arrangeState.splitBuckets = [{ id: arrangeState.nextBucketId++, pages: [] }];
+    rerenderArrangeWorkspace();
   });
 
   $("runReorderPdf").addEventListener("click", async () => {
@@ -659,8 +1460,12 @@ const setupPdfArrange = () => {
       setStatus("arrangePdfStatus", "PDF 파일을 먼저 선택해주세요.");
       return;
     }
-    if (!arrangeState.pageOrder.length) {
-      await renderArrangeThumbs(file);
+    if (!arrangeState.pages.length) await renderArrangeThumbs(file);
+
+    const finalOrder = arrangeState.reorderOrder.filter((n) => !isPageDeleted(n));
+    if (!finalOrder.length) {
+      setStatus("arrangePdfStatus", "저장할 페이지가 없습니다.");
+      return;
     }
 
     startOperation("arrange", "정렬 순서로 PDF 생성 중...");
@@ -669,7 +1474,7 @@ const setupPdfArrange = () => {
       const out = await PDFLib.PDFDocument.create();
       const copied = await out.copyPages(
         src,
-        arrangeState.pageOrder.map((n) => n - 1)
+        finalOrder.map((n) => n - 1)
       );
       copied.forEach((p, idx) => {
         checkCancelled("arrange");
@@ -679,7 +1484,7 @@ const setupPdfArrange = () => {
       const result = await out.save();
       downloadBlob(new Blob([result], { type: "application/pdf" }), "reordered.pdf");
       updateProgress("arrange", 100, 100);
-      endOperation("arrange", "완료: 드래그 순서대로 저장했습니다.");
+      endOperation("arrange", "완료: 순서 변경 PDF 저장");
     } catch (err) {
       handleOperationError("arrange", err);
     }
@@ -692,20 +1497,20 @@ const setupPdfArrange = () => {
       setStatus("arrangePdfStatus", "PDF 파일을 선택해주세요.");
       return;
     }
+    if (!arrangeState.pages.length) await renderArrangeThumbs(file);
 
     startOperation("arrange", "PDF 분할 처리 중...");
     try {
       const src = await PDFLib.PDFDocument.load(await readAsArrayBuffer(file));
-      let groups = [];
+      let groups = arrangeState.splitBuckets
+        .map((b) => b.pages.filter((n) => !isPageDeleted(n)))
+        .filter((g) => g.length);
 
-      if (arrangeState.splitBlocks.length) {
-        groups = arrangeState.splitBlocks;
-      } else {
-        if (!splitText) throw new Error("분할 블록이 없으면 분할 입력값을 입력해주세요.");
+      if (!groups.length) {
+        if (!splitText) throw new Error("분할 박스가 비어있습니다. 페이지를 끌어다 놓거나 텍스트 분할값을 입력해주세요.");
         groups = parseSplitGroups(splitText, src.getPageCount()).filter((g) => g.length);
       }
-
-      if (!groups.length) throw new Error("유효한 분할값이 없습니다.");
+      if (!groups.length) throw new Error("유효한 분할 대상이 없습니다.");
 
       const zip = new JSZip();
       for (let i = 0; i < groups.length; i += 1) {
@@ -723,7 +1528,7 @@ const setupPdfArrange = () => {
       const blob = await zip.generateAsync({ type: "blob" });
       downloadBlob(blob, "split-pdfs.zip");
       updateProgress("arrange", 100, 100);
-      endOperation("arrange", `완료: ${groups.length}개 파일로 분할했습니다.`);
+      endOperation("arrange", `완료: ${groups.length}개 파일로 분할`);
     } catch (err) {
       handleOperationError("arrange", err);
     }
@@ -732,6 +1537,10 @@ const setupPdfArrange = () => {
 
 const setupPdfMerge = () => {
   if (!$("runMergePdf")) return;
+  $("mergePdfFiles")?.addEventListener("change", async () => {
+    toolFileState.mergePdf = [...$("mergePdfFiles").files];
+    await renderMergePdfPreview("mergePdfPreview", "mergePdf", "mergePdfFiles");
+  });
   $("runMergePdf").addEventListener("click", async () => {
     const files = [...$("mergePdfFiles").files];
     if (!files.length) {
@@ -763,6 +1572,10 @@ const setupPdfMerge = () => {
 
 const setupImageResize = () => {
   if (!$("runResize")) return;
+  $("resizeFiles")?.addEventListener("change", async () => {
+    toolFileState.resize = [...$("resizeFiles").files];
+    await renderImageThumbPreview("resizePreview", "resize", "resizeFiles");
+  });
   $("runResize").addEventListener("click", async () => {
     const files = [...$("resizeFiles").files];
     const width = Number($("resizeWidth").value);
@@ -806,6 +1619,10 @@ const setupImageResize = () => {
 
 const setupImageFormat = () => {
   if (!$("runFormatConvert")) return;
+  $("formatFiles")?.addEventListener("change", async () => {
+    toolFileState.format = [...$("formatFiles").files];
+    await renderImageThumbPreview("formatPreview", "format", "formatFiles");
+  });
   $("runFormatConvert").addEventListener("click", async () => {
     const files = [...$("formatFiles").files];
     const fmt = $("targetFormat").value;
@@ -1142,50 +1959,196 @@ const setupProcessTimer = () => {
 };
 
 const setupQr = () => {
-  if (!$("runQr") || !$("saveQr") || !$("qrPreview")) return;
-  let qr = null;
-  $("runQr").addEventListener("click", () => {
-    const text = $("qrInput").value.trim();
-    const size = Number($("qrSize").value || 220);
-    if (!text) {
-      setStatus("qrStatus", "QR 입력값을 입력해주세요.");
+  if (
+    !$("runQr") ||
+    !$("saveQr") ||
+    !$("qrPreview") ||
+    !$("runQrBulk") ||
+    !$("downloadQrBulkTemplate")
+  ) {
+    return;
+  }
+
+  const state = {
+    lastBlob: null,
+    lastExt: "png",
+    renderUrl: null,
+  };
+
+  const getQrOptions = () => {
+    const fmt = document.querySelector("input[name='qrFormat']:checked")?.value || "png";
+    return {
+      text: $("qrInput").value.trim(),
+      size: Math.max(120, Math.min(2000, Number($("qrSize").value || 1000))),
+      margin: Math.max(0, Math.min(200, Number($("qrMargin").value || 40))),
+      fg: $("qrFg").value || "#000000",
+      bg: $("qrBg").value || "#ffffff",
+      transparent: !!$("qrTransparentBg").checked,
+      format: fmt,
+    };
+  };
+
+  const makeQrCanvas = (options) =>
+    new Promise((resolve, reject) => {
+      try {
+        const tmp = document.createElement("div");
+        tmp.style.position = "fixed";
+        tmp.style.left = "-9999px";
+        document.body.appendChild(tmp);
+        // qrcodejs renders immediately to canvas/img.
+        new QRCode(tmp, {
+          text: options.text,
+          width: options.size,
+          height: options.size,
+          colorDark: options.fg,
+          colorLight: options.transparent ? "rgba(0,0,0,0)" : options.bg,
+          correctLevel: QRCode.CorrectLevel.M,
+        });
+        setTimeout(() => {
+          const srcCanvas = tmp.querySelector("canvas");
+          const srcImg = tmp.querySelector("img");
+          const out = document.createElement("canvas");
+          const outSize = options.size + options.margin * 2;
+          out.width = outSize;
+          out.height = outSize;
+          const ctx = out.getContext("2d");
+          if (!options.transparent) {
+            ctx.fillStyle = options.bg;
+            ctx.fillRect(0, 0, out.width, out.height);
+          } else {
+            ctx.clearRect(0, 0, out.width, out.height);
+          }
+          if (srcCanvas) {
+            ctx.drawImage(srcCanvas, options.margin, options.margin, options.size, options.size);
+          } else if (srcImg) {
+            ctx.drawImage(srcImg, options.margin, options.margin, options.size, options.size);
+          }
+          tmp.remove();
+          resolve(out);
+        }, 0);
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+  const canvasToBlob = (canvas, mime, quality) =>
+    new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), mime, quality);
+    });
+
+  const buildQrAsset = async (options) => {
+    const canvas = await makeQrCanvas(options);
+    if (options.format === "svg") {
+      const pngData = canvas.toDataURL("image/png");
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}"><image href="${pngData}" width="${canvas.width}" height="${canvas.height}" /></svg>`;
+      return {
+        blob: new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
+        previewUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+        ext: "svg",
+      };
+    }
+    const mime =
+      options.format === "jpeg"
+        ? "image/jpeg"
+        : options.format === "webp"
+          ? "image/webp"
+          : "image/png";
+    const blob = await canvasToBlob(canvas, mime, 0.92);
+    const previewUrl = URL.createObjectURL(blob);
+    return {
+      blob,
+      previewUrl,
+      ext: options.format === "jpeg" ? "jpg" : options.format,
+    };
+  };
+
+  const renderQrPreview = (url) => {
+    const box = $("qrPreview");
+    box.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "QR preview";
+    img.style.width = "100%";
+    img.style.maxWidth = "360px";
+    img.style.height = "auto";
+    box.appendChild(img);
+  };
+
+  $("runQr").addEventListener("click", async () => {
+    const options = getQrOptions();
+    if (!options.text) {
+      setStatus("qrStatus", "QR 내용을 입력해주세요.");
       return;
     }
-    $("qrPreview").innerHTML = "";
-    qr = new QRCode($("qrPreview"), {
-      text,
-      width: size,
-      height: size,
-      colorDark: "#111",
-      colorLight: "#fff",
-      correctLevel: QRCode.CorrectLevel.M,
-    });
-    setStatus("qrStatus", "QR 코드 생성 완료");
+    try {
+      if (state.renderUrl?.startsWith("blob:")) URL.revokeObjectURL(state.renderUrl);
+      const asset = await buildQrAsset(options);
+      state.lastBlob = asset.blob;
+      state.lastExt = asset.ext;
+      state.renderUrl = asset.previewUrl;
+      renderQrPreview(asset.previewUrl);
+      setStatus("qrStatus", "QR 코드 생성 완료");
+    } catch (err) {
+      setStatus("qrStatus", `QR 생성 오류: ${err.message}`);
+    }
   });
 
   $("saveQr").addEventListener("click", () => {
-    if (!qr) {
+    if (!state.lastBlob) {
       setStatus("qrStatus", "먼저 QR 코드를 생성해주세요.");
       return;
     }
-    const canvas = $("qrPreview").querySelector("canvas");
-    const img = $("qrPreview").querySelector("img");
-    if (canvas) {
-      canvas.toBlob((blob) => downloadBlob(blob, "qrcode.png"));
+    downloadBlob(state.lastBlob, `qrcode.${state.lastExt}`);
+  });
+
+  $("downloadQrBulkTemplate").addEventListener("click", () => {
+    const csv = ["text,filename,size", "https://tools.mytory.net,example-1,800", "HELLO QR,example-2,600"].join("\n");
+    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), "qr-bulk-template.csv");
+    setStatus("qrStatus", "CSV 양식을 다운로드했습니다.");
+  });
+
+  $("runQrBulk").addEventListener("click", async () => {
+    const file = $("qrBulkFile").files[0];
+    if (!file) {
+      setStatus("qrStatus", "먼저 CSV 양식 파일을 첨부해주세요.");
       return;
     }
-    if (img) {
-      fetch(img.src)
-        .then((res) => res.blob())
-        .then((blob) => downloadBlob(blob, "qrcode.png"));
+    try {
+      const raw = await readAsText(file);
+      const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      if (lines.length <= 1) throw new Error("데이터 행이 없습니다.");
+      const zip = new JSZip();
+      const optionsBase = getQrOptions();
+      const rows = lines.slice(1);
+      for (let i = 0; i < rows.length; i += 1) {
+        const parts = rows[i].split(",").map((v) => v.trim());
+        const text = parts[0] || "";
+        const filename = (parts[1] || `qr-${i + 1}`).replace(/[\\/:*?"<>|]/g, "_");
+        const rowSize = Number(parts[2] || optionsBase.size);
+        if (!text) continue;
+        const asset = await buildQrAsset({
+          ...optionsBase,
+          text,
+          size: Number.isFinite(rowSize) ? Math.max(120, Math.min(2000, rowSize)) : optionsBase.size,
+        });
+        zip.file(`${filename}.${asset.ext}`, asset.blob);
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      downloadBlob(blob, "qr-bulk.zip");
+      setStatus("qrStatus", "벌크 QR ZIP 생성 완료");
+    } catch (err) {
+      setStatus("qrStatus", `벌크 처리 오류: ${err.message}`);
     }
   });
 };
 
 const init = () => {
+  document.body.classList.add("home-mode");
   initOperations();
   setupThemeToggle();
   setupNavActive();
+  setupDropZones();
+  setupHashStageRouter();
   setupPdfToImage();
   setupImageToPdf();
   setupPdfArrange();
