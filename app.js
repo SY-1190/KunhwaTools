@@ -742,6 +742,28 @@ const toolFileState = {
   format: [],
 };
 
+const pdfThumbCache = new Map();
+const PDF_THUMB_CACHE_MAX = 120;
+
+const getFileCacheKey = (file) => `${file.name}__${file.size}__${file.lastModified}`;
+
+const getCachedPdfThumb = (key) => {
+  if (!pdfThumbCache.has(key)) return null;
+  const value = pdfThumbCache.get(key);
+  // LRU touch
+  pdfThumbCache.delete(key);
+  pdfThumbCache.set(key, value);
+  return value;
+};
+
+const setCachedPdfThumb = (key, value) => {
+  if (pdfThumbCache.has(key)) pdfThumbCache.delete(key);
+  pdfThumbCache.set(key, value);
+  if (pdfThumbCache.size <= PDF_THUMB_CACHE_MAX) return;
+  const oldest = pdfThumbCache.keys().next().value;
+  if (oldest) pdfThumbCache.delete(oldest);
+};
+
 const loadThumbFromImageFile = async (file, maxSize = 130) => {
   const { img } = await loadImageFromFile(file);
   const ratio = img.width / img.height;
@@ -755,6 +777,9 @@ const loadThumbFromImageFile = async (file, maxSize = 130) => {
 };
 
 const loadPdfFrontThumb = async (file, maxWidth = 130) => {
+  const cacheKey = `${getFileCacheKey(file)}__${maxWidth}`;
+  const cached = getCachedPdfThumb(cacheKey);
+  if (cached) return cached;
   const buffer = await readAsArrayBuffer(file);
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
   const page = await pdf.getPage(1);
@@ -765,7 +790,9 @@ const loadPdfFrontThumb = async (file, maxWidth = 130) => {
   canvas.width = viewport.width;
   canvas.height = viewport.height;
   await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-  return canvas.toDataURL("image/png");
+  const thumb = canvas.toDataURL("image/png");
+  setCachedPdfThumb(cacheKey, thumb);
+  return thumb;
 };
 
 const removeFileAtIndex = (stateKey, inputId, index) => {
