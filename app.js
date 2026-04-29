@@ -51,6 +51,38 @@ const operationConfigs = {
 };
 
 const operationStates = {};
+const globalBusyState = {
+  manualCount: 0,
+  message: "작업 처리 중입니다...",
+};
+
+const refreshGlobalBusy = (message) => {
+  const busyWrap = $("globalBusy");
+  const busyText = $("globalBusyText");
+  if (!busyWrap) return;
+  if (message) globalBusyState.message = message;
+  const anyOpRunning = Object.values(operationStates).some((s) => s.running);
+  const active = anyOpRunning || globalBusyState.manualCount > 0;
+  busyWrap.classList.toggle("hidden", !active);
+  if (busyText) busyText.textContent = globalBusyState.message;
+};
+
+const setGlobalBusyMessage = (message) => {
+  if (!message) return;
+  globalBusyState.message = message;
+  const busyText = $("globalBusyText");
+  if (busyText) busyText.textContent = message;
+};
+
+const beginGlobalBusy = (message) => {
+  globalBusyState.manualCount += 1;
+  refreshGlobalBusy(message);
+};
+
+const endGlobalBusy = () => {
+  globalBusyState.manualCount = Math.max(0, globalBusyState.manualCount - 1);
+  refreshGlobalBusy();
+};
 
 const formatBytes = (bytes) => {
   if (bytes < 1024) return `${bytes} B`;
@@ -71,6 +103,11 @@ const formatDurationShort = (seconds) => {
 const setStatus = (id, text) => {
   const el = $(id);
   if (el) el.textContent = text;
+  if (!text) return;
+  const opEntry = Object.entries(operationConfigs).find(([, cfg]) => cfg.statusId === id);
+  if (!opEntry) return;
+  const [opKey] = opEntry;
+  if (operationStates[opKey]?.running) setGlobalBusyMessage(text);
 };
 
 const downloadBlob = (blob, fileName) => {
@@ -255,6 +292,7 @@ const startOperation = (opKey, statusText) => {
   if (cancelBtn) cancelBtn.disabled = false;
   updateProgress(opKey, 0, 100);
   setStatus(cfg.statusId, statusText);
+  refreshGlobalBusy(statusText || "작업 처리 중입니다...");
 };
 
 const endOperation = (opKey, statusText) => {
@@ -266,6 +304,7 @@ const endOperation = (opKey, statusText) => {
   const cancelBtn = $(cfg.cancelBtnId);
   if (cancelBtn) cancelBtn.disabled = true;
   if (statusText) setStatus(cfg.statusId, statusText);
+  refreshGlobalBusy(statusText || "작업 처리 중입니다...");
 };
 
 const checkCancelled = (opKey) => {
@@ -457,10 +496,12 @@ const renderPdfToImagePreview = async (file) => {
   pdfToImageState.pages = [];
   pdfToImageState.deletedStack = [];
   if (!file) return;
+  beginGlobalBusy("PDF 미리보기를 준비 중입니다...");
   try {
     const buffer = await readAsArrayBuffer(file);
     const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
     for (let i = 1; i <= pdf.numPages; i += 1) {
+      setGlobalBusyMessage(`PDF 미리보기 생성 중 (${i}/${pdf.numPages})`);
       const page = await pdf.getPage(i);
       const baseViewport = page.getViewport({ scale: 1 });
       const scale = 130 / baseViewport.width;
@@ -478,6 +519,8 @@ const renderPdfToImagePreview = async (file) => {
     note.className = "thumb-label";
     note.textContent = `미리보기 오류: ${err.message}`;
     previewBox.appendChild(note);
+  } finally {
+    endGlobalBusy();
   }
 };
 
@@ -808,37 +851,43 @@ const renderImageThumbPreview = async (previewId, stateKey, inputId, reorderable
   grid.innerHTML = "";
   const files = toolFileState[stateKey];
   if (!files.length) return;
-  for (let i = 0; i < files.length; i += 1) {
-    const item = document.createElement("div");
-    item.className = "thumb-item";
-    item.draggable = reorderable;
-    item.dataset.idx = String(i);
-    item.innerHTML = `<button class="thumb-delete" type="button" title="파일 제거" aria-label="파일 제거">${ICONS.trash3}</button><div class="thumb-label">${files[i].name}</div>`;
-    try {
-      const dataUrl = await loadThumbFromImageFile(files[i]);
-      const img = document.createElement("img");
-      img.src = dataUrl;
-      img.alt = files[i].name;
-      img.draggable = false;
-      img.style.width = "100%";
-      img.style.border = "1px solid #d4e2f1";
-      img.style.borderRadius = "6px";
-      item.prepend(img);
-    } catch {
-      const stub = document.createElement("div");
-      stub.className = "thumb-label";
-      stub.textContent = "미리보기 불가";
-      item.prepend(stub);
+  beginGlobalBusy("이미지 미리보기를 준비 중입니다...");
+  try {
+    for (let i = 0; i < files.length; i += 1) {
+      setGlobalBusyMessage(`이미지 미리보기 생성 중 (${i + 1}/${files.length})`);
+      const item = document.createElement("div");
+      item.className = "thumb-item";
+      item.draggable = reorderable;
+      item.dataset.idx = String(i);
+      item.innerHTML = `<button class="thumb-delete" type="button" title="파일 제거" aria-label="파일 제거">${ICONS.trash3}</button><div class="thumb-label">${files[i].name}</div>`;
+      try {
+        const dataUrl = await loadThumbFromImageFile(files[i]);
+        const img = document.createElement("img");
+        img.src = dataUrl;
+        img.alt = files[i].name;
+        img.draggable = false;
+        img.style.width = "100%";
+        img.style.border = "1px solid #d4e2f1";
+        img.style.borderRadius = "6px";
+        item.prepend(img);
+      } catch {
+        const stub = document.createElement("div");
+        stub.className = "thumb-label";
+        stub.textContent = "미리보기 불가";
+        item.prepend(stub);
+      }
+      grid.appendChild(item);
     }
-    grid.appendChild(item);
+    grid.onclick = (e) => {
+      const del = e.target.closest(".thumb-delete");
+      if (!del) return;
+      const cell = e.target.closest(".thumb-item");
+      if (!cell) return;
+      removeFileAtIndex(stateKey, inputId, Number(cell.dataset.idx));
+    };
+  } finally {
+    endGlobalBusy();
   }
-  grid.onclick = (e) => {
-    const del = e.target.closest(".thumb-delete");
-    if (!del) return;
-    const cell = e.target.closest(".thumb-item");
-    if (!cell) return;
-    removeFileAtIndex(stateKey, inputId, Number(cell.dataset.idx));
-  };
   if (!reorderable) return;
   let dragIdx = -1;
   const placeholder = document.createElement("div");
@@ -885,30 +934,36 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
   grid.innerHTML = "";
   const files = toolFileState[stateKey];
   if (!files.length) return;
-  for (let idx = 0; idx < files.length; idx += 1) {
-    const file = files[idx];
-    const item = document.createElement("div");
-    item.className = "thumb-item";
-    item.draggable = true;
-    item.dataset.idx = String(idx);
-    item.innerHTML = `<button class="thumb-delete" type="button" title="파일 제거" aria-label="파일 제거">${ICONS.trash3}</button><div class="thumb-label">${idx + 1}. ${file.name}</div>`;
-    try {
-      const thumb = await loadPdfFrontThumb(file, 130);
-      const img = document.createElement("img");
-      img.src = thumb;
-      img.alt = `${file.name} first page`;
-      img.draggable = false;
-      img.style.width = "100%";
-      img.style.border = "1px solid #d4e2f1";
-      img.style.borderRadius = "6px";
-      item.prepend(img);
-    } catch {
-      const stub = document.createElement("div");
-      stub.className = "thumb-label";
-      stub.textContent = "미리보기 불가";
-      item.prepend(stub);
+  beginGlobalBusy("PDF 썸네일을 준비 중입니다...");
+  try {
+    for (let idx = 0; idx < files.length; idx += 1) {
+      setGlobalBusyMessage(`PDF 목록 썸네일 생성 중 (${idx + 1}/${files.length})`);
+      const file = files[idx];
+      const item = document.createElement("div");
+      item.className = "thumb-item";
+      item.draggable = true;
+      item.dataset.idx = String(idx);
+      item.innerHTML = `<button class="thumb-delete" type="button" title="파일 제거" aria-label="파일 제거">${ICONS.trash3}</button><div class="thumb-label">${idx + 1}. ${file.name}</div>`;
+      try {
+        const thumb = await loadPdfFrontThumb(file, 130);
+        const img = document.createElement("img");
+        img.src = thumb;
+        img.alt = `${file.name} first page`;
+        img.draggable = false;
+        img.style.width = "100%";
+        img.style.border = "1px solid #d4e2f1";
+        img.style.borderRadius = "6px";
+        item.prepend(img);
+      } catch {
+        const stub = document.createElement("div");
+        stub.className = "thumb-label";
+        stub.textContent = "미리보기 불가";
+        item.prepend(stub);
+      }
+      grid.appendChild(item);
     }
-    grid.appendChild(item);
+  } finally {
+    endGlobalBusy();
   }
   grid.onclick = (e) => {
     const del = e.target.closest(".thumb-delete");
@@ -2107,7 +2162,9 @@ const setupQr = () => {
       setStatus("qrStatus", "QR 내용을 입력해주세요.");
       return;
     }
+    beginGlobalBusy("QR 이미지를 생성 중입니다...");
     try {
+      setGlobalBusyMessage("QR 코드를 렌더링 중입니다...");
       if (state.renderUrl?.startsWith("blob:")) URL.revokeObjectURL(state.renderUrl);
       const asset = await buildQrAsset(options);
       state.lastBlob = asset.blob;
@@ -2117,6 +2174,8 @@ const setupQr = () => {
       setStatus("qrStatus", "QR 코드 생성 완료");
     } catch (err) {
       setStatus("qrStatus", `QR 생성 오류: ${err.message}`);
+    } finally {
+      endGlobalBusy();
     }
   });
 
@@ -2140,6 +2199,7 @@ const setupQr = () => {
       setStatus("qrStatus", "먼저 CSV 양식 파일을 첨부해주세요.");
       return;
     }
+    beginGlobalBusy("벌크 QR를 준비 중입니다...");
     try {
       const raw = await readAsText(file);
       const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -2148,6 +2208,7 @@ const setupQr = () => {
       const optionsBase = getQrOptions();
       const rows = lines.slice(1);
       for (let i = 0; i < rows.length; i += 1) {
+        setGlobalBusyMessage(`벌크 QR 생성 중 (${i + 1}/${rows.length})`);
         const parts = rows[i].split(",").map((v) => v.trim());
         const text = parts[0] || "";
         const filename = (parts[1] || `qr-${i + 1}`).replace(/[\\/:*?"<>|]/g, "_");
@@ -2165,6 +2226,8 @@ const setupQr = () => {
       setStatus("qrStatus", "벌크 QR ZIP 생성 완료");
     } catch (err) {
       setStatus("qrStatus", `벌크 처리 오류: ${err.message}`);
+    } finally {
+      endGlobalBusy();
     }
   });
 };

@@ -157,8 +157,6 @@
           <input class="visually-hidden" type="file" id="arrangePdfFile" accept=".pdf" />
           <div class="btn-row">
             <button class="btn ghost" id="cancelArrange" disabled>취소</button>
-            <button class="btn ghost" id="addSplitBucket">분할 박스 추가</button>
-            <button class="btn ghost" id="clearSplitBuckets">분할 박스 초기화</button>
           </div>
 
           <div class="arrange-workspace">
@@ -182,7 +180,11 @@
             <section class="arrange-pane split-pane">
               <div class="panel-topline">
                 <p class="order-line">페이지 나누기 창 (썸네일 끌어다 배치)</p>
-                <button class="icon-btn" id="runSplitPdf" type="button" title="분할 ZIP 다운로드" aria-label="분할 ZIP 다운로드"></button>
+                <div class="mini-actions">
+                  <button class="btn ghost btn-mini" id="addSplitBucket" type="button">분할 박스 추가</button>
+                  <button class="btn ghost btn-mini" id="clearSplitBuckets" type="button">분할 박스 초기화</button>
+                  <button class="icon-btn" id="runSplitPdf" type="button" title="분할 ZIP 다운로드" aria-label="분할 ZIP 다운로드"></button>
+                </div>
               </div>
               <div id="splitBucketWrap"></div>
             </section>
@@ -367,6 +369,12 @@
         </article>
       </section>
     </main>
+    <div id="globalBusy" class="global-busy hidden" aria-live="polite" aria-busy="true">
+      <div class="global-busy-card">
+        <div class="global-spinner" aria-hidden="true"></div>
+        <p id="globalBusyText">작업 처리 중입니다...</p>
+      </div>
+    </div>
     <script src="./app.js"></script>
   </body>
 </html>

@@ -113,6 +113,12 @@ h1 {
   color: #2b4f79;
 }
 
+.btn-mini {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
 .theme-icon-btn {
   position: absolute;
   top: 12px;
@@ -933,6 +939,51 @@ progress::-webkit-progress-value {
   width: auto;
 }
 
+.global-busy {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: rgba(16, 28, 46, 0.22);
+  backdrop-filter: blur(1px);
+}
+
+.global-busy-card {
+  min-width: 220px;
+  max-width: 360px;
+  border: 1px solid #c8d9ef;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(21, 43, 72, 0.2);
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.global-busy-card p {
+  margin: 0;
+  font-size: 13px;
+  color: #375a82;
+  text-align: center;
+}
+
+.global-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #cfe0f6;
+  border-top-color: #2f7df6;
+  border-radius: 999px;
+  animation: spin 0.85s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 body.dark {
   --bg: #121923;
   --surface: #1b2534;
@@ -1016,6 +1067,19 @@ body.dark .icon-btn {
 body.dark .icon-btn:hover {
   background: #2b4362;
   border-color: #6e95c5;
+}
+
+body.dark .global-busy {
+  background: rgba(8, 13, 24, 0.44);
+}
+
+body.dark .global-busy-card {
+  background: #1b2534;
+  border-color: #364b68;
+}
+
+body.dark .global-busy-card p {
+  color: #d0ddef;
 }
 
 @keyframes stage-in {
