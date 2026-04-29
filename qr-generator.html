@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR 코드 생성기 | Kunhwa Utility Tools</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Sans:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  </head>
+  <body data-page="qr-generator">
+    <header class="site-header">
+      <div class="brand-wrap">
+        <div class="cat-mascot" aria-hidden="true">🐱</div>
+        <div>
+          <h1>Kunhwa Utility Tools</h1>
+          <p class="brand-desc">QR 코드 생성기</p>
+        </div>
+      </div>
+      <button id="themeToggle" class="btn ghost" type="button">☀ 화이트 모드</button>
+    </header>
+    <main class="page-layout">
+      <aside class="tool-nav">
+        <p class="tool-nav-title">TOOLS</p>
+        <a href="./index.html" data-page="home">🏠 홈</a>
+        <a href="./pdf-to-image.html" data-page="pdf-to-image">🗎 PDF → 이미지</a>
+        <a href="./image-to-pdf.html" data-page="image-to-pdf">🖼 이미지 → PDF</a>
+        <a href="./pdf-arrange.html" data-page="pdf-arrange">↕ PDF 순서변경/나누기</a>
+        <a href="./pdf-merge.html" data-page="pdf-merge">⊞ PDF 합치기</a>
+        <a href="./image-resize.html" data-page="image-resize">⬚ 이미지 크기조정</a>
+        <a href="./image-format.html" data-page="image-format">⇆ 이미지 포맷변환</a>
+        <a href="./process-timer.html" data-page="process-timer">⏱ 공정 작업시간 측정기</a>
+        <a href="./qr-generator.html" data-page="qr-generator">▦ QR 코드 생성기</a>
+      </aside>
+      <section class="content-panel">
+        <article class="tool-card" id="qrGenerator">
+          <h2><span class="icon">▦</span> 8. QR 코드 생성기</h2>
+          <p class="sub">텍스트/URL 입력 후 QR 생성 및 저장</p>
+          <div class="form-grid">
+            <label>입력값<input type="text" id="qrInput" placeholder="https://example.com" /></label>
+            <label>크기(px)<input type="number" id="qrSize" value="220" min="120" max="600" /></label>
+          </div>
+          <div class="btn-row">
+            <button class="btn primary" id="runQr">QR 생성</button>
+            <button class="btn ghost" id="saveQr">QR 저장</button>
+          </div>
+          <div id="qrPreview" class="qr-preview"></div>
+          <p class="status" id="qrStatus"></p>
+        </article>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kunhwa Utility Tools</title>
+    <title>PDF → 이미지 | Kunhwa Utility Tools</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,7 +16,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   </head>
-  <body data-page="home">
+  <body data-page="pdf-to-image">
     <header class="site-header">
       <div class="brand-wrap">
         <div class="cat-mascot" aria-hidden="true">
@@ -26,17 +26,15 @@
             <circle cx="24.5" cy="33" r="2.6" fill="#2e2e2e" />
             <circle cx="39.5" cy="33" r="2.6" fill="#2e2e2e" />
             <path d="M32 36.5v5m0 0-4 3m4-3 4 3" stroke="#2e2e2e" stroke-width="2" stroke-linecap="round" fill="none" />
-            <path d="M18 39h-7m7 4h-7m35-4h7m-7 4h7" stroke="#cf7f26" stroke-width="2" stroke-linecap="round" />
           </svg>
         </div>
         <div>
           <h1>Kunhwa Utility Tools</h1>
-          <p class="brand-desc">PDF · IMAGE · WORKFLOW TOOLS</p>
+          <p class="brand-desc">PDF → 이미지 변환기</p>
         </div>
       </div>
       <button id="themeToggle" class="btn ghost" type="button">☀ 화이트 모드</button>
     </header>
-
     <main class="page-layout">
       <aside class="tool-nav">
         <p class="tool-nav-title">TOOLS</p>
@@ -50,49 +48,35 @@
         <a href="./process-timer.html" data-page="process-timer">⏱ 공정 작업시간 측정기</a>
         <a href="./qr-generator.html" data-page="qr-generator">▦ QR 코드 생성기</a>
       </aside>
-
       <section class="content-panel">
-        <section class="hub-intro">
-          <h2>도구 선택</h2>
-          <p>아래 카드 클릭 시 도구별 페이지로 이동합니다.</p>
-        </section>
-        <section class="hub-grid">
-          <a class="hub-link" href="./pdf-to-image.html">
-            <h3 class="hub-link-title"><span class="icon">🗎</span>PDF → 이미지</h3>
-            <p>PDF 페이지를 PNG/JPG로 변환해 ZIP 다운로드</p>
-          </a>
-          <a class="hub-link" href="./image-to-pdf.html">
-            <h3 class="hub-link-title"><span class="icon">🖼</span>이미지 → PDF</h3>
-            <p>여러 이미지를 한 PDF 문서로 결합</p>
-          </a>
-          <a class="hub-link" href="./pdf-arrange.html">
-            <h3 class="hub-link-title"><span class="icon">↕</span>PDF 순서변경/나누기</h3>
-            <p>썸네일 드래그 정렬과 블록 분할</p>
-          </a>
-          <a class="hub-link" href="./pdf-merge.html">
-            <h3 class="hub-link-title"><span class="icon">⊞</span>PDF 합치기</h3>
-            <p>다중 PDF 병합</p>
-          </a>
-          <a class="hub-link" href="./image-resize.html">
-            <h3 class="hub-link-title"><span class="icon">⬚</span>이미지 크기조정</h3>
-            <p>일괄 리사이즈 후 ZIP 저장</p>
-          </a>
-          <a class="hub-link" href="./image-format.html">
-            <h3 class="hub-link-title"><span class="icon">⇆</span>이미지 포맷변환</h3>
-            <p>PNG/JPG/WEBP 변환</p>
-          </a>
-          <a class="hub-link" href="./process-timer.html">
-            <h3 class="hub-link-title"><span class="icon">⏱</span>공정 작업시간 측정기</h3>
-            <p>공정기록, 첨부/촬영, JSON/CSV 내보내기</p>
-          </a>
-          <a class="hub-link" href="./qr-generator.html">
-            <h3 class="hub-link-title"><span class="icon">▦</span>QR 코드 생성기</h3>
-            <p>텍스트/URL QR 생성 및 저장</p>
-          </a>
-        </section>
+        <article class="tool-card" id="pdfToImage">
+          <h2><span class="icon">🗎</span> 1. PDF → 이미지 변환기</h2>
+          <p class="sub">PDF 페이지를 PNG/JPG로 변환하여 ZIP으로 저장</p>
+          <div class="form-grid">
+            <label>PDF 파일<input type="file" id="pdfToImageFile" accept=".pdf" /></label>
+            <label>출력 포맷
+              <select id="pdfToImageFormat">
+                <option value="png">PNG</option>
+                <option value="jpeg">JPG</option>
+              </select>
+            </label>
+            <label>해상도 배율
+              <input type="range" id="pdfToImageScale" min="1" max="3" step="0.5" value="1.5" />
+            </label>
+          </div>
+          <div class="btn-row">
+            <button class="btn primary" id="runPdfToImage">변환하기</button>
+            <button class="btn ghost" id="cancelPdfToImage" disabled>취소</button>
+          </div>
+          <div class="progress-wrap">
+            <progress id="progressPdfToImage" max="100" value="0"></progress>
+            <span id="progressPdfToImageLabel">0%</span>
+            <span id="etaPdfToImageLabel" class="eta-label">ETA --:--</span>
+          </div>
+          <p class="status" id="pdfToImageStatus"></p>
+        </article>
       </section>
     </main>
-
     <script src="./app.js"></script>
   </body>
 </html>

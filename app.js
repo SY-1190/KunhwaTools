@@ -229,21 +229,100 @@ const parseSplitGroups = (input, maxPages) => {
 const buildNav = () => {
   const cards = [...document.querySelectorAll(".tool-card")];
   $("toolNav").innerHTML = cards
-    .map((card) => `<a href="#${card.id}">${card.querySelector("h2").textContent}</a>`)
+    .map(
+      (card) =>
+        `<a href="#${card.id}" data-tool-id="${card.id}">${card.querySelector("h2").textContent}</a>`
+    )
     .join("");
 };
 
 const setupThemeToggle = () => {
+  const button = $("themeToggle");
+  if (!button) return;
   const key = "kunhwa-tools-theme";
+  const setThemeButtonLabel = () => {
+    const isDark = document.body.classList.contains("dark");
+    button.textContent = isDark ? "🌙 다크 모드" : "☀ 화이트 모드";
+  };
   const saved = localStorage.getItem(key);
   if (saved === "dark") document.body.classList.add("dark");
-  $("themeToggle").addEventListener("click", () => {
+  setThemeButtonLabel();
+  button.addEventListener("click", () => {
     document.body.classList.toggle("dark");
     localStorage.setItem(key, document.body.classList.contains("dark") ? "dark" : "light");
+    setThemeButtonLabel();
+  });
+};
+
+const setupNavActive = () => {
+  const page = document.body.dataset.page;
+  if (!page) return;
+  document.querySelectorAll(".tool-nav a[data-page]").forEach((link) => {
+    link.classList.toggle("active", link.dataset.page === page);
+  });
+};
+
+const setupStageRouter = () => {
+  const nav = $("toolNav");
+  const stageHeader = $("stageHeader");
+  const stageTitle = $("activeStageTitle");
+  const hubGuide = $("hubGuide");
+  const cards = [...document.querySelectorAll(".tool-card")];
+
+  const clearNavActive = () => {
+    [...nav.querySelectorAll("a")].forEach((a) => a.classList.remove("active"));
+  };
+
+  const enterHub = (replaceHash = true) => {
+    document.body.classList.remove("stage-mode");
+    document.body.classList.add("hub-mode");
+    stageHeader.classList.add("hidden");
+    hubGuide.classList.remove("hidden");
+    cards.forEach((card) => card.classList.remove("active-stage"));
+    clearNavActive();
+    if (replaceHash) history.replaceState(null, "", "#hub");
+  };
+
+  const enterStage = (toolId, replaceHash = true) => {
+    const target = cards.find((c) => c.id === toolId);
+    if (!target) {
+      enterHub(replaceHash);
+      return;
+    }
+    document.body.classList.remove("hub-mode");
+    document.body.classList.add("stage-mode");
+    stageHeader.classList.remove("hidden");
+    hubGuide.classList.add("hidden");
+    cards.forEach((card) => card.classList.toggle("active-stage", card.id === toolId));
+    clearNavActive();
+    const activeLink = nav.querySelector(`a[data-tool-id="${toolId}"]`);
+    if (activeLink) activeLink.classList.add("active");
+    stageTitle.textContent = target.querySelector("h2").textContent;
+    if (replaceHash) history.replaceState(null, "", `#${toolId}`);
+  };
+
+  nav.addEventListener("click", (e) => {
+    const link = e.target.closest("a[data-tool-id]");
+    if (!link) return;
+    e.preventDefault();
+    enterStage(link.dataset.toolId);
+  });
+
+  $("backToHub").addEventListener("click", () => enterHub());
+
+  const initialHash = window.location.hash.replace("#", "").trim();
+  if (!initialHash || initialHash === "hub") enterHub(false);
+  else enterStage(initialHash, false);
+
+  window.addEventListener("hashchange", () => {
+    const hash = window.location.hash.replace("#", "").trim();
+    if (!hash || hash === "hub") enterHub(false);
+    else enterStage(hash, false);
   });
 };
 
 const setupPdfToImage = () => {
+  if (!$("runPdfToImage")) return;
   $("runPdfToImage").addEventListener("click", async () => {
     const file = $("pdfToImageFile").files[0];
     const format = $("pdfToImageFormat").value;
@@ -290,6 +369,7 @@ const setupPdfToImage = () => {
 };
 
 const setupImageToPdf = () => {
+  if (!$("runImageToPdf")) return;
   $("runImageToPdf").addEventListener("click", async () => {
     const files = [...$("imageToPdfFiles").files];
     if (!files.length) {
@@ -525,6 +605,7 @@ const renderArrangeThumbs = async (file) => {
 };
 
 const setupPdfArrange = () => {
+  if (!$("runReorderPdf") || !$("pdfThumbGrid")) return;
   setupThumbDnD();
   renderSplitBlocks();
 
@@ -650,6 +731,7 @@ const setupPdfArrange = () => {
 };
 
 const setupPdfMerge = () => {
+  if (!$("runMergePdf")) return;
   $("runMergePdf").addEventListener("click", async () => {
     const files = [...$("mergePdfFiles").files];
     if (!files.length) {
@@ -680,6 +762,7 @@ const setupPdfMerge = () => {
 };
 
 const setupImageResize = () => {
+  if (!$("runResize")) return;
   $("runResize").addEventListener("click", async () => {
     const files = [...$("resizeFiles").files];
     const width = Number($("resizeWidth").value);
@@ -722,6 +805,7 @@ const setupImageResize = () => {
 };
 
 const setupImageFormat = () => {
+  if (!$("runFormatConvert")) return;
   $("runFormatConvert").addEventListener("click", async () => {
     const files = [...$("formatFiles").files];
     const fmt = $("targetFormat").value;
@@ -798,6 +882,15 @@ const addCapturedBlob = (blob, name, type) => {
 };
 
 const setupProcessTimer = () => {
+  if (
+    !$("timerDisplay") ||
+    !$("timerStart") ||
+    !$("timerPause") ||
+    !$("timerResume") ||
+    !$("timerStop")
+  ) {
+    return;
+  }
   let running = false;
   let startTime = 0;
   let elapsed = 0;
@@ -1049,6 +1142,7 @@ const setupProcessTimer = () => {
 };
 
 const setupQr = () => {
+  if (!$("runQr") || !$("saveQr") || !$("qrPreview")) return;
   let qr = null;
   $("runQr").addEventListener("click", () => {
     const text = $("qrInput").value.trim();
@@ -1090,8 +1184,8 @@ const setupQr = () => {
 
 const init = () => {
   initOperations();
-  buildNav();
   setupThemeToggle();
+  setupNavActive();
   setupPdfToImage();
   setupImageToPdf();
   setupPdfArrange();

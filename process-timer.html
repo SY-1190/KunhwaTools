@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>공정 작업시간 측정기 | Kunhwa Utility Tools</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Sans:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  </head>
+  <body data-page="process-timer">
+    <header class="site-header">
+      <div class="brand-wrap">
+        <div class="cat-mascot" aria-hidden="true">🐱</div>
+        <div>
+          <h1>Kunhwa Utility Tools</h1>
+          <p class="brand-desc">공정 작업시간 측정기</p>
+        </div>
+      </div>
+      <button id="themeToggle" class="btn ghost" type="button">☀ 화이트 모드</button>
+    </header>
+    <main class="page-layout">
+      <aside class="tool-nav">
+        <p class="tool-nav-title">TOOLS</p>
+        <a href="./index.html" data-page="home">🏠 홈</a>
+        <a href="./pdf-to-image.html" data-page="pdf-to-image">🗎 PDF → 이미지</a>
+        <a href="./image-to-pdf.html" data-page="image-to-pdf">🖼 이미지 → PDF</a>
+        <a href="./pdf-arrange.html" data-page="pdf-arrange">↕ PDF 순서변경/나누기</a>
+        <a href="./pdf-merge.html" data-page="pdf-merge">⊞ PDF 합치기</a>
+        <a href="./image-resize.html" data-page="image-resize">⬚ 이미지 크기조정</a>
+        <a href="./image-format.html" data-page="image-format">⇆ 이미지 포맷변환</a>
+        <a href="./process-timer.html" data-page="process-timer">⏱ 공정 작업시간 측정기</a>
+        <a href="./qr-generator.html" data-page="qr-generator">▦ QR 코드 생성기</a>
+      </aside>
+      <section class="content-panel">
+        <article class="tool-card" id="processTimer">
+          <h2><span class="icon">⏱</span> 7. 공정 작업시간 측정기</h2>
+          <p class="sub">공정정보 + 사진/동영상 첨부·촬영 + 시간 기록</p>
+          <div class="form-grid">
+            <label>공정명<input type="text" id="procName" placeholder="예: 조립 1공정" /></label>
+            <label>고객사<input type="text" id="procCustomer" placeholder="예: Kunhwa" /></label>
+            <label class="span-2">간단 내용<textarea id="procMemo" rows="3" placeholder="작업 중 이슈/특이사항"></textarea></label>
+            <label class="span-2">사진/동영상 파일 첨부<input type="file" id="procMediaFiles" accept="image/*,video/*" multiple /></label>
+            <label>모바일 즉시 촬영(기기 지원시)<input type="file" id="procCapture" accept="image/*,video/*" capture="environment" /></label>
+          </div>
+          <div class="capture-box">
+            <video id="cameraPreview" autoplay muted playsinline></video>
+            <div class="btn-row">
+              <button class="btn ghost" id="startCamera">카메라 시작</button>
+              <button class="btn ghost" id="capturePhoto">사진 촬영</button>
+              <button class="btn ghost" id="startVideoRec">영상 기록 시작</button>
+              <button class="btn ghost" id="stopVideoRec">영상 기록 종료</button>
+              <button class="btn ghost" id="stopCamera">카메라 종료</button>
+            </div>
+          </div>
+          <div id="capturedMediaPreview" class="media-grid"></div>
+          <div class="timer-view" id="timerDisplay">00:00:00</div>
+          <div class="btn-row">
+            <button class="btn primary" id="timerStart">시작</button>
+            <button class="btn ghost" id="timerPause">일시정지</button>
+            <button class="btn ghost" id="timerResume">재개</button>
+            <button class="btn danger" id="timerStop">종료 및 기록</button>
+          </div>
+          <p class="status" id="timerStatus"></p>
+          <div class="btn-row">
+            <button class="btn ghost" id="exportProcessJson">기록 JSON 내보내기</button>
+            <button class="btn ghost" id="exportProcessCsv">기록 CSV 내보내기</button>
+          </div>
+          <div id="timerLog" class="session-list"></div>
+        </article>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
