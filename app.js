@@ -3039,8 +3039,9 @@ const setupProcessTimer = () => {
     const rows = processRecords.map((r) =>
       headers.map((h) => escapeCsv(r[h])).join(",")
     );
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const csv = [headers.join(","), ...rows].join("\r\n");
+    // UTF-8 BOM을 붙여 Excel에서 한글 깨짐을 방지합니다.
+    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
     downloadBlob(blob, `process-records-${Date.now()}.csv`);
     setStatus("timerStatus", "CSV 내보내기를 완료했습니다.");
   });
