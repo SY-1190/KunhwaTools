@@ -164,6 +164,8 @@ const ICONS = {
   undo: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>`,
   download: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>`,
   house: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m8.354 1.146 6.5 6.5A.5.5 0 0 1 14.5 8.5H13v5a1 1 0 0 1-1 1h-2.5a.5.5 0 0 1-.5-.5V11a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v3a.5.5 0 0 1-.5.5H4a1 1 0 0 1-1-1v-5H1.5a.5.5 0 0 1-.354-.854l6.5-6.5a.5.5 0 0 1 .708 0"/></svg>`,
+  person: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/><path fill-rule="evenodd" d="M8 9a6 6 0 0 0-5.468 3.516A.75.75 0 0 0 3.205 14h9.59a.75.75 0 0 0 .673-1.484A6 6 0 0 0 8 9"/></svg>`,
+  x: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2.146 2.146a.5.5 0 0 1 .708 0L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854a.5.5 0 0 1 0-.708"/></svg>`,
 };
 
 const setIconButton = (id, iconKey) => {
@@ -434,13 +436,6 @@ const removePdfToImagePlaceholder = () => {
   if (ph?.parentElement) ph.parentElement.removeChild(ph);
 };
 
-const clearDropIndicators = (container) => {
-  if (!container) return;
-  container.querySelectorAll(".thumb-item.drop-before, .thumb-item.drop-after").forEach((el) => {
-    el.classList.remove("drop-before", "drop-after");
-  });
-};
-
 const renderPdfToImageGrid = () => {
   const previewBox = $("pdfToImagePreview");
   if (!previewBox) return;
@@ -466,24 +461,83 @@ const renderPdfToImageGrid = () => {
 const getPdfToImageDragAfterElement = (container, x, y) => {
   const items = [...container.querySelectorAll(".thumb-item:not(.dragging)")];
   if (!items.length) return { afterEl: null, nearestEl: null, before: false };
-  let nearest = null;
-  let nearestDist = Number.POSITIVE_INFINITY;
-  items.forEach((child) => {
-    const box = child.getBoundingClientRect();
-    const cx = box.left + box.width / 2;
-    const cy = box.top + box.height / 2;
-    const dist = (cx - x) * (cx - x) + (cy - y) * (cy - y);
-    if (dist < nearestDist) {
-      nearestDist = dist;
-      nearest = child;
+  const rects = items.map((el) => {
+    const r = el.getBoundingClientRect();
+    return {
+      el,
+      top: r.top,
+      bottom: r.bottom,
+      left: r.left,
+      right: r.right,
+      midX: r.left + r.width / 2,
+      midY: r.top + r.height / 2,
+      height: r.height,
+    };
+  });
+
+  // 1) Build visual rows (wrapped grid friendly).
+  const sortedByVisual = [...rects].sort((a, b) => (a.top - b.top) || (a.left - b.left));
+  const rows = [];
+  const rowTolerance = Math.max(10, Math.round((sortedByVisual[0]?.height || 80) * 0.35));
+  sortedByVisual.forEach((cell) => {
+    const current = rows[rows.length - 1];
+    if (!current || Math.abs(cell.top - current.anchorTop) > rowTolerance) {
+      rows.push({ anchorTop: cell.top, cells: [cell] });
+    } else {
+      current.cells.push(cell);
     }
   });
-  if (!nearest) return { afterEl: null, nearestEl: null, before: false };
-  const box = nearest.getBoundingClientRect();
-  const before = y < box.top + box.height / 2 || (y <= box.bottom && x < box.left + box.width / 2);
-  if (before) return { afterEl: nearest, nearestEl: nearest, before: true };
-  const next = nearest.nextElementSibling?.closest?.(".thumb-item");
-  return { afterEl: next || null, nearestEl: nearest, before: false };
+  rows.forEach((row) => {
+    row.cells.sort((a, b) => a.left - b.left);
+    row.top = Math.min(...row.cells.map((c) => c.top));
+    row.bottom = Math.max(...row.cells.map((c) => c.bottom));
+    row.midY = (row.top + row.bottom) / 2;
+  });
+
+  // 2) Pick active row by Y with stable boundaries.
+  let rowIndex = 0;
+  if (rows.length > 1) {
+    if (y <= rows[0].midY) {
+      rowIndex = 0;
+    } else if (y >= rows[rows.length - 1].midY) {
+      rowIndex = rows.length - 1;
+    } else {
+      for (let i = 0; i < rows.length - 1; i += 1) {
+        const boundary = (rows[i].midY + rows[i + 1].midY) / 2;
+        if (y < boundary) {
+          rowIndex = i;
+          break;
+        }
+        rowIndex = i + 1;
+      }
+    }
+  }
+
+  const row = rows[rowIndex];
+  const rowCells = row.cells;
+  const nearestEl = rowCells.reduce((near, c) => {
+    if (!near) return c;
+    const dNear = Math.abs(near.midX - x);
+    const dCur = Math.abs(c.midX - x);
+    return dCur < dNear ? c : near;
+  }, null)?.el || null;
+
+  // 3) In-row insertion by X midpoint.
+  if (x <= rowCells[0].midX) {
+    return { afterEl: rowCells[0].el, nearestEl: rowCells[0].el, before: true };
+  }
+  for (let i = 1; i < rowCells.length; i += 1) {
+    if (x < rowCells[i].midX) {
+      return { afterEl: rowCells[i].el, nearestEl, before: true };
+    }
+  }
+
+  // End of row: insert before next row head if exists, otherwise append.
+  const nextRow = rows[rowIndex + 1];
+  if (nextRow?.cells?.length) {
+    return { afterEl: nextRow.cells[0].el, nearestEl, before: false };
+  }
+  return { afterEl: null, nearestEl, before: false };
 };
 
 const applyPdfToImageDrop = () => {
@@ -519,7 +573,6 @@ const setupPdfToImagePreviewDnD = () => {
   grid.addEventListener("dragend", () => {
     pdfToImageState.draggingPageId = null;
     removePdfToImagePlaceholder();
-    clearDropIndicators(grid);
     grid.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
   });
   grid.addEventListener("dragover", (e) => {
@@ -527,8 +580,6 @@ const setupPdfToImagePreviewDnD = () => {
     e.preventDefault();
     const placeholder = ensurePdfToImagePlaceholder();
     const intent = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
-    clearDropIndicators(grid);
-    intent.nearestEl?.classList.add(intent.before ? "drop-before" : "drop-after");
     if (!intent.afterEl) grid.appendChild(placeholder);
     else grid.insertBefore(placeholder, intent.afterEl);
   });
@@ -537,7 +588,6 @@ const setupPdfToImagePreviewDnD = () => {
     e.preventDefault();
     applyPdfToImageDrop();
     removePdfToImagePlaceholder();
-    clearDropIndicators(grid);
   });
   grid.addEventListener("click", (e) => {
     const del = e.target.closest(".thumb-delete");
@@ -884,6 +934,53 @@ const setupPdfToImage = () => {
   });
 };
 
+const setupLoginModal = () => {
+  const modal = $("loginModal");
+  const openBtn = $("loginBtn");
+  const closeBtn = $("closeLoginModal");
+  const cancelBtn = $("loginCancelBtn");
+  const submitBtn = $("loginSubmitBtn");
+  const status = $("loginModalStatus");
+  if (!modal || !openBtn || !closeBtn || !cancelBtn || !submitBtn) return;
+
+  const openModal = () => {
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    status.textContent = "";
+    setTimeout(() => $("loginEmail")?.focus(), 40);
+  };
+
+  const closeModal = () => {
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  };
+
+  setIconButton("loginBtnIcon", "person");
+  setIconButton("closeLoginModal", "x");
+
+  openBtn.addEventListener("click", openModal);
+  closeBtn.addEventListener("click", closeModal);
+  cancelBtn.addEventListener("click", closeModal);
+  modal.addEventListener("click", (e) => {
+    if (e.target.closest("[data-close-login='true']")) closeModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
+  });
+  submitBtn.addEventListener("click", () => {
+    const email = $("loginEmail")?.value?.trim() || "";
+    const pw = $("loginPassword")?.value?.trim() || "";
+    if (!email || !pw) {
+      status.textContent = "이메일과 비밀번호를 입력해주세요.";
+      return;
+    }
+    status.textContent = "로그인 확인 중...";
+    setTimeout(() => {
+      status.textContent = "로그인 성공(데모): 연동 기능 준비 중입니다.";
+    }, 450);
+  });
+};
+
 const toolFileState = {
   imageToPdf: [],
   mergePdf: [],
@@ -892,6 +989,7 @@ const toolFileState = {
 };
 
 const pdfThumbCache = new Map();
+const pdfPageCountCache = new Map();
 const PDF_THUMB_CACHE_MAX = 120;
 
 const getFileCacheKey = (file) => `${file.name}__${file.size}__${file.lastModified}`;
@@ -913,6 +1011,11 @@ const setCachedPdfThumb = (key, value) => {
   if (oldest) pdfThumbCache.delete(oldest);
 };
 
+const getCachedPdfPageCount = (key) => pdfPageCountCache.get(key) || null;
+const setCachedPdfPageCount = (key, value) => {
+  pdfPageCountCache.set(key, value);
+};
+
 const loadThumbFromImageFile = async (file, maxSize = 130) => {
   const { img } = await loadImageFromFile(file);
   const ratio = img.width / img.height;
@@ -928,9 +1031,13 @@ const loadThumbFromImageFile = async (file, maxSize = 130) => {
 const loadPdfFrontThumb = async (file, maxWidth = 130) => {
   const cacheKey = `${getFileCacheKey(file)}__${maxWidth}`;
   const cached = getCachedPdfThumb(cacheKey);
-  if (cached) return cached;
+  const cachedPageCount = getCachedPdfPageCount(cacheKey);
+  if (cached && cachedPageCount) {
+    return { thumb: cached, pageCount: cachedPageCount };
+  }
   const buffer = await readAsArrayBuffer(file);
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const pageCount = pdf.numPages;
   const page = await pdf.getPage(1);
   const base = page.getViewport({ scale: 1 });
   const scale = maxWidth / base.width;
@@ -941,7 +1048,8 @@ const loadPdfFrontThumb = async (file, maxWidth = 130) => {
   await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
   const thumb = canvas.toDataURL("image/png");
   setCachedPdfThumb(cacheKey, thumb);
-  return thumb;
+  setCachedPdfPageCount(cacheKey, pageCount);
+  return { thumb, pageCount };
 };
 
 const removeFileAtIndex = (stateKey, inputId, index) => {
@@ -1008,15 +1116,12 @@ const renderImageThumbPreview = async (previewId, stateKey, inputId, reorderable
   grid.ondragend = () => {
     dragIdx = -1;
     if (placeholder.parentElement) placeholder.parentElement.removeChild(placeholder);
-    clearDropIndicators(grid);
     grid.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
   };
   grid.ondragover = (e) => {
     if (dragIdx < 0) return;
     e.preventDefault();
     const intent = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
-    clearDropIndicators(grid);
-    intent.nearestEl?.classList.add(intent.before ? "drop-before" : "drop-after");
     if (!intent.afterEl) grid.appendChild(placeholder);
     else grid.insertBefore(placeholder, intent.afterEl);
   };
@@ -1034,7 +1139,6 @@ const renderImageThumbPreview = async (previewId, stateKey, inputId, reorderable
     }
     toolFileState[stateKey] = filtered;
     syncFilesToInput(inputId, filtered);
-    clearDropIndicators(grid);
   };
 };
 
@@ -1055,7 +1159,7 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
       item.dataset.idx = String(idx);
       item.innerHTML = `<button class="thumb-delete" type="button" title="파일 제거" aria-label="파일 제거">${ICONS.trash3}</button><div class="thumb-label">${idx + 1}. ${file.name}</div>`;
       try {
-        const thumb = await loadPdfFrontThumb(file, 130);
+        const { thumb, pageCount } = await loadPdfFrontThumb(file, 130);
         const img = document.createElement("img");
         img.src = thumb;
         img.alt = `${file.name} first page`;
@@ -1064,6 +1168,10 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
         img.style.border = "1px solid #d4e2f1";
         img.style.borderRadius = "6px";
         item.prepend(img);
+        const pageTag = document.createElement("div");
+        pageTag.className = "thumb-label";
+        pageTag.textContent = `${pageCount}페이지`;
+        item.appendChild(pageTag);
       } catch {
         const stub = document.createElement("div");
         stub.className = "thumb-label";
@@ -1095,15 +1203,12 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
   grid.ondragend = () => {
     dragIdx = -1;
     if (placeholder.parentElement) placeholder.parentElement.removeChild(placeholder);
-    clearDropIndicators(grid);
     grid.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
   };
   grid.ondragover = (e) => {
     if (dragIdx < 0) return;
     e.preventDefault();
     const intent = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
-    clearDropIndicators(grid);
-    intent.nearestEl?.classList.add(intent.before ? "drop-before" : "drop-after");
     if (!intent.afterEl) grid.appendChild(placeholder);
     else grid.insertBefore(placeholder, intent.afterEl);
   };
@@ -1121,7 +1226,6 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
     }
     toolFileState[stateKey] = filtered;
     syncFilesToInput(inputId, filtered);
-    clearDropIndicators(grid);
   };
 };
 
@@ -1388,8 +1492,6 @@ const getDragAfterElement = (container, x, y) => {
 const placePlaceholderInGrid = (grid, x, y) => {
   const placeholder = ensureArrangePlaceholder();
   const intent = getPdfToImageDragAfterElement(grid, x, y);
-  clearDropIndicators(grid);
-  intent.nearestEl?.classList.add(intent.before ? "drop-before" : "drop-after");
   const afterEl = intent.afterEl;
   if (!afterEl) grid.appendChild(placeholder);
   else grid.insertBefore(placeholder, afterEl);
@@ -1462,8 +1564,6 @@ const setupArrangeDnD = () => {
   const handleDragEnd = () => {
     removePlaceholder();
     arrangeState.dragCtx = null;
-    clearDropIndicators(reorderGrid);
-    splitWrap.querySelectorAll(".split-bucket-grid").forEach((g) => clearDropIndicators(g));
     document.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
   };
 
@@ -1526,7 +1626,6 @@ const setupArrangeDnD = () => {
     e.preventDefault();
     applyDropToReorder();
     removePlaceholder();
-    clearDropIndicators(reorderGrid);
   });
 
   splitWrap.addEventListener("click", (e) => {
@@ -1562,7 +1661,6 @@ const setupArrangeDnD = () => {
     const bucketId = Number(grid.dataset.bucketGrid);
     applyDropToSplitBucket(bucketId);
     removePlaceholder();
-    clearDropIndicators(grid);
   });
 };
 
@@ -2293,6 +2391,7 @@ const init = () => {
   document.body.classList.add("home-mode");
   initOperations();
   setupThemeToggle();
+  setupLoginModal();
   setIconButton("backToHub", "house");
   setupNavActive();
   setupDropZones();

@@ -27,13 +27,19 @@
           <p class="brand-desc">핸디한 온라인 툴 모음 · 파일은 브라우저 내에서 처리</p>
         </div>
       </div>
-      <button id="themeToggle" class="btn ghost theme-icon-btn" type="button" aria-label="화이트 모드">☀</button>
+      <div class="header-actions">
+        <button id="themeToggle" class="btn ghost theme-icon-btn" type="button" aria-label="화이트 모드">☀</button>
+        <button id="loginBtn" class="btn ghost header-login-btn" type="button" aria-label="로그인">
+          <span id="loginBtnIcon" class="btn-icon-slot" aria-hidden="true"></span>
+          <span>로그인</span>
+        </button>
+      </div>
     </header>
 
     <main class="single-shell">
       <section class="content-panel">
         <section id="quickHub" class="quick-hub">
-          <h2>빠른 이동</h2>
+          <h2>Tools</h2>
           <div class="quick-grid">
             <a class="quick-btn" href="#pdfToImage"><span>🗎</span><strong>PDF → 이미지</strong></a>
             <a class="quick-btn" href="#imageToPdf"><span>🖼</span><strong>이미지 → PDF</strong></a>
@@ -386,6 +392,33 @@
         <div class="global-spinner" aria-hidden="true"></div>
         <p id="globalBusyText">작업 처리 중입니다...</p>
       </div>
+    </div>
+    <div id="loginModal" class="modal-wrap hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close-login="true"></div>
+      <section class="modal-card login-card" role="dialog" aria-modal="true" aria-label="로그인">
+        <button id="closeLoginModal" class="icon-btn modal-close-btn" type="button" aria-label="닫기"></button>
+        <div class="login-hero" aria-hidden="true">
+          <span class="login-logo-badge">
+            <img src="./assets/Kunhwa Logo.png" alt="Kunhwa Logo" class="login-logo" />
+          </span>
+        </div>
+        <div class="login-body">
+          <p class="modal-sub">사내 기능(예: SharePoint 연동)을 사용하려면 로그인하세요.</p>
+          <div class="login-form">
+            <label class="login-field">아이디
+              <input type="text" id="loginEmail" />
+            </label>
+            <label class="login-field">비밀번호
+              <input type="password" id="loginPassword" />
+            </label>
+          </div>
+          <div class="login-actions">
+            <button id="loginSubmitBtn" class="btn login-primary-btn" type="button">로그인</button>
+            <button id="loginCancelBtn" class="btn login-cancel-btn" type="button">취소</button>
+          </div>
+          <p id="loginModalStatus" class="status login-status"></p>
+        </div>
+      </section>
     </div>
     <script src="./app.js"></script>
   </body>
