@@ -34,6 +34,13 @@ const operationConfigs = {
     etaLabelId: "etaMergePdfLabel",
     statusId: "mergePdfStatus",
   },
+  pdfCompress: {
+    cancelBtnId: "cancelPdfCompress",
+    progressId: "progressPdfCompress",
+    progressLabelId: "progressPdfCompressLabel",
+    etaLabelId: "etaPdfCompressLabel",
+    statusId: "pdfCompressStatus",
+  },
   resize: {
     cancelBtnId: "cancelResize",
     progressId: "progressResize",
@@ -984,6 +991,7 @@ const setupLoginModal = () => {
 const toolFileState = {
   imageToPdf: [],
   mergePdf: [],
+  pdfCompress: [],
   resize: [],
   format: [],
 };
@@ -1862,6 +1870,170 @@ const setupPdfMerge = () => {
   });
 };
 
+const renderPdfCompressResult = (rows) => {
+  const wrap = $("pdfCompressResult");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "status";
+    empty.textContent = "아직 실행 결과가 없습니다.";
+    wrap.appendChild(empty);
+    return;
+  }
+
+  const totalBefore = rows.reduce((sum, row) => sum + row.beforeSize, 0);
+  const totalAfter = rows.reduce((sum, row) => sum + row.afterSize, 0);
+  const totalSaved = totalBefore - totalAfter;
+  const totalRate = totalBefore > 0 ? (totalSaved / totalBefore) * 100 : 0;
+
+  const summary = document.createElement("p");
+  summary.className = "order-line";
+  summary.textContent =
+    `총 ${rows.length}개 파일 · 원본 ${formatBytes(totalBefore)} → 압축 ${formatBytes(totalAfter)} ` +
+    `(절감 ${formatBytes(Math.max(0, totalSaved))}, ${totalRate.toFixed(1)}%)`;
+  wrap.appendChild(summary);
+
+  rows.forEach((row) => {
+    const item = document.createElement("div");
+    item.className = "compress-result-item";
+    const saved = row.beforeSize - row.afterSize;
+    const savedRate = row.beforeSize > 0 ? (saved / row.beforeSize) * 100 : 0;
+    item.innerHTML = `
+      <p class="compress-name">${row.name}</p>
+      <p class="compress-meta">페이지: ${row.selectedPages}/${row.totalPages}</p>
+      <p class="compress-meta">원본: ${formatBytes(row.beforeSize)} → 압축: ${formatBytes(row.afterSize)}</p>
+      <p class="compress-meta compress-emphasis">절감: ${formatBytes(Math.max(0, saved))} (${savedRate.toFixed(1)}%)</p>
+    `;
+    wrap.appendChild(item);
+  });
+};
+
+const setupPdfCompress = () => {
+  if (!$("runPdfCompress")) return;
+  $("pdfCompressFiles")?.addEventListener("change", async () => {
+    toolFileState.pdfCompress = [...$("pdfCompressFiles").files];
+    await renderMergePdfPreview("pdfCompressPreview", "pdfCompress", "pdfCompressFiles");
+  });
+
+  $("runPdfCompress").addEventListener("click", async () => {
+    const files = [...$("pdfCompressFiles").files];
+    if (!files.length) {
+      setStatus("pdfCompressStatus", "압축할 PDF를 선택해주세요.");
+      return;
+    }
+
+    const preset = $("pdfCompressPreset")?.value || "balanced";
+    const baseDpi = Number($("pdfCompressDpi")?.value || 150);
+    const baseQuality = Number($("pdfCompressQuality")?.value || 72);
+    const pageInput = ($("pdfCompressPages")?.value || "").trim();
+
+    const presetMap = {
+      mild: { dpiMul: 1.0, qualityMul: 1.0 },
+      balanced: { dpiMul: 0.85, qualityMul: 0.9 },
+      strong: { dpiMul: 0.7, qualityMul: 0.78 },
+    };
+    const presetOpt = presetMap[preset] || presetMap.balanced;
+    const effectiveDpi = Math.max(72, Math.round(baseDpi * presetOpt.dpiMul));
+    const effectiveQuality = Math.min(95, Math.max(30, Math.round(baseQuality * presetOpt.qualityMul)));
+
+    const meta = [];
+    let totalSteps = 0;
+    for (let i = 0; i < files.length; i += 1) {
+      const cacheKey = `${getFileCacheKey(files[i])}__130`;
+      let totalPages = getCachedPdfPageCount(cacheKey);
+      if (!totalPages) {
+        const { pageCount } = await loadPdfFrontThumb(files[i], 130);
+        totalPages = pageCount;
+      }
+      const selectedPages = parsePageTokens(pageInput, totalPages);
+      totalSteps += selectedPages.length;
+      meta.push({
+        totalPages,
+        selectedPages,
+      });
+    }
+
+    if (!totalSteps) {
+      setStatus("pdfCompressStatus", "유효한 페이지가 없습니다. 페이지 범위를 확인해주세요.");
+      return;
+    }
+
+    startOperation("pdfCompress", "PDF 용량 압축 준비 중...");
+    renderPdfCompressResult([]);
+    try {
+      const zip = new JSZip();
+      const rows = [];
+      let processedSteps = 0;
+
+      for (let i = 0; i < files.length; i += 1) {
+        checkCancelled("pdfCompress");
+        const file = files[i];
+        const beforeSize = file.size;
+        const srcBytes = await readAsArrayBuffer(file);
+        const pdf = await pdfjsLib.getDocument({ data: srcBytes }).promise;
+        const out = await PDFLib.PDFDocument.create();
+        const selectedPages = meta[i].selectedPages;
+
+        for (let p = 0; p < selectedPages.length; p += 1) {
+          checkCancelled("pdfCompress");
+          const pageNo = selectedPages[p];
+          setStatus(
+            "pdfCompressStatus",
+            `${file.name} 압축 중 (${p + 1}/${selectedPages.length}) · DPI ${effectiveDpi} · Q ${effectiveQuality}`
+          );
+          const srcPage = await pdf.getPage(pageNo);
+          const baseViewport = srcPage.getViewport({ scale: 1 });
+          const scale = effectiveDpi / 72;
+          const viewport = srcPage.getViewport({ scale });
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.floor(viewport.width));
+          canvas.height = Math.max(1, Math.floor(viewport.height));
+          await srcPage.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+
+          const jpgDataUrl = canvas.toDataURL("image/jpeg", effectiveQuality / 100);
+          const jpgImage = await out.embedJpg(dataUrlToUint8Array(jpgDataUrl));
+          const outPage = out.addPage([baseViewport.width, baseViewport.height]);
+          outPage.drawImage(jpgImage, {
+            x: 0,
+            y: 0,
+            width: baseViewport.width,
+            height: baseViewport.height,
+          });
+
+          processedSteps += 1;
+          updateProgress("pdfCompress", processedSteps, totalSteps);
+        }
+
+        checkCancelled("pdfCompress");
+        const outBytes = await out.save();
+        const outName = `${String(i + 1).padStart(2, "0")}_${file.name.replace(/\.pdf$/i, "")}_compressed.pdf`;
+        zip.file(outName, outBytes);
+
+        rows.push({
+          name: `${file.name} → ${outName}`,
+          beforeSize,
+          afterSize: outBytes.length,
+          totalPages: meta[i].totalPages,
+          selectedPages: selectedPages.length,
+        });
+      }
+
+      checkCancelled("pdfCompress");
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      downloadBlob(zipBlob, "compressed-pdfs.zip");
+      updateProgress("pdfCompress", totalSteps, totalSteps);
+      renderPdfCompressResult(rows);
+      endOperation(
+        "pdfCompress",
+        `완료: ${rows.length}개 압축 · DPI ${effectiveDpi}, JPEG 품질 ${effectiveQuality}`
+      );
+    } catch (err) {
+      handleOperationError("pdfCompress", err);
+    }
+  });
+};
+
 const setupImageResize = () => {
   if (!$("runResize")) return;
   $("resizeFiles")?.addEventListener("change", async () => {
@@ -2193,6 +2365,26 @@ const setupQr = () => {
     renderUrl: null,
   };
 
+  const syncQrColorUi = () => {
+    const fg = ($("qrFg")?.value || "#000000").toUpperCase();
+    const bg = ($("qrBg")?.value || "#FFFFFF").toUpperCase();
+    const transparent = !!$("qrTransparentBg")?.checked;
+    const fgHex = $("qrFgHex");
+    const bgHex = $("qrBgHex");
+    const fgSwatch = $("qrFgSwatch");
+    const bgSwatch = $("qrBgSwatch");
+    const bgLabel = $("qrBg")?.closest(".qr-color-label");
+    if (fgHex) fgHex.textContent = fg;
+    if (bgHex) bgHex.textContent = transparent ? `${bg} (투명 처리됨)` : bg;
+    if (fgSwatch) fgSwatch.style.background = fg;
+    if (bgSwatch) {
+      bgSwatch.style.background = transparent
+        ? "repeating-conic-gradient(#dde6f2 0% 25%, #ffffff 0% 50%) 50% / 10px 10px"
+        : bg;
+    }
+    if (bgLabel) bgLabel.classList.toggle("qr-bg-disabled", transparent);
+  };
+
   const getQrOptions = () => {
     const fmt = document.querySelector("input[name='qrFormat']:checked")?.value || "png";
     return {
@@ -2291,6 +2483,32 @@ const setupQr = () => {
     img.style.height = "auto";
     box.appendChild(img);
   };
+
+  const refreshQrPreviewLive = async () => {
+    const options = getQrOptions();
+    if (!options.text) return;
+    try {
+      const asset = await buildQrAsset(options);
+      state.lastBlob = asset.blob;
+      state.lastExt = asset.ext;
+      state.renderUrl = asset.previewUrl;
+      renderQrPreview(asset.previewUrl);
+    } catch {
+      // Ignore live-preview errors; explicit "QR 생성" will surface details.
+    }
+  };
+
+  ["qrFg", "qrBg", "qrTransparentBg"].forEach((id) => {
+    $(id)?.addEventListener("input", () => {
+      syncQrColorUi();
+      refreshQrPreviewLive();
+    });
+    $(id)?.addEventListener("change", () => {
+      syncQrColorUi();
+      refreshQrPreviewLive();
+    });
+  });
+  syncQrColorUi();
 
   $("runQr").addEventListener("click", async () => {
     const options = getQrOptions();
@@ -2400,6 +2618,7 @@ const init = () => {
   setupImageToPdf();
   setupPdfArrange();
   setupPdfMerge();
+  setupPdfCompress();
   setupImageResize();
   setupImageFormat();
   setupProcessTimer();

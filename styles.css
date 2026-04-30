@@ -835,6 +835,36 @@ progress::-webkit-progress-value {
   cursor: pointer;
 }
 
+.compress-result-list {
+  display: grid;
+  gap: 7px;
+}
+
+.compress-result-item {
+  border: 1px solid #cdddf0;
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: #fff;
+}
+
+.compress-name {
+  margin: 0 0 2px;
+  font-size: 12px;
+  color: #19365d;
+  font-weight: 700;
+}
+
+.compress-meta {
+  margin: 0;
+  font-size: 11px;
+  color: #4f6686;
+}
+
+.compress-emphasis {
+  color: #1d4f8f;
+  font-weight: 700;
+}
+
 .capture-box {
   margin-top: 8px;
   border: 1px dashed #c8d7ea;
@@ -959,6 +989,74 @@ progress::-webkit-progress-value {
 .qr-controls {
   display: grid;
   gap: 8px;
+}
+
+.qr-color-label {
+  gap: 6px;
+}
+
+.qr-color-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+}
+
+input[type="color"] {
+  width: 56px;
+  min-width: 56px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #b9cde7;
+  padding: 2px;
+  background: #fff;
+  cursor: pointer;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: 6px;
+}
+
+input[type="color"]::-moz-color-swatch {
+  border: 0;
+  border-radius: 6px;
+}
+
+.qr-color-hex {
+  border: 1px solid #d4e1f2;
+  border-radius: 8px;
+  background: #fff;
+  padding: 7px 9px;
+  font-size: 12px;
+  color: #446485;
+  letter-spacing: 0.3px;
+}
+
+.qr-color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #c6d7ed;
+  background: #fff;
+}
+
+.qr-color-help {
+  margin: -2px 0 0;
+  font-size: 11px;
+  color: #6884a6;
+}
+
+.qr-bg-disabled input[type="color"] {
+  opacity: 0.45;
+}
+
+.qr-bg-disabled .qr-color-hex {
+  opacity: 0.55;
 }
 
 .qr-controls hr {
@@ -1219,8 +1317,21 @@ body.dark .hub-link,
 body.dark .thumb-item,
 body.dark .media-item,
 body.dark .session-item,
-body.dark .split-block-item {
+body.dark .split-block-item,
+body.dark .compress-result-item {
   background: #1a2637;
+}
+
+body.dark .compress-name {
+  color: #d5e4fa;
+}
+
+body.dark .compress-meta {
+  color: #b0c3df;
+}
+
+body.dark .compress-emphasis {
+  color: #8ebbf0;
 }
 
 body.dark .tool-subpanel {
@@ -1236,6 +1347,20 @@ body.dark .drop-zone {
 body.dark .drop-zone.dragover {
   background: #23324a;
   border-color: #74a4ea;
+}
+
+body.dark .qr-color-hex {
+  background: #152131;
+  border-color: #3a4f6e;
+  color: #c4d8f3;
+}
+
+body.dark .qr-color-swatch {
+  border-color: #496385;
+}
+
+body.dark .qr-color-help {
+  color: #94aac9;
 }
 
 body.dark .drop-main {
