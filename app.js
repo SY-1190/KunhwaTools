@@ -41,6 +41,13 @@ const operationConfigs = {
     etaLabelId: "etaPdfCompressLabel",
     statusId: "pdfCompressStatus",
   },
+  dwgToPdf: {
+    cancelBtnId: "cancelDwgToPdf",
+    progressId: "progressDwgToPdf",
+    progressLabelId: "progressDwgToPdfLabel",
+    etaLabelId: "etaDwgToPdfLabel",
+    statusId: "dwgToPdfStatus",
+  },
   resize: {
     cancelBtnId: "cancelResize",
     progressId: "progressResize",
@@ -54,6 +61,13 @@ const operationConfigs = {
     progressLabelId: "progressFormatLabel",
     etaLabelId: "etaFormatLabel",
     statusId: "formatStatus",
+  },
+  batchRename: {
+    cancelBtnId: "cancelBatchRename",
+    progressId: "progressBatchRename",
+    progressLabelId: "progressBatchRenameLabel",
+    etaLabelId: "etaBatchRenameLabel",
+    statusId: "batchRenameStatus",
   },
 };
 
@@ -149,6 +163,11 @@ const readAsText = (file) =>
     fr.onerror = reject;
     fr.readAsText(file, "utf-8");
   });
+
+const isHeicLikeFile = (file) => {
+  const ext = (file?.name?.split(".").pop() || "").toLowerCase();
+  return ext === "heic" || ext === "heif" || /image\/hei(c|f)/i.test(file?.type || "");
+};
 
 const dedupeFiles = (files) => {
   const seen = new Set();
@@ -285,6 +304,31 @@ const dataUrlToUint8Array = (dataUrl) => {
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i += 1) bytes[i] = binary.charCodeAt(i);
   return bytes;
+};
+
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const splitFileName = (fileName) => {
+  const lastDot = fileName.lastIndexOf(".");
+  if (lastDot <= 0) return { stem: fileName, ext: "" };
+  return {
+    stem: fileName.slice(0, lastDot),
+    ext: fileName.slice(lastDot),
+  };
+};
+
+const sanitizeFileStem = (name) => {
+  let out = String(name || "")
+    .replace(/[\u0000-\u001f\u0080-\u009f]/g, "")
+    .replace(/[<>:"/\\|?*]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[. ]+$/g, "")
+    .replace(/^[. ]+/g, "");
+  if (!out || out === "." || out === "..") out = "file";
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(out)) out = `${out}_`;
+  if (out.length > 180) out = out.slice(0, 180);
+  return out;
 };
 
 const initOperations = () => {
@@ -904,7 +948,7 @@ const setupPdfToImage = () => {
       if (!filteredFinalPages.length) {
         throw new Error("변환할 페이지가 없습니다. 페이지 필터/삭제 상태를 확인해주세요.");
       }
-      const zip = new JSZip();
+      const outputs = [];
 
       for (let i = 0; i < filteredFinalPages.length; i += 1) {
         checkCancelled("pdfToImage");
@@ -924,17 +968,32 @@ const setupPdfToImage = () => {
         const dataUrl = canvas.toDataURL(mime, quality);
         const realMime = dataUrl.startsWith("data:image/png") && mime !== "image/png" ? "image/png" : mime;
         const ext = realMime === "image/jpeg" ? "jpg" : realMime === "image/webp" ? "webp" : "png";
-        const base64 = dataUrl.split(",")[1];
+        const outBytes = dataUrlToUint8Array(dataUrl);
         const safeName = pageMeta.fileLabel.replace(/\.[^.]+$/, "").replace(/[\\/:*?"<>|]/g, "_");
-        zip.file(`${safeName}_p${pageNo}.${ext}`, base64, { base64: true });
+        outputs.push({
+          name: `${safeName}_p${pageNo}.${ext}`,
+          blob: new Blob([outBytes], { type: realMime }),
+        });
         updateProgress("pdfToImage", i + 1, filteredFinalPages.length);
       }
 
       checkCancelled("pdfToImage");
-      const blob = await zip.generateAsync({ type: "blob" });
-      downloadBlob(blob, "pdf-to-images.zip");
+      if (outputs.length === 1) {
+        downloadBlob(outputs[0].blob, outputs[0].name);
+      } else {
+        const zip = new JSZip();
+        outputs.forEach((out) => zip.file(out.name, out.blob));
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(zipBlob, "pdf-to-images.zip");
+      }
       updateProgress("pdfToImage", 100, 100);
-      endOperation("pdfToImage", `완료: ${filteredFinalPages.length}페이지 (${formatBytes(blob.size)})`);
+      const totalBytes = outputs.reduce((sum, out) => sum + (out.blob?.size || 0), 0);
+      endOperation(
+        "pdfToImage",
+        outputs.length === 1
+          ? `완료: 1페이지 단건 다운로드 (${formatBytes(totalBytes)})`
+          : `완료: ${outputs.length}페이지 (ZIP 다운로드, ${formatBytes(totalBytes)})`
+      );
     } catch (err) {
       handleOperationError("pdfToImage", err);
     }
@@ -992,8 +1051,10 @@ const toolFileState = {
   imageToPdf: [],
   mergePdf: [],
   pdfCompress: [],
+  dwgToPdf: [],
   resize: [],
   format: [],
+  rename: [],
 };
 
 const pdfThumbCache = new Map();
@@ -1024,8 +1085,28 @@ const setCachedPdfPageCount = (key, value) => {
   pdfPageCountCache.set(key, value);
 };
 
+const loadImageFromAnyFile = async (file) => {
+  if (!isHeicLikeFile(file)) return loadImageFromFile(file);
+  if (typeof heic2any !== "function") {
+    throw new Error("HEIC 변환 라이브러리(heic2any)를 불러오지 못했습니다.");
+  }
+  const converted = await heic2any({
+    blob: file,
+    toType: "image/png",
+    quality: 0.92,
+  });
+  const blob = Array.isArray(converted) ? converted[0] : converted;
+  const dataUrl = await readAsDataURL(blob);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ img, dataUrl });
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+};
+
 const loadThumbFromImageFile = async (file, maxSize = 130) => {
-  const { img } = await loadImageFromFile(file);
+  const { img } = await loadImageFromAnyFile(file);
   const ratio = img.width / img.height;
   const width = ratio >= 1 ? maxSize : Math.round(maxSize * ratio);
   const height = ratio >= 1 ? Math.round(maxSize / ratio) : maxSize;
@@ -1812,7 +1893,7 @@ const setupPdfArrange = () => {
       }
       if (!groups.length) throw new Error("유효한 분할 대상이 없습니다.");
 
-      const zip = new JSZip();
+      const outputs = [];
       for (let i = 0; i < groups.length; i += 1) {
         checkCancelled("arrange");
         const out = await PDFLib.PDFDocument.create();
@@ -1821,14 +1902,28 @@ const setupPdfArrange = () => {
           groups[i].map((n) => n - 1)
         );
         pages.forEach((p) => out.addPage(p));
-        zip.file(`split-${i + 1}.pdf`, await out.save());
+        outputs.push({
+          name: `split-${i + 1}.pdf`,
+          bytes: await out.save(),
+        });
         updateProgress("arrange", i + 1, groups.length);
       }
       checkCancelled("arrange");
-      const blob = await zip.generateAsync({ type: "blob" });
-      downloadBlob(blob, "split-pdfs.zip");
+      if (outputs.length === 1) {
+        downloadBlob(new Blob([outputs[0].bytes], { type: "application/pdf" }), outputs[0].name);
+      } else {
+        const zip = new JSZip();
+        outputs.forEach((out) => zip.file(out.name, out.bytes));
+        const blob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(blob, "split-pdfs.zip");
+      }
       updateProgress("arrange", 100, 100);
-      endOperation("arrange", `완료: ${groups.length}개 파일로 분할`);
+      endOperation(
+        "arrange",
+        outputs.length === 1
+          ? "완료: 1개 분할 PDF 단건 다운로드"
+          : `완료: ${outputs.length}개 파일로 분할 (ZIP 다운로드)`
+      );
     } catch (err) {
       handleOperationError("arrange", err);
     }
@@ -1962,8 +2057,8 @@ const setupPdfCompress = () => {
     startOperation("pdfCompress", "PDF 용량 압축 준비 중...");
     renderPdfCompressResult([]);
     try {
-      const zip = new JSZip();
       const rows = [];
+      const outputs = [];
       let processedSteps = 0;
 
       for (let i = 0; i < files.length; i += 1) {
@@ -2008,7 +2103,10 @@ const setupPdfCompress = () => {
         checkCancelled("pdfCompress");
         const outBytes = await out.save();
         const outName = `${String(i + 1).padStart(2, "0")}_${file.name.replace(/\.pdf$/i, "")}_compressed.pdf`;
-        zip.file(outName, outBytes);
+        outputs.push({
+          name: outName,
+          bytes: outBytes,
+        });
 
         rows.push({
           name: `${file.name} → ${outName}`,
@@ -2020,16 +2118,278 @@ const setupPdfCompress = () => {
       }
 
       checkCancelled("pdfCompress");
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-      downloadBlob(zipBlob, "compressed-pdfs.zip");
+      if (outputs.length === 1) {
+        downloadBlob(new Blob([outputs[0].bytes], { type: "application/pdf" }), outputs[0].name);
+      } else {
+        const zip = new JSZip();
+        outputs.forEach((out) => zip.file(out.name, out.bytes));
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(zipBlob, "compressed-pdfs.zip");
+      }
       updateProgress("pdfCompress", totalSteps, totalSteps);
       renderPdfCompressResult(rows);
       endOperation(
         "pdfCompress",
-        `완료: ${rows.length}개 압축 · DPI ${effectiveDpi}, JPEG 품질 ${effectiveQuality}`
+        rows.length === 1
+          ? `완료: 1개 PDF 압축 (단건 다운로드)`
+          : `완료: ${rows.length}개 압축 (ZIP 다운로드) · DPI ${effectiveDpi}, JPEG 품질 ${effectiveQuality}`
       );
     } catch (err) {
       handleOperationError("pdfCompress", err);
+    }
+  });
+};
+
+const renderGenericFilePreview = (previewId, stateKey, inputId, prefix = "") => {
+  const grid = $(previewId);
+  if (!grid) return;
+  grid.innerHTML = "";
+  const files = toolFileState[stateKey];
+  if (!files?.length) return;
+
+  for (let i = 0; i < files.length; i += 1) {
+    const item = document.createElement("div");
+    item.className = "thumb-item";
+    item.draggable = true;
+    item.dataset.idx = String(i);
+    item.innerHTML = `<button class="thumb-delete" type="button" title="파일 제거" aria-label="파일 제거">${ICONS.trash3}</button>`;
+    const stub = document.createElement("div");
+    stub.className = "file-type-stub";
+    stub.textContent = prefix || (files[i].name.split(".").pop() || "FILE").toUpperCase();
+    const label = document.createElement("div");
+    label.className = "thumb-label";
+    label.textContent = `${String(i + 1).padStart(2, "0")}. ${files[i].name}`;
+    item.appendChild(stub);
+    item.appendChild(label);
+    grid.appendChild(item);
+  }
+
+  grid.onclick = (e) => {
+    const del = e.target.closest(".thumb-delete");
+    if (!del) return;
+    const cell = e.target.closest(".thumb-item");
+    if (!cell) return;
+    removeFileAtIndex(stateKey, inputId, Number(cell.dataset.idx));
+  };
+
+  let dragIdx = -1;
+  const placeholder = document.createElement("div");
+  placeholder.className = "drag-placeholder";
+  grid.ondragstart = (e) => {
+    const cell = e.target.closest(".thumb-item");
+    if (!cell) return;
+    dragIdx = Number(cell.dataset.idx);
+    cell.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+  };
+  grid.ondragend = () => {
+    dragIdx = -1;
+    if (placeholder.parentElement) placeholder.parentElement.removeChild(placeholder);
+    grid.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
+  };
+  grid.ondragover = (e) => {
+    if (dragIdx < 0) return;
+    e.preventDefault();
+    const intent = getPdfToImageDragAfterElement(grid, e.clientX, e.clientY);
+    if (!intent.afterEl) grid.appendChild(placeholder);
+    else grid.insertBefore(placeholder, intent.afterEl);
+  };
+  grid.ondrop = (e) => {
+    if (dragIdx < 0) return;
+    e.preventDefault();
+    const moving = toolFileState[stateKey][dragIdx];
+    const filtered = toolFileState[stateKey].filter((_, i) => i !== dragIdx);
+    const next = placeholder.nextElementSibling?.closest?.(".thumb-item");
+    if (next) {
+      const nextIdx = Number(next.dataset.idx);
+      filtered.splice(nextIdx, 0, moving);
+    } else {
+      filtered.push(moving);
+    }
+    toolFileState[stateKey] = filtered;
+    syncFilesToInput(inputId, filtered);
+  };
+};
+
+const renderDwgResult = (rows) => {
+  const wrap = $("dwgToPdfResult");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "status";
+    empty.textContent = "아직 실행 결과가 없습니다.";
+    wrap.appendChild(empty);
+    return;
+  }
+
+  const totalBefore = rows.reduce((sum, row) => sum + row.beforeSize, 0);
+  const totalAfter = rows.reduce((sum, row) => sum + row.afterSize, 0);
+  const summary = document.createElement("p");
+  summary.className = "order-line";
+  summary.textContent = `총 ${rows.length}개 파일 · 원본 ${formatBytes(totalBefore)} → PDF ${formatBytes(totalAfter)}`;
+  wrap.appendChild(summary);
+
+  rows.forEach((row) => {
+    const item = document.createElement("div");
+    item.className = "compress-result-item";
+    item.innerHTML = `
+      <p class="compress-name">${row.name}</p>
+      <p class="compress-meta">원본: ${formatBytes(row.beforeSize)} · PDF: ${formatBytes(row.afterSize)}</p>
+    `;
+    wrap.appendChild(item);
+  });
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const setupDwgToPdf = () => {
+  if (!$("runDwgToPdf")) return;
+
+  $("dwgFiles")?.addEventListener("change", () => {
+    toolFileState.dwgToPdf = [...$("dwgFiles").files];
+    renderGenericFilePreview("dwgToPdfPreview", "dwgToPdf", "dwgFiles", "DWG");
+  });
+
+  const cloudConvertRequest = async (baseUrl, path, apiKey, options = {}) => {
+    const response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        ...(options.headers || {}),
+      },
+    });
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+    if (!response.ok) {
+      const details = payload?.message || payload?.data?.message || `HTTP ${response.status}`;
+      throw new Error(`CloudConvert 오류: ${details}`);
+    }
+    return payload?.data ?? payload;
+  };
+
+  const waitForCloudConvertJob = async (baseUrl, jobId, apiKey) => {
+    while (true) {
+      checkCancelled("dwgToPdf");
+      const job = await cloudConvertRequest(
+        baseUrl,
+        `/jobs/${jobId}?include=tasks`,
+        apiKey,
+        { method: "GET" }
+      );
+      if (job.status === "finished") return job;
+      if (job.status === "error") {
+        const taskError = (job.tasks || []).find((t) => t.status === "error");
+        throw new Error(taskError?.message || "변환 작업이 실패했습니다.");
+      }
+      await sleep(1400);
+    }
+  };
+
+  $("runDwgToPdf").addEventListener("click", async () => {
+    const files = [...$("dwgFiles").files];
+    const apiKey = ($("dwgApiKey")?.value || "").trim();
+    const baseUrl = ($("dwgApiEndpoint")?.value || "https://api.cloudconvert.com/v2").trim();
+    if (!apiKey) {
+      setStatus("dwgToPdfStatus", "CloudConvert API Key를 입력해주세요.");
+      return;
+    }
+    if (!files.length) {
+      setStatus("dwgToPdfStatus", "DWG 파일을 선택해주세요.");
+      return;
+    }
+
+    startOperation("dwgToPdf", "DWG → PDF 변환 준비 중...");
+    renderDwgResult([]);
+    try {
+      const rows = [];
+      const outputs = [];
+      for (let i = 0; i < files.length; i += 1) {
+        checkCancelled("dwgToPdf");
+        const file = files[i];
+        if (!/\.(dwg|dxf)$/i.test(file.name)) {
+          throw new Error(`${file.name}: DWG/DXF 파일만 변환 가능합니다.`);
+        }
+        const inputFormat = /\.dxf$/i.test(file.name) ? "dxf" : "dwg";
+
+        setStatus("dwgToPdfStatus", `${file.name} 업로드/변환 요청 중... (${i + 1}/${files.length})`);
+        const base64 = (await readAsDataURL(file)).split(",")[1];
+
+        const created = await cloudConvertRequest(baseUrl, "/jobs", apiKey, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            tasks: {
+              import_file: {
+                operation: "import/base64",
+                file: base64,
+                filename: file.name,
+              },
+              convert_file: {
+                operation: "convert",
+                input: "import_file",
+                input_format: inputFormat,
+                output_format: "pdf",
+                filename: `${file.name.replace(/\.[^.]+$/i, "")}.pdf`,
+              },
+              export_file: {
+                operation: "export/url",
+                input: "convert_file",
+              },
+            },
+            tag: `kunhwa-dwg-${Date.now()}-${i + 1}`,
+          }),
+        });
+
+        setStatus("dwgToPdfStatus", `${file.name} 변환 대기 중...`);
+        const doneJob = await waitForCloudConvertJob(baseUrl, created.id, apiKey);
+        const exportTask = (doneJob.tasks || []).find(
+          (task) => task.operation === "export/url" && task.status === "finished"
+        );
+        const outFile = exportTask?.result?.files?.[0];
+        if (!outFile?.url) throw new Error(`${file.name}: 결과 다운로드 URL을 찾지 못했습니다.`);
+        const outRes = await fetch(outFile.url);
+        if (!outRes.ok) throw new Error(`${file.name}: 결과 파일 다운로드 실패`);
+        const outBlob = await outRes.blob();
+        const pdfName = `${String(i + 1).padStart(2, "0")}_${file.name.replace(/\.[^.]+$/i, "")}.pdf`;
+        outputs.push({
+          name: pdfName,
+          blob: outBlob,
+        });
+
+        rows.push({
+          name: `${file.name} → ${pdfName}`,
+          beforeSize: file.size,
+          afterSize: outBlob.size,
+        });
+        updateProgress("dwgToPdf", i + 1, files.length);
+      }
+
+      checkCancelled("dwgToPdf");
+      if (outputs.length === 1) {
+        downloadBlob(outputs[0].blob, outputs[0].name);
+      } else {
+        const zip = new JSZip();
+        outputs.forEach((out) => zip.file(out.name, out.blob));
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(zipBlob, "dwg-to-pdf.zip");
+      }
+      updateProgress("dwgToPdf", files.length, files.length);
+      renderDwgResult(rows);
+      endOperation(
+        "dwgToPdf",
+        rows.length === 1
+          ? "완료: 1개 DWG/DXF 파일 단건 PDF 다운로드"
+          : `완료: ${rows.length}개 파일을 PDF로 변환 (ZIP 다운로드)`
+      );
+    } catch (err) {
+      handleOperationError("dwgToPdf", err);
     }
   });
 };
@@ -2053,7 +2413,21 @@ const setupImageResize = () => {
 
     startOperation("resize", "이미지 리사이즈 중...");
     try {
-      const zip = new JSZip();
+      const outputs = [];
+      const canvasToBlobAsync = (canvas, mime, q) =>
+        new Promise((resolve, reject) => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error(`브라우저가 ${mime} 인코딩을 지원하지 않습니다.`));
+                return;
+              }
+              resolve(blob);
+            },
+            mime,
+            q
+          );
+        });
       for (let i = 0; i < files.length; i += 1) {
         checkCancelled("resize");
         setStatus("resizeStatus", `리사이즈 처리 중 (${i + 1}/${files.length})`);
@@ -2067,18 +2441,29 @@ const setupImageResize = () => {
         canvas.getContext("2d").drawImage(img, 0, 0, targetW, targetH);
         const mime = fmt === "png" ? "image/png" : fmt === "jpeg" ? "image/jpeg" : "image/webp";
         const ext = fmt === "jpeg" ? "jpg" : fmt;
-        zip.file(
-          `${files[i].name.replace(/\.[^.]+$/, "")}_${targetW}x${targetH}.${ext}`,
-          canvas.toDataURL(mime, quality).split(",")[1],
-          { base64: true }
-        );
+        const outBlob = await canvasToBlobAsync(canvas, mime, quality);
+        outputs.push({
+          name: `${files[i].name.replace(/\.[^.]+$/, "")}_${targetW}x${targetH}.${ext}`,
+          blob: outBlob,
+        });
         updateProgress("resize", i + 1, files.length);
       }
       checkCancelled("resize");
-      const blob = await zip.generateAsync({ type: "blob" });
-      downloadBlob(blob, "resized-images.zip");
+      if (outputs.length === 1) {
+        downloadBlob(outputs[0].blob, outputs[0].name);
+      } else {
+        const zip = new JSZip();
+        outputs.forEach((out) => zip.file(out.name, out.blob));
+        const blob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(blob, "resized-images.zip");
+      }
       updateProgress("resize", 100, 100);
-      endOperation("resize", `완료: ${files.length}개 변환 (${formatBytes(blob.size)})`);
+      endOperation(
+        "resize",
+        outputs.length === 1
+          ? "완료: 1개 파일 단건 다운로드"
+          : `완료: ${outputs.length}개 변환 (ZIP 다운로드)`
+      );
     } catch (err) {
       handleOperationError("resize", err);
     }
@@ -2087,14 +2472,79 @@ const setupImageResize = () => {
 
 const setupImageFormat = () => {
   if (!$("runFormatConvert")) return;
+  const updateHeicDirectNotice = (files) => {
+    const notice = $("heicDirectNotice");
+    if (!notice) return;
+    const hasHeic = files.some((file) => isHeicLikeFile(file));
+    notice.classList.toggle("visible", hasHeic);
+    notice.setAttribute("aria-hidden", hasHeic ? "false" : "true");
+  };
+
   $("formatFiles")?.addEventListener("change", async () => {
     toolFileState.format = [...$("formatFiles").files];
     await renderImageThumbPreview("formatPreview", "format", "formatFiles");
+    updateHeicDirectNotice(toolFileState.format);
   });
+
+  const isCanvasMimeSupported = (mime) => {
+    try {
+      const c = document.createElement("canvas");
+      c.width = 2;
+      c.height = 2;
+      const url = c.toDataURL(mime, 0.9);
+      return url.startsWith(`data:${mime}`);
+    } catch {
+      return false;
+    }
+  };
+
+  const canvasToBlobAsync = (canvas, mime, quality) =>
+    new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error(`브라우저가 ${mime} 인코딩을 지원하지 않습니다.`));
+            return;
+          }
+          resolve(blob);
+        },
+        mime,
+        quality
+      );
+    });
+
+  const renderGifBlobFromCanvas = (canvas) =>
+    new Promise((resolve, reject) => {
+      if (typeof GIF !== "function") {
+        reject(new Error("GIF 변환 라이브러리(gif.js)를 불러오지 못했습니다."));
+        return;
+      }
+      const gif = new GIF({
+        workers: 1,
+        quality: 10,
+        width: canvas.width,
+        height: canvas.height,
+        workerScript: "https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js",
+      });
+      gif.on("finished", (blob) => resolve(blob));
+      gif.on("abort", () => reject(new Error("GIF 렌더링이 중단되었습니다.")));
+      gif.addFrame(canvas, { copy: true, delay: 0 });
+      gif.render();
+    });
+
+  const outputExt = (fmt) => (fmt === "jpeg" ? "jpg" : fmt);
+  const mimeByFormat = {
+    png: "image/png",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    avif: "image/avif",
+  };
+
   $("runFormatConvert").addEventListener("click", async () => {
     const files = [...$("formatFiles").files];
     const fmt = $("targetFormat").value;
     const quality = Number($("targetQuality").value);
+    const hasHeicInput = files.some((file) => isHeicLikeFile(file));
     if (!files.length) {
       setStatus("formatStatus", "이미지를 선택해주세요.");
       return;
@@ -2102,30 +2552,278 @@ const setupImageFormat = () => {
 
     startOperation("format", "이미지 포맷 변환 중...");
     try {
-      const zip = new JSZip();
+      const outputs = [];
+      const isGifTarget = fmt === "gif";
+      if (fmt === "avif" && !isCanvasMimeSupported("image/avif")) {
+        throw new Error("현재 브라우저는 AVIF 내보내기를 지원하지 않습니다.");
+      }
+      if (!isGifTarget && !mimeByFormat[fmt]) {
+        throw new Error(`지원하지 않는 대상 포맷입니다: ${fmt}`);
+      }
+
       for (let i = 0; i < files.length; i += 1) {
         checkCancelled("format");
         setStatus("formatStatus", `포맷 변환 중 (${i + 1}/${files.length})`);
-        const { img } = await loadImageFromFile(files[i]);
+        const { img } = await loadImageFromAnyFile(files[i]);
         const canvas = document.createElement("canvas");
         canvas.width = img.width;
         canvas.height = img.height;
         canvas.getContext("2d").drawImage(img, 0, 0);
-        const mime = fmt === "png" ? "image/png" : fmt === "jpeg" ? "image/jpeg" : "image/webp";
-        const base64 = canvas.toDataURL(mime, quality).split(",")[1];
-        const ext = fmt === "jpeg" ? "jpg" : fmt;
-        zip.file(`${files[i].name.replace(/\.[^.]+$/, "")}.${ext}`, base64, { base64: true });
+
+        if (isGifTarget) {
+          const gifBlob = await renderGifBlobFromCanvas(canvas);
+          outputs.push({
+            name: `${files[i].name.replace(/\.[^.]+$/, "")}.gif`,
+            blob: gifBlob,
+          });
+        } else {
+          const mime = mimeByFormat[fmt];
+          const outBlob = await canvasToBlobAsync(canvas, mime, quality);
+          outputs.push({
+            name: `${files[i].name.replace(/\.[^.]+$/, "")}.${outputExt(fmt)}`,
+            blob: outBlob,
+          });
+        }
         updateProgress("format", i + 1, files.length);
       }
+
       checkCancelled("format");
-      const blob = await zip.generateAsync({ type: "blob" });
-      downloadBlob(blob, "converted-images.zip");
+      if (hasHeicInput) {
+        outputs.forEach((out) => downloadBlob(out.blob, out.name));
+      } else if (outputs.length === 1) {
+        downloadBlob(outputs[0].blob, outputs[0].name);
+      } else {
+        const zip = new JSZip();
+        outputs.forEach((out) => zip.file(out.name, out.blob));
+        const blob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(blob, "converted-images.zip");
+      }
       updateProgress("format", 100, 100);
-      endOperation("format", `완료: ${files.length}개 변환 (${formatBytes(blob.size)})`);
+      endOperation(
+        "format",
+        hasHeicInput
+          ? `완료: HEIC/HEIF 포함 감지 · ${outputs.length}개 파일 개별 직접 다운로드`
+          : outputs.length === 1
+          ? `완료: 1개 파일 단건 다운로드`
+          : `완료: ${outputs.length}개 변환 (ZIP 다운로드)`
+      );
     } catch (err) {
       handleOperationError("format", err);
     }
   });
+};
+
+const setupBatchRename = () => {
+  if (!$("runBatchRename")) return;
+  setIconButton("runBatchRenameFromPreview", "download");
+
+  const getOptions = () => {
+    const startRaw = Number($("renameStart")?.value || 1);
+    const stepRaw = Number($("renameStep")?.value || 1);
+    const padRaw = Number($("renamePad")?.value || 0);
+    return {
+      findText: $("renameFind")?.value || "",
+      replaceText: $("renameReplace")?.value || "",
+      prefix: $("renamePrefix")?.value || "",
+      suffix: $("renameSuffix")?.value || "",
+      addSeq: Boolean($("renameAddSeq")?.checked),
+      useRegex: Boolean($("renameUseRegex")?.checked),
+      caseSensitive: Boolean($("renameCaseSensitive")?.checked),
+      start: Number.isFinite(startRaw) ? startRaw : 1,
+      step: Number.isFinite(stepRaw) ? stepRaw : 1,
+      pad: Number.isFinite(padRaw) ? Math.max(0, Math.trunc(padRaw)) : 0,
+      seqPos: ($("renameSeqPos")?.value || "prefix") === "suffix" ? "suffix" : "prefix",
+      sep: $("renameSep")?.value || "",
+    };
+  };
+
+  const buildPlan = (files, options) => {
+    if (!files.length) {
+      return { rows: [], changedCount: 0, collisions: 0, error: "" };
+    }
+
+    let replaceRegex = null;
+    if (options.findText) {
+      if (options.useRegex) {
+        try {
+          replaceRegex = new RegExp(options.findText, options.caseSensitive ? "g" : "gi");
+        } catch {
+          return {
+            rows: [],
+            changedCount: 0,
+            collisions: 0,
+            error: "정규식 문법 오류입니다. 패턴을 확인해주세요.",
+          };
+        }
+      } else {
+        replaceRegex = new RegExp(escapeRegExp(options.findText), options.caseSensitive ? "g" : "gi");
+      }
+    }
+
+    const rows = [];
+    const used = new Map();
+    let collisions = 0;
+    let changedCount = 0;
+
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files[i];
+      const { stem, ext } = splitFileName(file.name);
+      let nextStem = stem;
+
+      if (replaceRegex) {
+        nextStem = nextStem.replace(replaceRegex, options.replaceText);
+      }
+
+      nextStem = `${options.prefix}${nextStem}${options.suffix}`;
+
+      if (options.addSeq) {
+        const raw = Math.trunc(options.start + options.step * i);
+        const abs = String(Math.abs(raw));
+        const num =
+          options.pad > 0
+            ? `${raw < 0 ? "-" : ""}${abs.padStart(Math.max(1, Math.trunc(options.pad)), "0")}`
+            : String(raw);
+        const token = options.sep ? `${num}${options.sep}` : num;
+        nextStem = options.seqPos === "prefix" ? `${token}${nextStem}` : `${nextStem}${options.sep}${num}`;
+      }
+
+      nextStem = sanitizeFileStem(nextStem);
+      let nextName = `${nextStem}${ext}`;
+      let duplicateIndex = 1;
+      while (used.has(nextName.toLowerCase())) {
+        duplicateIndex += 1;
+        collisions += 1;
+        nextName = `${sanitizeFileStem(`${nextStem} (${duplicateIndex})`)}${ext}`;
+      }
+      used.set(nextName.toLowerCase(), true);
+
+      const changed = nextName !== file.name;
+      if (changed) changedCount += 1;
+      rows.push({
+        originalName: file.name,
+        nextName,
+        changed,
+        duplicateIndex,
+      });
+    }
+
+    return { rows, changedCount, collisions, error: "" };
+  };
+
+  const renderPlan = (plan) => {
+    const list = $("renamePlanList");
+    const summary = $("renamePlanSummary");
+    if (!list || !summary) return;
+    list.innerHTML = "";
+
+    if (!toolFileState.rename.length) {
+      summary.textContent = "규칙을 입력하면 미리보기가 표시됩니다.";
+      return;
+    }
+    if (plan.error) {
+      summary.textContent = plan.error;
+      return;
+    }
+
+    summary.textContent = `총 ${plan.rows.length}개 · 변경 ${plan.changedCount}개 · 중복 자동 보정 ${plan.collisions}건`;
+    plan.rows.forEach((row, idx) => {
+      const item = document.createElement("div");
+      item.className = `rename-plan-item${row.changed ? " changed" : ""}`;
+      item.innerHTML = `
+        <p class="rename-plan-index">${String(idx + 1).padStart(2, "0")}</p>
+        <p class="rename-plan-original" title="${row.originalName}">${row.originalName}</p>
+        <p class="rename-plan-arrow">→</p>
+        <p class="rename-plan-next" title="${row.nextName}">${row.nextName}</p>
+      `;
+      list.appendChild(item);
+    });
+  };
+
+  let latestPlan = { rows: [], changedCount: 0, collisions: 0, error: "" };
+  const refreshPlan = () => {
+    const files = [...($("renameFiles")?.files || [])];
+    toolFileState.rename = files;
+    latestPlan = buildPlan(files, getOptions());
+    renderPlan(latestPlan);
+    if (latestPlan.error) setStatus("batchRenameStatus", latestPlan.error);
+    else setStatus("batchRenameStatus", "");
+  };
+
+  $("renameFiles")?.addEventListener("change", refreshPlan);
+  [
+    "renameFind",
+    "renameReplace",
+    "renamePrefix",
+    "renameSuffix",
+    "renameStart",
+    "renameStep",
+    "renamePad",
+    "renameSeqPos",
+    "renameSep",
+    "renameAddSeq",
+    "renameUseRegex",
+    "renameCaseSensitive",
+  ].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener("input", refreshPlan);
+    el.addEventListener("change", refreshPlan);
+  });
+
+  $("runBatchRenameFromPreview")?.addEventListener("click", () => {
+    $("runBatchRename").click();
+  });
+
+  $("runBatchRename").addEventListener("click", async () => {
+    const files = [...($("renameFiles")?.files || [])];
+    if (!files.length) {
+      setStatus("batchRenameStatus", "파일을 선택해주세요.");
+      return;
+    }
+
+    latestPlan = buildPlan(files, getOptions());
+    renderPlan(latestPlan);
+    if (latestPlan.error) {
+      setStatus("batchRenameStatus", latestPlan.error);
+      return;
+    }
+
+    startOperation("batchRename", "파일 이름 변경 다운로드 준비 중...");
+    try {
+      const outputs = [];
+      for (let i = 0; i < files.length; i += 1) {
+        checkCancelled("batchRename");
+        setStatus("batchRenameStatus", `파일 처리 중 (${i + 1}/${files.length})`);
+        const bytes = await readAsArrayBuffer(files[i]);
+        outputs.push({
+          name: latestPlan.rows[i].nextName,
+          bytes,
+        });
+        updateProgress("batchRename", i + 1, files.length);
+      }
+
+      checkCancelled("batchRename");
+      if (outputs.length === 1) {
+        downloadBlob(new Blob([outputs[0].bytes]), outputs[0].name);
+      } else {
+        const zip = new JSZip();
+        outputs.forEach((out) => zip.file(out.name, out.bytes));
+        const blob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(blob, "renamed-files.zip");
+      }
+      updateProgress("batchRename", files.length, files.length);
+      endOperation(
+        "batchRename",
+        outputs.length === 1
+          ? "완료: 1개 파일 단건 다운로드"
+          : `완료: ${outputs.length}개 파일 이름 변경 (ZIP 다운로드)`
+      );
+    } catch (err) {
+      handleOperationError("batchRename", err);
+    }
+  });
+
+  refreshPlan();
 };
 
 const processRecords = [];
@@ -2621,6 +3319,7 @@ const init = () => {
   setupPdfCompress();
   setupImageResize();
   setupImageFormat();
+  setupBatchRename();
   setupProcessTimer();
   setupQr();
 };
