@@ -21,7 +21,7 @@
   <body data-page="home">
     <header class="site-header">
       <div class="brand-wrap">
-        <div class="cat-mascot" aria-hidden="true">
+        <div class="cat-mascot" id="brandMascot" role="button" tabindex="0" title="더블클릭: 게임 목록" aria-label="게임 목록으로 이동">
           <img src="./assets/Image_cat1.png" alt="Kunhwa mascot cat" />
         </div>
         <div>
@@ -64,11 +64,11 @@
             <a class="stage-chip" href="#pdfArrange" data-stage-target="pdfArrange">PDF 순서변경/나누기</a>
             <a class="stage-chip" href="#pdfMerge" data-stage-target="pdfMerge">PDF 합치기</a>
             <a class="stage-chip" href="#pdfCompress" data-stage-target="pdfCompress">PDF 용량 압축</a>
-          <a class="stage-chip" href="#imageResize" data-stage-target="imageResize">이미지 크기조정</a>
-          <a class="stage-chip" href="#imageFormat" data-stage-target="imageFormat">이미지 포맷변환</a>
-          <a class="stage-chip" href="#fileRename" data-stage-target="fileRename">파일명 일괄변경</a>
-          <a class="stage-chip" href="#processTimer" data-stage-target="processTimer">공정 작업시간 측정기</a>
-          <a class="stage-chip" href="#qrGenerator" data-stage-target="qrGenerator">QR 코드 생성기</a>
+            <a class="stage-chip" href="#imageResize" data-stage-target="imageResize">이미지 크기조정</a>
+            <a class="stage-chip" href="#imageFormat" data-stage-target="imageFormat">이미지 포맷변환</a>
+            <a class="stage-chip" href="#fileRename" data-stage-target="fileRename">파일명 일괄변경</a>
+            <a class="stage-chip" href="#processTimer" data-stage-target="processTimer">공정 작업시간 측정기</a>
+            <a class="stage-chip" href="#qrGenerator" data-stage-target="qrGenerator">QR 코드 생성기</a>
           </div>
           <p id="stageTitleText" class="stage-title-text"></p>
         </section>
@@ -537,6 +537,119 @@
             </section>
           </div>
           <p class="status" id="qrStatus"></p>
+        </article>
+
+        <article class="tool-card tool-stage" id="gameHub">
+          <h2><span class="icon">🎮</span> Game Center</h2>
+          <p class="sub">로고를 더블클릭하면 들어오는 미니 게임 목록입니다.</p>
+          <div class="game-grid">
+            <a class="game-card-link" href="#gameYacht">
+              <h3>1. 야추 다이스</h3>
+              <p>5개의 주사위를 최대 3번 굴리고 13개 카테고리에 점수를 채우는 게임</p>
+            </a>
+            <a class="game-card-link" href="#gameRps">
+              <h3>2. 가위바위보</h3>
+              <p>컴퓨터와 빠르게 5판 승부 · 전적 자동 누적</p>
+            </a>
+            <a class="game-card-link" href="#gameTtt">
+              <h3>3. 틱택토</h3>
+              <p>2인 로컬 대전 · 3x3 빙고 게임</p>
+            </a>
+            <a class="game-card-link" href="#gameUpdown">
+              <h3>4. 업다운</h3>
+              <p>1~100 숫자 맞히기 · 힌트와 시도 횟수 제공</p>
+            </a>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gameYacht">
+          <h2><span class="icon">🎲</span> 1. 야추 다이스 게임</h2>
+          <p class="sub">카드게임즈 스타일 점수표 흐름 + 콘솔 보드게임 느낌 UI · 한 턴 최대 3회 · 총 13턴</p>
+          <div class="yacht-layout">
+            <section class="yacht-main">
+              <div class="mode-row">
+                <label>모드
+                  <select id="yachtMode">
+                    <option value="solo">솔로 플레이</option>
+                    <option value="cpu">CPU 대결</option>
+                  </select>
+                </label>
+              </div>
+              <div class="yacht-meta-chips">
+                <span class="chip" id="yachtTurnMeta">턴 1/13</span>
+                <span class="chip" id="yachtRollsLeft">남은 굴림: 3</span>
+                <span class="chip" id="yachtCpuMeta">CPU 총점: 0</span>
+              </div>
+              <div id="yachtDiceRow" class="yacht-dice-row"></div>
+              <p class="order-line">주사위를 눌러 홀드/해제 · 점수표에서 카테고리를 선택해 턴을 종료합니다.</p>
+              <div class="btn-row">
+                <button class="btn primary" id="yachtRollBtn" type="button">굴리기</button>
+                <button class="btn ghost" id="yachtResetBtn" type="button">새 게임</button>
+              </div>
+              <p class="status" id="yachtStatus"></p>
+            </section>
+            <section class="yacht-score">
+              <div class="yacht-score-head">
+                <p>점수판 (행 클릭으로 확정)</p>
+                <strong>카테고리당 1회</strong>
+              </div>
+              <div id="yachtScoreTable" class="yacht-score-table"></div>
+            </section>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gameRps">
+          <h2><span class="icon">✌</span> 2. 가위바위보</h2>
+          <p class="sub">5판 중 더 많이 이기면 승리합니다.</p>
+          <div class="mini-game-panel">
+            <div class="rps-actions">
+              <button class="btn ghost" type="button" data-rps="rock">✊ 바위</button>
+              <button class="btn ghost" type="button" data-rps="scissors">✌ 가위</button>
+              <button class="btn ghost" type="button" data-rps="paper">✋ 보</button>
+              <button class="btn" type="button" id="rpsResetBtn">리셋</button>
+            </div>
+            <p class="order-line" id="rpsScoreText">내 점수 0 : 0 컴퓨터 · 0/5판</p>
+            <p class="status" id="rpsStatus">선택해서 게임을 시작하세요.</p>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gameTtt">
+          <h2><span class="icon">❌</span> 3. 틱택토</h2>
+          <p class="sub">X부터 시작합니다. 가로/세로/대각선 3칸을 먼저 완성하세요.</p>
+          <div class="mini-game-panel">
+            <div class="mode-row">
+              <label>모드
+                <select id="tttMode">
+                  <option value="local">2인 로컬</option>
+                  <option value="cpu">CPU 대결</option>
+                </select>
+              </label>
+            </div>
+            <div id="tttBoard" class="ttt-board"></div>
+            <div class="btn-row">
+              <button class="btn ghost" type="button" id="tttResetBtn">새 판</button>
+            </div>
+            <p class="status" id="tttStatus">플레이어 X 차례</p>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gameUpdown">
+          <h2><span class="icon">🔢</span> 4. 업다운</h2>
+          <p class="sub">1~100 사이 숫자를 맞혀보세요. 남은 시도는 10회입니다.</p>
+          <div class="mini-game-panel">
+            <div class="form-grid">
+              <label>숫자 입력 (1~100)
+                <input type="number" id="updownGuessInput" min="1" max="100" step="1" />
+              </label>
+            </div>
+            <div class="btn-row">
+              <button class="btn primary" type="button" id="updownSubmitBtn">확인</button>
+              <button class="btn ghost" type="button" id="updownResetBtn">새 게임</button>
+            </div>
+            <p class="order-line" id="updownMeta">남은 시도: 10</p>
+            <p class="status" id="updownStatus">숫자를 입력하고 확인을 누르세요.</p>
+            <div id="updownHistory" class="mini-log"></div>
+          </div>
         </article>
       </section>
     </main>

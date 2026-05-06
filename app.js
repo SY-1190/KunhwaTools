@@ -817,6 +817,588 @@ const setupHashStageRouter = () => {
   applyFromHash();
 };
 
+const setupLogoGameEntry = () => {
+  const mascot = $("brandMascot");
+  if (!mascot) return;
+  const goGameHub = () => {
+    window.location.hash = "#gameHub";
+  };
+  mascot.addEventListener("dblclick", goGameHub);
+  mascot.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    goGameHub();
+  });
+};
+
+const setupYachtGame = () => {
+  if (!$("gameYacht")) return;
+  const diceFaces = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+  const categories = [
+    { key: "ones", label: "에이스(1)" },
+    { key: "twos", label: "듀스(2)" },
+    { key: "threes", label: "트리(3)" },
+    { key: "fours", label: "포(4)" },
+    { key: "fives", label: "파이브(5)" },
+    { key: "sixes", label: "식스(6)" },
+    { key: "threeKind", label: "3 of a kind" },
+    { key: "fourKind", label: "4 of a kind" },
+    { key: "fullHouse", label: "풀하우스" },
+    { key: "smallStraight", label: "스몰 스트레이트" },
+    { key: "largeStraight", label: "라지 스트레이트" },
+    { key: "yacht", label: "야추" },
+    { key: "chance", label: "찬스" },
+  ];
+  const upperKeys = ["ones", "twos", "threes", "fours", "fives", "sixes"];
+  const lowerKeys = ["threeKind", "fourKind", "fullHouse", "smallStraight", "largeStraight", "yacht", "chance"];
+  const modeEl = $("yachtMode");
+
+  const state = {
+    mode: "solo",
+    dice: [1, 1, 1, 1, 1],
+    held: [false, false, false, false, false],
+    rollsLeft: 3,
+    scoresPlayer: {},
+    scoresCpu: {},
+    finished: false,
+  };
+  categories.forEach((c) => {
+    state.scoresPlayer[c.key] = null;
+    state.scoresCpu[c.key] = null;
+  });
+
+  const getCounts = (dice) => {
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    dice.forEach((d) => {
+      counts[d] += 1;
+    });
+    return counts;
+  };
+
+  const calcScore = (key, dice) => {
+    const sum = dice.reduce((a, b) => a + b, 0);
+    const counts = getCounts(dice);
+    const uniq = [...new Set(dice)].sort((a, b) => a - b);
+    const hasSeq = (arr) => arr.every((n) => uniq.includes(n));
+
+    switch (key) {
+      case "ones":
+        return counts[1] * 1;
+      case "twos":
+        return counts[2] * 2;
+      case "threes":
+        return counts[3] * 3;
+      case "fours":
+        return counts[4] * 4;
+      case "fives":
+        return counts[5] * 5;
+      case "sixes":
+        return counts[6] * 6;
+      case "threeKind":
+        return counts.some((v) => v >= 3) ? sum : 0;
+      case "fourKind":
+        return counts.some((v) => v >= 4) ? sum : 0;
+      case "fullHouse":
+        return counts.includes(3) && counts.includes(2) ? 25 : 0;
+      case "smallStraight":
+        return hasSeq([1, 2, 3, 4]) || hasSeq([2, 3, 4, 5]) || hasSeq([3, 4, 5, 6]) ? 30 : 0;
+      case "largeStraight":
+        return hasSeq([1, 2, 3, 4, 5]) || hasSeq([2, 3, 4, 5, 6]) ? 40 : 0;
+      case "yacht":
+        return counts.some((v) => v === 5) ? 50 : 0;
+      case "chance":
+        return sum;
+      default:
+        return 0;
+    }
+  };
+
+  const totalsOf = (scoreMap) => {
+    const upper = upperKeys.reduce((sum, key) => sum + (scoreMap[key] ?? 0), 0);
+    const bonus = upper >= 63 ? 35 : 0;
+    const lower = lowerKeys.reduce((sum, key) => sum + (scoreMap[key] ?? 0), 0);
+    return { upper, bonus, lower, grand: upper + bonus + lower };
+  };
+  const isAllScored = (scoreMap) => categories.every((c) => scoreMap[c.key] !== null);
+
+  const runCpuTurn = () => {
+    const remaining = categories.filter((c) => state.scoresCpu[c.key] === null);
+    if (!remaining.length) return null;
+    let best = null;
+    for (let r = 0; r < 3; r += 1) {
+      const dice = Array.from({ length: 5 }, () => Math.floor(Math.random() * 6) + 1);
+      remaining.forEach((cat) => {
+        const score = calcScore(cat.key, dice);
+        if (!best || score > best.score) best = { key: cat.key, label: cat.label, score };
+      });
+    }
+    if (!best) return null;
+    state.scoresCpu[best.key] = best.score;
+    return best;
+  };
+
+  const setYachtStatus = (text) => {
+    setStatus("yachtStatus", text);
+  };
+
+  const render = () => {
+    const diceRow = $("yachtDiceRow");
+    const table = $("yachtScoreTable");
+    const rollsLeft = $("yachtRollsLeft");
+    const cpuMeta = $("yachtCpuMeta");
+    const turnMeta = $("yachtTurnMeta");
+    if (!diceRow || !table || !rollsLeft || !cpuMeta || !turnMeta) return;
+
+    diceRow.innerHTML = "";
+    state.dice.forEach((value, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `yacht-die${state.held[idx] ? " held" : ""}`;
+      btn.textContent = diceFaces[value];
+      btn.title = state.held[idx] ? "홀드 해제" : "홀드";
+      btn.disabled = state.finished || state.rollsLeft === 3;
+      btn.addEventListener("click", () => {
+        if (state.finished || state.rollsLeft === 3) return;
+        state.held[idx] = !state.held[idx];
+        render();
+      });
+      diceRow.appendChild(btn);
+    });
+
+    rollsLeft.textContent = `남은 굴림: ${state.rollsLeft}`;
+    const pTotals = totalsOf(state.scoresPlayer);
+    const cTotals = totalsOf(state.scoresCpu);
+    const filledTurns = categories.filter((c) => state.scoresPlayer[c.key] !== null).length;
+    turnMeta.textContent = `턴 ${Math.min(filledTurns + 1, 13)}/13`;
+    cpuMeta.textContent =
+      state.mode === "cpu"
+        ? `CPU 총점: ${cTotals.grand}`
+        : `솔로 모드 총점: ${pTotals.grand}`;
+
+    table.innerHTML = "";
+    const headerRow = document.createElement("div");
+    headerRow.className = "yacht-row header";
+    headerRow.innerHTML = `
+      <span class="label">카테고리</span>
+      <span class="preview">예상</span>
+      <span class="score">나</span>
+      <span class="score cpu">${state.mode === "cpu" ? "CPU" : "-"}</span>
+    `;
+    table.appendChild(headerRow);
+
+    const appendSection = (label) => {
+      const row = document.createElement("div");
+      row.className = "yacht-row section";
+      row.innerHTML = `
+        <span class="label">${label}</span>
+        <span class="preview"></span>
+        <span class="score"></span>
+        <span class="score cpu"></span>
+      `;
+      table.appendChild(row);
+    };
+
+    appendSection("상단 섹션");
+    categories.forEach((cat) => {
+      if (cat.key === "threeKind") appendSection("하단 섹션");
+      const lockedScore = state.scoresPlayer[cat.key];
+      const cpuScore = state.scoresCpu[cat.key];
+      const preview = state.rollsLeft === 3 ? "-" : calcScore(cat.key, state.dice);
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = `yacht-row selectable${lockedScore !== null ? " locked" : ""}`;
+      row.innerHTML = `
+        <span class="label">${cat.label}</span>
+        <span class="preview">${lockedScore === null ? `예상 ${preview}` : "기록됨"}</span>
+        <span class="score">${lockedScore ?? "-"}</span>
+        <span class="score cpu">${state.mode === "cpu" ? cpuScore ?? "-" : "-"}</span>
+      `;
+      row.disabled = state.finished || lockedScore !== null;
+      row.addEventListener("click", () => {
+        if (state.finished || state.scoresPlayer[cat.key] !== null) return;
+        if (state.rollsLeft === 3) {
+          setYachtStatus("먼저 주사위를 굴려주세요.");
+          return;
+        }
+        const bestAvailable = categories
+          .filter((c) => state.scoresPlayer[c.key] === null)
+          .reduce((best, c) => Math.max(best, calcScore(c.key, state.dice)), 0);
+        const score = calcScore(cat.key, state.dice);
+        if (score === 0 && bestAvailable > 0) {
+          const ok = window.confirm(
+            `이 선택은 0점입니다. 현재 주사위로 최대 ${bestAvailable}점 선택이 가능합니다. 그래도 진행할까요?`
+          );
+          if (!ok) return;
+        }
+        state.scoresPlayer[cat.key] = score;
+
+        let cpuNote = "";
+        if (state.mode === "cpu") {
+          const cpuPlay = runCpuTurn();
+          if (cpuPlay) cpuNote = ` · CPU ${cpuPlay.label} ${cpuPlay.score}점`;
+        }
+
+        if (isAllScored(state.scoresPlayer)) {
+          state.finished = true;
+          const playerGrand = totalsOf(state.scoresPlayer).grand;
+          if (state.mode === "cpu") {
+            const cpuGrand = totalsOf(state.scoresCpu).grand;
+            const result =
+              playerGrand > cpuGrand ? "승리" : playerGrand < cpuGrand ? "패배" : "무승부";
+            setYachtStatus(`게임 종료! 나 ${playerGrand} : CPU ${cpuGrand} (${result})`);
+          } else {
+            setYachtStatus(`게임 종료! 총점 ${playerGrand}점`);
+          }
+        } else {
+          state.rollsLeft = 3;
+          state.held = [false, false, false, false, false];
+          setYachtStatus(`${cat.label} ${score}점 기록${cpuNote}. 다음 턴 시작`);
+        }
+        render();
+      });
+      table.appendChild(row);
+    });
+
+    const addMetaRow = (label, pValue, cValue = "-") => {
+      const row = document.createElement("div");
+      row.className = "yacht-row meta";
+      row.innerHTML = `
+        <span class="label">${label}</span>
+        <span class="preview"></span>
+        <span class="score">${pValue}</span>
+        <span class="score cpu">${state.mode === "cpu" ? cValue : "-"}</span>
+      `;
+      table.appendChild(row);
+    };
+
+    addMetaRow("상단 합계", pTotals.upper, cTotals.upper);
+    addMetaRow("보너스(63+)", pTotals.bonus, cTotals.bonus);
+    addMetaRow("하단 합계", pTotals.lower, cTotals.lower);
+    addMetaRow("총점", pTotals.grand, cTotals.grand);
+  };
+
+  $("yachtRollBtn")?.addEventListener("click", () => {
+    if (state.finished) {
+      setYachtStatus("게임이 종료되었습니다. 새 게임을 눌러 다시 시작하세요.");
+      return;
+    }
+    if (state.rollsLeft <= 0) {
+      setYachtStatus("남은 굴림이 없습니다. 점수판에서 카테고리를 선택하세요.");
+      return;
+    }
+
+    for (let i = 0; i < state.dice.length; i += 1) {
+      if (!state.held[i]) {
+        state.dice[i] = Math.floor(Math.random() * 6) + 1;
+      }
+    }
+    state.rollsLeft -= 1;
+    if (state.rollsLeft === 0) setYachtStatus("굴림 종료. 점수판에서 카테고리를 선택하세요.");
+    else setYachtStatus(`굴림 완료. 남은 굴림 ${state.rollsLeft}회`);
+    render();
+  });
+
+  const resetGame = () => {
+    state.mode = modeEl?.value === "cpu" ? "cpu" : "solo";
+    state.dice = [1, 1, 1, 1, 1];
+    state.held = [false, false, false, false, false];
+    state.rollsLeft = 3;
+    state.finished = false;
+    categories.forEach((c) => {
+      state.scoresPlayer[c.key] = null;
+      state.scoresCpu[c.key] = null;
+    });
+    setYachtStatus(
+      state.mode === "cpu"
+        ? "CPU 대결 모드 시작! 굴리기를 눌러주세요."
+        : "솔로 모드 시작! 굴리기를 눌러주세요."
+    );
+    render();
+  };
+
+  $("yachtResetBtn")?.addEventListener("click", resetGame);
+  modeEl?.addEventListener("change", resetGame);
+
+  resetGame();
+};
+
+const setupRpsGame = () => {
+  if (!$("gameRps")) return;
+  const scoreText = $("rpsScoreText");
+  const statusEl = $("rpsStatus");
+  const choiceButtons = [...document.querySelectorAll("button[data-rps]")];
+  const state = {
+    win: 0,
+    lose: 0,
+    draw: 0,
+    round: 0,
+    maxRound: 5,
+    done: false,
+  };
+  const labelMap = {
+    rock: "바위",
+    scissors: "가위",
+    paper: "보",
+  };
+  const winMap = {
+    rock: "scissors",
+    scissors: "paper",
+    paper: "rock",
+  };
+  const choices = ["rock", "scissors", "paper"];
+
+  const render = () => {
+    if (scoreText) scoreText.textContent = `내 점수 ${state.win} : ${state.lose} 컴퓨터 · ${state.round}/${state.maxRound}판`;
+    choiceButtons.forEach((btn) => {
+      btn.disabled = state.done;
+    });
+  };
+
+  const setRpsStatus = (text) => {
+    if (statusEl) statusEl.textContent = text;
+  };
+
+  const finishIfNeeded = () => {
+    if (state.round < state.maxRound) return false;
+    state.done = true;
+    if (state.win > state.lose) setRpsStatus(`게임 종료! 승리 (${state.win}:${state.lose})`);
+    else if (state.win < state.lose) setRpsStatus(`게임 종료! 패배 (${state.win}:${state.lose})`);
+    else setRpsStatus(`게임 종료! 무승부 (${state.win}:${state.lose})`);
+    render();
+    return true;
+  };
+
+  choiceButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (state.done) return;
+      const mine = btn.dataset.rps;
+      const cpu = choices[Math.floor(Math.random() * choices.length)];
+      state.round += 1;
+      if (mine === cpu) {
+        state.draw += 1;
+        setRpsStatus(`라운드 ${state.round}: 비김 · 나(${labelMap[mine]}) vs 컴퓨터(${labelMap[cpu]})`);
+      } else if (winMap[mine] === cpu) {
+        state.win += 1;
+        setRpsStatus(`라운드 ${state.round}: 승리 · 나(${labelMap[mine]}) vs 컴퓨터(${labelMap[cpu]})`);
+      } else {
+        state.lose += 1;
+        setRpsStatus(`라운드 ${state.round}: 패배 · 나(${labelMap[mine]}) vs 컴퓨터(${labelMap[cpu]})`);
+      }
+      render();
+      finishIfNeeded();
+    });
+  });
+
+  $("rpsResetBtn")?.addEventListener("click", () => {
+    state.win = 0;
+    state.lose = 0;
+    state.draw = 0;
+    state.round = 0;
+    state.done = false;
+    setRpsStatus("선택해서 게임을 시작하세요.");
+    render();
+  });
+
+  render();
+};
+
+const setupTttGame = () => {
+  if (!$("gameTtt")) return;
+  const boardEl = $("tttBoard");
+  const statusEl = $("tttStatus");
+  const modeEl = $("tttMode");
+  if (!boardEl || !statusEl || !modeEl) return;
+
+  const wins = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6],
+  ];
+  const state = {
+    board: Array(9).fill(""),
+    turn: "X",
+    mode: "local",
+    done: false,
+  };
+
+  const winnerOf = () => {
+    for (let i = 0; i < wins.length; i += 1) {
+      const [a, b, c] = wins[i];
+      if (state.board[a] && state.board[a] === state.board[b] && state.board[a] === state.board[c]) return state.board[a];
+    }
+    if (state.board.every(Boolean)) return "draw";
+    return null;
+  };
+
+  const evaluateMove = (board, mark) => {
+    for (let i = 0; i < wins.length; i += 1) {
+      const [a, b, c] = wins[i];
+      const line = [board[a], board[b], board[c]];
+      const markCount = line.filter((v) => v === mark).length;
+      const emptyIdx = [a, b, c].find((idx) => !board[idx]);
+      if (markCount === 2 && Number.isInteger(emptyIdx)) return emptyIdx;
+    }
+    return -1;
+  };
+
+  const pickCpuMove = () => {
+    const board = state.board;
+    let idx = evaluateMove(board, "O");
+    if (idx >= 0) return idx;
+    idx = evaluateMove(board, "X");
+    if (idx >= 0) return idx;
+    const center = 4;
+    if (!board[center]) return center;
+    const corners = [0, 2, 6, 8].filter((i) => !board[i]);
+    if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
+    const empties = board.map((v, i) => (!v ? i : -1)).filter((i) => i >= 0);
+    if (!empties.length) return -1;
+    return empties[Math.floor(Math.random() * empties.length)];
+  };
+
+  const applyResultOrNext = () => {
+    const winner = winnerOf();
+    if (winner === "draw") {
+      state.done = true;
+      statusEl.textContent = "무승부입니다.";
+      return;
+    }
+    if (winner) {
+      state.done = true;
+      if (state.mode === "cpu" && winner === "O") statusEl.textContent = "CPU 승리!";
+      else if (state.mode === "cpu" && winner === "X") statusEl.textContent = "플레이어 승리!";
+      else statusEl.textContent = `플레이어 ${winner} 승리!`;
+      return;
+    }
+    state.turn = state.turn === "X" ? "O" : "X";
+    if (state.mode === "cpu" && state.turn === "O") statusEl.textContent = "CPU 생각 중...";
+    else statusEl.textContent = `플레이어 ${state.turn} 차례`;
+  };
+
+  const render = () => {
+    boardEl.innerHTML = "";
+    for (let i = 0; i < 9; i += 1) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ttt-cell";
+      btn.textContent = state.board[i];
+      btn.disabled = state.done || Boolean(state.board[i]);
+      btn.addEventListener("click", () => {
+        if (state.done || state.board[i]) return;
+        if (state.mode === "cpu" && state.turn !== "X") return;
+        state.board[i] = state.turn;
+        applyResultOrNext();
+        render();
+        if (!state.done && state.mode === "cpu" && state.turn === "O") {
+          setTimeout(() => {
+            const cpuIdx = pickCpuMove();
+            if (cpuIdx < 0 || state.done || state.board[cpuIdx]) return;
+            state.board[cpuIdx] = "O";
+            applyResultOrNext();
+            render();
+          }, 230);
+        }
+      });
+      boardEl.appendChild(btn);
+    }
+  };
+
+  const resetTtt = () => {
+    state.mode = modeEl.value === "cpu" ? "cpu" : "local";
+    state.board = Array(9).fill("");
+    state.turn = "X";
+    state.done = false;
+    statusEl.textContent = state.mode === "cpu" ? "플레이어(X) 차례" : "플레이어 X 차례";
+    render();
+  };
+
+  $("tttResetBtn")?.addEventListener("click", resetTtt);
+  modeEl.addEventListener("change", resetTtt);
+
+  resetTtt();
+};
+
+const setupUpdownGame = () => {
+  if (!$("gameUpdown")) return;
+  const input = $("updownGuessInput");
+  const submitBtn = $("updownSubmitBtn");
+  const resetBtn = $("updownResetBtn");
+  const meta = $("updownMeta");
+  const statusEl = $("updownStatus");
+  const historyEl = $("updownHistory");
+  if (!input || !submitBtn || !resetBtn || !meta || !statusEl || !historyEl) return;
+
+  const state = {
+    target: Math.floor(Math.random() * 100) + 1,
+    left: 10,
+    done: false,
+    tries: [],
+  };
+
+  const render = () => {
+    meta.textContent = `남은 시도: ${state.left}`;
+    historyEl.innerHTML = "";
+    state.tries
+      .slice()
+      .reverse()
+      .forEach((item) => {
+        const p = document.createElement("p");
+        p.textContent = item;
+        historyEl.appendChild(p);
+      });
+    submitBtn.disabled = state.done;
+    input.disabled = state.done;
+  };
+
+  const reset = () => {
+    state.target = Math.floor(Math.random() * 100) + 1;
+    state.left = 10;
+    state.done = false;
+    state.tries = [];
+    input.value = "";
+    statusEl.textContent = "숫자를 입력하고 확인을 누르세요.";
+    render();
+  };
+
+  submitBtn.addEventListener("click", () => {
+    if (state.done) return;
+    const guess = Number(input.value);
+    if (!Number.isInteger(guess) || guess < 1 || guess > 100) {
+      statusEl.textContent = "1~100 사이 정수를 입력해주세요.";
+      return;
+    }
+    state.left -= 1;
+    if (guess === state.target) {
+      state.done = true;
+      state.tries.push(`${guess} 정답`);
+      statusEl.textContent = `정답! ${10 - state.left}번 만에 맞췄습니다.`;
+      render();
+      return;
+    }
+    const hint = guess < state.target ? "UP" : "DOWN";
+    state.tries.push(`${guess} → ${hint}`);
+    if (state.left <= 0) {
+      state.done = true;
+      statusEl.textContent = `실패! 정답은 ${state.target}였습니다.`;
+    } else {
+      statusEl.textContent = `${hint}! 다시 시도하세요.`;
+    }
+    render();
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitBtn.click();
+  });
+
+  resetBtn.addEventListener("click", reset);
+  reset();
+};
+
 const setupStageRouter = () => {
   const nav = $("toolNav");
   const stageHeader = $("stageHeader");
@@ -3309,6 +3891,7 @@ const init = () => {
   initOperations();
   setupThemeToggle();
   setupLoginModal();
+  setupLogoGameEntry();
   setIconButton("backToHub", "house");
   setupNavActive();
   setupDropZones();
@@ -3323,6 +3906,10 @@ const init = () => {
   setupBatchRename();
   setupProcessTimer();
   setupQr();
+  setupYachtGame();
+  setupRpsGame();
+  setupTttGame();
+  setupUpdownGame();
 };
 
 init();

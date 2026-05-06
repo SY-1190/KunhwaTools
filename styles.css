@@ -74,6 +74,18 @@ h2,
   display: grid;
   place-items: center;
   box-shadow: inset 0 1px 0 #fff, 0 6px 14px rgba(227, 146, 38, 0.15);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cat-mascot:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px rgba(227, 146, 38, 0.22);
+}
+
+.cat-mascot:focus-visible {
+  outline: 2px solid #7db0f1;
+  outline-offset: 2px;
 }
 
 .cat-mascot svg {
@@ -413,6 +425,285 @@ body.home-mode .stage-bar {
   margin: 0;
   font-size: 13px;
   color: var(--muted);
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.game-card-link {
+  display: block;
+  text-decoration: none;
+  border: 1px solid #c8dbf1;
+  border-radius: 14px;
+  background: linear-gradient(170deg, #f7fbff, #eef5ff);
+  box-shadow: 0 8px 14px rgba(31, 91, 164, 0.1);
+  padding: 14px;
+  color: #2b4f79;
+}
+
+.game-card-link h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.game-card-link p {
+  margin: 0;
+  font-size: 13px;
+  color: #567298;
+}
+
+.game-card-link:hover {
+  transform: translateY(-1px);
+  border-color: #9fc1eb;
+}
+
+.yacht-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 10px;
+}
+
+.yacht-main,
+.yacht-score {
+  border: 1px solid #c9d9ec;
+  border-radius: 12px;
+  background: #f9fcff;
+  padding: 10px;
+}
+
+.yacht-main {
+  background: linear-gradient(180deg, #fdfefe, #f5f9ff);
+}
+
+.yacht-meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.yacht-meta-chips .chip {
+  border: 1px solid #c3d5ed;
+  background: #eef4ff;
+  color: #355a86;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.yacht-dice-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.yacht-die {
+  border: 1px solid #bfcfe2;
+  border-radius: 10px;
+  background: #fff;
+  min-height: 76px;
+  padding: 6px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+  box-shadow: inset 0 1px 0 #fff, 0 5px 10px rgba(38, 88, 149, 0.08);
+}
+
+.yacht-die:hover {
+  transform: translateY(-1px);
+  border-color: #90b3de;
+}
+
+.yacht-die.held {
+  border-color: #3b88f4;
+  background: #eaf3ff;
+}
+
+.yacht-die:disabled {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.yacht-score-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.yacht-score-head p {
+  margin: 0;
+  font-weight: 700;
+  color: #2d507c;
+}
+
+.yacht-score-head strong {
+  font-size: 12px;
+  color: #4a678b;
+}
+
+.yacht-score-table {
+  display: grid;
+  gap: 6px;
+}
+
+.yacht-row {
+  border: 1px solid #cdddf0;
+  border-radius: 9px;
+  background: #fff;
+  display: grid;
+  grid-template-columns: 1fr 70px 72px 72px;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 9px;
+  cursor: pointer;
+}
+
+.yacht-row.header {
+  cursor: default;
+  background: #edf4ff;
+}
+
+.yacht-row.header .label,
+.yacht-row.header .preview,
+.yacht-row.header .score {
+  font-size: 11px;
+  font-weight: 800;
+  color: #42638f;
+}
+
+.yacht-row.section {
+  cursor: default;
+  background: #f6f9ff;
+}
+
+.yacht-row.section .label {
+  font-size: 11px;
+  color: #6582a8;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.yacht-row.selectable:hover {
+  border-color: #9cbfe9;
+  transform: translateY(-1px);
+}
+
+.yacht-row .label {
+  font-size: 12px;
+  color: #304f74;
+  font-weight: 700;
+}
+
+.yacht-row .preview {
+  text-align: right;
+  font-size: 12px;
+  color: #517097;
+}
+
+.yacht-row .score {
+  text-align: right;
+  font-size: 13px;
+  font-weight: 800;
+  color: #163d6f;
+}
+
+.yacht-row .score.cpu {
+  color: #486a94;
+}
+
+.yacht-row.locked {
+  background: #f2f7ff;
+  cursor: default;
+}
+
+.yacht-row.locked .preview {
+  color: #8ea3c0;
+}
+
+.yacht-row.meta {
+  background: #f8fbff;
+  cursor: default;
+}
+
+.yacht-row.meta .label {
+  color: #44658f;
+}
+
+.yacht-row.meta .score {
+  color: #1b4c88;
+}
+
+.mini-game-panel {
+  border: 1px solid #c9d9ec;
+  border-radius: 12px;
+  background: #f9fcff;
+  padding: 10px;
+}
+
+.mode-row {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.mode-row label {
+  min-width: 180px;
+}
+
+.rps-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ttt-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 320px;
+}
+
+.ttt-cell {
+  border: 1px solid #bfd1e7;
+  border-radius: 10px;
+  background: #fff;
+  min-height: 82px;
+  font-size: 34px;
+  font-weight: 800;
+  color: #1f4f8d;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.ttt-cell:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.mini-log {
+  border: 1px dashed #c8d7ea;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px;
+  display: grid;
+  gap: 5px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.mini-log p {
+  margin: 0;
+  font-size: 12px;
+  color: #425f83;
 }
 
 .tool-card {
@@ -1470,6 +1761,13 @@ body.dark :is(.tool-subpanel, .arrange-pane, .split-bucket, .split-blocks, .thum
   border-color: #bfcfe2;
 }
 
+body.dark :is(.mini-game-panel, .yacht-main, .yacht-score)
+  :is(input, select, textarea) {
+  background: #ffffff;
+  color: #1d324d;
+  border-color: #bfcfe2;
+}
+
 body.dark :is(.tool-subpanel, .arrange-pane, .split-bucket, .split-blocks, .thumb-grid, .drop-zone, .compress-result-item, .rename-plan-item, .media-item, .session-item, .split-block-item)
   :is(input, select, textarea)::placeholder {
   color: #5f7692;
@@ -1611,6 +1909,31 @@ body.dark .panel-kicker {
   color: #8fc0ff;
 }
 
+body.dark .game-card-link {
+  background: linear-gradient(170deg, #1e2d42, #233750);
+  border-color: #43648f;
+  color: #d8e7fa;
+}
+
+body.dark .game-card-link p {
+  color: #b2c8e6;
+}
+
+body.dark .yacht-main,
+body.dark .yacht-score,
+body.dark .mini-game-panel,
+body.dark .ttt-cell,
+body.dark .mini-log {
+  background: #ffffff;
+  border-color: #c9d9ec;
+}
+
+body.dark .yacht-meta-chips .chip {
+  background: #eef4ff;
+  color: #355a86;
+  border-color: #c3d5ed;
+}
+
 @keyframes stage-in {
   from {
     opacity: 0;
@@ -1637,6 +1960,14 @@ body.dark .panel-kicker {
 
   .pos-layout {
     grid-template-columns: 1fr;
+  }
+
+  .yacht-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .rps-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1671,5 +2002,9 @@ body.dark .panel-kicker {
 
   .stage-bar {
     grid-template-columns: 1fr;
+  }
+
+  .yacht-row {
+    grid-template-columns: 1fr 56px 56px 56px;
   }
 }
