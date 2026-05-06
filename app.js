@@ -1399,6 +1399,899 @@ const setupUpdownGame = () => {
   reset();
 };
 
+const isTypingTarget = (el) => ["INPUT", "TEXTAREA", "SELECT"].includes(el?.tagName || "");
+const activeHashIs = (id) => window.location.hash === `#${id}`;
+
+const setup2048Game = () => {
+  if (!$("game2048")) return;
+  const boardEl = $("g2048Board");
+  const scoreEl = $("g2048Score");
+  const statusEl = $("g2048Status");
+  const size = 4;
+  const state = { board: [], score: 0, over: false };
+
+  const emptyCells = () => {
+    const cells = [];
+    state.board.forEach((row, y) => row.forEach((v, x) => { if (!v) cells.push([x, y]); }));
+    return cells;
+  };
+  const addTile = () => {
+    const cells = emptyCells();
+    if (!cells.length) return;
+    const [x, y] = cells[Math.floor(Math.random() * cells.length)];
+    state.board[y][x] = Math.random() < 0.9 ? 2 : 4;
+  };
+  const compress = (line) => {
+    const nums = line.filter(Boolean);
+    const out = [];
+    for (let i = 0; i < nums.length; i += 1) {
+      if (nums[i] === nums[i + 1]) {
+        out.push(nums[i] * 2);
+        state.score += nums[i] * 2;
+        i += 1;
+      } else {
+        out.push(nums[i]);
+      }
+    }
+    while (out.length < size) out.push(0);
+    return out;
+  };
+  const canMove = () => {
+    if (emptyCells().length) return true;
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const v = state.board[y][x];
+        if (state.board[y]?.[x + 1] === v || state.board[y + 1]?.[x] === v) return true;
+      }
+    }
+    return false;
+  };
+  const render = () => {
+    boardEl.innerHTML = "";
+    state.board.flat().forEach((v) => {
+      const tile = document.createElement("div");
+      tile.className = `g2048-tile${v ? ` v${v}` : ""}`;
+      tile.textContent = v || "";
+      boardEl.appendChild(tile);
+    });
+    scoreEl.textContent = `점수 ${state.score}`;
+    if (!canMove()) {
+      state.over = true;
+      statusEl.textContent = "게임 종료. 새 게임을 눌러주세요.";
+    }
+  };
+  const reset = () => {
+    state.board = Array.from({ length: size }, () => Array(size).fill(0));
+    state.score = 0;
+    state.over = false;
+    addTile();
+    addTile();
+    statusEl.textContent = "타일을 합쳐 2048을 만들어보세요.";
+    render();
+  };
+  const move = (dir) => {
+    if (state.over) return;
+    const before = JSON.stringify(state.board);
+    if (dir === "left" || dir === "right") {
+      state.board = state.board.map((row) => {
+        const line = dir === "left" ? row : [...row].reverse();
+        const next = compress(line);
+        return dir === "left" ? next : next.reverse();
+      });
+    } else {
+      for (let x = 0; x < size; x += 1) {
+        const col = state.board.map((row) => row[x]);
+        const line = dir === "up" ? col : col.reverse();
+        const next = compress(line);
+        const finalCol = dir === "up" ? next : next.reverse();
+        finalCol.forEach((v, y) => { state.board[y][x] = v; });
+      }
+    }
+    if (before !== JSON.stringify(state.board)) addTile();
+    if (state.board.flat().includes(2048)) statusEl.textContent = "2048 달성!";
+    render();
+  };
+  document.addEventListener("keydown", (e) => {
+    if (!activeHashIs("game2048") || isTypingTarget(e.target)) return;
+    const map = { ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right", ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down" };
+    if (!map[e.key]) return;
+    e.preventDefault();
+    move(map[e.key]);
+  });
+  $("g2048ResetBtn")?.addEventListener("click", reset);
+  reset();
+};
+
+const setupSnakeGame = () => {
+  if (!$("gameSnake")) return;
+  const canvas = $("snakeCanvas");
+  const ctx = canvas.getContext("2d");
+  const scoreEl = $("snakeScore");
+  const statusEl = $("snakeStatus");
+  const cell = 16;
+  const cols = canvas.width / cell;
+  const rows = canvas.height / cell;
+  const state = { snake: [], food: { x: 0, y: 0 }, dir: { x: 1, y: 0 }, next: { x: 1, y: 0 }, score: 0, timer: null, running: false };
+  const placeFood = () => {
+    do {
+      state.food = { x: Math.floor(Math.random() * cols), y: Math.floor(Math.random() * rows) };
+    } while (state.snake.some((p) => p.x === state.food.x && p.y === state.food.y));
+  };
+  const draw = () => {
+    ctx.fillStyle = "#101722";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#78d08a";
+    state.snake.forEach((p) => ctx.fillRect(p.x * cell + 1, p.y * cell + 1, cell - 2, cell - 2));
+    ctx.fillStyle = "#f05f6b";
+    ctx.fillRect(state.food.x * cell + 2, state.food.y * cell + 2, cell - 4, cell - 4);
+    scoreEl.textContent = `점수 ${state.score}`;
+  };
+  const reset = () => {
+    clearInterval(state.timer);
+    state.snake = [{ x: 8, y: 10 }, { x: 7, y: 10 }, { x: 6, y: 10 }];
+    state.dir = { x: 1, y: 0 };
+    state.next = { x: 1, y: 0 };
+    state.score = 0;
+    state.running = false;
+    placeFood();
+    statusEl.textContent = "시작을 눌러주세요.";
+    draw();
+  };
+  const step = () => {
+    state.dir = state.next;
+    const head = { x: state.snake[0].x + state.dir.x, y: state.snake[0].y + state.dir.y };
+    if (head.x < 0 || head.y < 0 || head.x >= cols || head.y >= rows || state.snake.some((p) => p.x === head.x && p.y === head.y)) {
+      clearInterval(state.timer);
+      state.running = false;
+      statusEl.textContent = "게임 종료.";
+      return;
+    }
+    state.snake.unshift(head);
+    if (head.x === state.food.x && head.y === state.food.y) {
+      state.score += 10;
+      placeFood();
+    } else {
+      state.snake.pop();
+    }
+    draw();
+  };
+  const start = () => {
+    if (state.running) return;
+    state.running = true;
+    statusEl.textContent = "진행 중";
+    state.timer = setInterval(step, 115);
+  };
+  document.addEventListener("keydown", (e) => {
+    if (!activeHashIs("gameSnake") || isTypingTarget(e.target)) return;
+    const dirs = { ArrowLeft: { x: -1, y: 0 }, a: { x: -1, y: 0 }, A: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, d: { x: 1, y: 0 }, D: { x: 1, y: 0 }, ArrowUp: { x: 0, y: -1 }, w: { x: 0, y: -1 }, W: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 }, s: { x: 0, y: 1 }, S: { x: 0, y: 1 } };
+    const next = dirs[e.key];
+    if (!next) return;
+    e.preventDefault();
+    if (next.x + state.dir.x !== 0 || next.y + state.dir.y !== 0) state.next = next;
+  });
+  $("snakeStartBtn")?.addEventListener("click", start);
+  $("snakeResetBtn")?.addEventListener("click", reset);
+  reset();
+};
+
+const setupTetrisGame = () => {
+  if (!$("gameTetris")) return;
+  const canvas = $("tetrisCanvas");
+  const ctx = canvas.getContext("2d");
+  const scoreEl = $("tetrisScore");
+  const statusEl = $("tetrisStatus");
+  const cell = 24;
+  const w = 10;
+  const h = 20;
+  const shapes = [
+    [[1, 1, 1, 1]],
+    [[1, 1], [1, 1]],
+    [[0, 1, 0], [1, 1, 1]],
+    [[1, 0, 0], [1, 1, 1]],
+    [[0, 0, 1], [1, 1, 1]],
+    [[1, 1, 0], [0, 1, 1]],
+    [[0, 1, 1], [1, 1, 0]],
+  ];
+  const colors = ["#63b3ff", "#f1c84b", "#b886f5", "#f08d5f", "#5fa8f0", "#67c587", "#ef6f87"];
+  const state = { board: [], piece: null, score: 0, lines: 0, timer: null, running: false };
+  const rotate = (m) => m[0].map((_, i) => m.map((row) => row[i]).reverse());
+  const spawn = () => {
+    const idx = Math.floor(Math.random() * shapes.length);
+    state.piece = { shape: shapes[idx], color: colors[idx], x: 3, y: 0 };
+    if (collides(state.piece, 0, 0)) gameOver();
+  };
+  const collides = (p, dx, dy, shape = p.shape) => shape.some((row, y) => row.some((v, x) => v && (p.x + x + dx < 0 || p.x + x + dx >= w || p.y + y + dy >= h || state.board[p.y + y + dy]?.[p.x + x + dx])));
+  const merge = () => {
+    state.piece.shape.forEach((row, y) => row.forEach((v, x) => {
+      if (v && state.board[state.piece.y + y]) state.board[state.piece.y + y][state.piece.x + x] = state.piece.color;
+    }));
+    let cleared = 0;
+    state.board = state.board.filter((row) => {
+      if (row.every(Boolean)) { cleared += 1; return false; }
+      return true;
+    });
+    while (state.board.length < h) state.board.unshift(Array(w).fill(""));
+    if (cleared) {
+      state.lines += cleared;
+      state.score += [0, 100, 300, 500, 800][cleared] || cleared * 200;
+    }
+    spawn();
+  };
+  const draw = () => {
+    ctx.fillStyle = "#101722";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const drawCell = (x, y, color) => {
+      ctx.fillStyle = color;
+      ctx.fillRect(x * cell + 1, y * cell + 1, cell - 2, cell - 2);
+    };
+    state.board.forEach((row, y) => row.forEach((v, x) => { if (v) drawCell(x, y, v); }));
+    if (state.piece) state.piece.shape.forEach((row, y) => row.forEach((v, x) => { if (v) drawCell(state.piece.x + x, state.piece.y + y, state.piece.color); }));
+    scoreEl.textContent = `점수 ${state.score} · 줄 ${state.lines}`;
+  };
+  const step = () => {
+    if (!state.piece) return;
+    if (!collides(state.piece, 0, 1)) state.piece.y += 1;
+    else merge();
+    draw();
+  };
+  const reset = () => {
+    clearInterval(state.timer);
+    state.board = Array.from({ length: h }, () => Array(w).fill(""));
+    state.score = 0;
+    state.lines = 0;
+    state.running = false;
+    spawn();
+    statusEl.textContent = "시작을 눌러주세요.";
+    draw();
+  };
+  const start = () => {
+    if (state.running) return;
+    state.running = true;
+    statusEl.textContent = "진행 중";
+    state.timer = setInterval(step, 520);
+  };
+  const gameOver = () => {
+    clearInterval(state.timer);
+    state.running = false;
+    statusEl.textContent = "게임 종료.";
+  };
+  document.addEventListener("keydown", (e) => {
+    if (!activeHashIs("gameTetris") || isTypingTarget(e.target) || !state.piece) return;
+    const key = e.key;
+    if (key === "ArrowLeft" || key === "a" || key === "A") { e.preventDefault(); if (!collides(state.piece, -1, 0)) state.piece.x -= 1; }
+    if (key === "ArrowRight" || key === "d" || key === "D") { e.preventDefault(); if (!collides(state.piece, 1, 0)) state.piece.x += 1; }
+    if (key === "ArrowDown" || key === "s" || key === "S") { e.preventDefault(); step(); }
+    if (key === "ArrowUp" || key === "w" || key === "W") {
+      e.preventDefault();
+      const rotated = rotate(state.piece.shape);
+      if (!collides(state.piece, 0, 0, rotated)) state.piece.shape = rotated;
+    }
+    draw();
+  });
+  $("tetrisStartBtn")?.addEventListener("click", start);
+  $("tetrisResetBtn")?.addEventListener("click", reset);
+  reset();
+};
+
+const setupPacmanGame = () => {
+  if (!$("gamePacman")) return;
+  const canvas = $("pacmanCanvas");
+  const ctx = canvas.getContext("2d");
+  const scoreEl = $("pacmanScore");
+  const statusEl = $("pacmanStatus");
+  const cell = 20;
+  const mapText = [
+    "################",
+    "#..............#",
+    "#.####.##.####.#",
+    "#..............#",
+    "#.##.######.##.#",
+    "#..............#",
+    "####.##..##.####",
+    "#..............#",
+    "#.####.##.####.#",
+    "#..............#",
+    "################",
+  ];
+  const state = { map: [], p: { x: 1, y: 1 }, g: { x: 14, y: 9 }, dir: { x: 1, y: 0 }, next: { x: 1, y: 0 }, score: 0, timer: null, running: false };
+  const reset = () => {
+    clearInterval(state.timer);
+    state.map = mapText.map((r) => r.split(""));
+    state.p = { x: 1, y: 1 };
+    state.g = { x: 14, y: 9 };
+    state.dir = { x: 1, y: 0 };
+    state.next = { x: 1, y: 0 };
+    state.score = 0;
+    state.running = false;
+    statusEl.textContent = "시작을 눌러주세요.";
+    draw();
+  };
+  const wall = (x, y) => state.map[y]?.[x] === "#";
+  const draw = () => {
+    ctx.fillStyle = "#101722";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    state.map.forEach((row, y) => row.forEach((v, x) => {
+      if (v === "#") { ctx.fillStyle = "#315b9b"; ctx.fillRect(x * cell, y * cell, cell, cell); }
+      if (v === ".") { ctx.fillStyle = "#f4d35e"; ctx.beginPath(); ctx.arc(x * cell + 10, y * cell + 10, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    }));
+    ctx.fillStyle = "#ffd447";
+    ctx.beginPath();
+    ctx.arc(state.p.x * cell + 10, state.p.y * cell + 10, 8, 0.2 * Math.PI, 1.8 * Math.PI);
+    ctx.lineTo(state.p.x * cell + 10, state.p.y * cell + 10);
+    ctx.fill();
+    ctx.fillStyle = "#f05f6b";
+    ctx.beginPath();
+    ctx.arc(state.g.x * cell + 10, state.g.y * cell + 10, 8, 0, Math.PI * 2);
+    ctx.fill();
+    scoreEl.textContent = `점수 ${state.score}`;
+  };
+  const moveGhost = () => {
+    const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+      .filter((d) => !wall(state.g.x + d.x, state.g.y + d.y))
+      .sort((a, b) => Math.abs(state.p.x - (state.g.x + a.x)) + Math.abs(state.p.y - (state.g.y + a.y)) - (Math.abs(state.p.x - (state.g.x + b.x)) + Math.abs(state.p.y - (state.g.y + b.y))));
+    const d = Math.random() < 0.75 ? dirs[0] : dirs[Math.floor(Math.random() * dirs.length)];
+    if (d) { state.g.x += d.x; state.g.y += d.y; }
+  };
+  const step = () => {
+    if (!wall(state.p.x + state.next.x, state.p.y + state.next.y)) state.dir = state.next;
+    if (!wall(state.p.x + state.dir.x, state.p.y + state.dir.y)) {
+      state.p.x += state.dir.x;
+      state.p.y += state.dir.y;
+    }
+    if (state.map[state.p.y][state.p.x] === ".") {
+      state.map[state.p.y][state.p.x] = " ";
+      state.score += 10;
+    }
+    moveGhost();
+    if (state.p.x === state.g.x && state.p.y === state.g.y) {
+      clearInterval(state.timer);
+      state.running = false;
+      statusEl.textContent = "게임 종료.";
+    } else if (!state.map.flat().includes(".")) {
+      clearInterval(state.timer);
+      state.running = false;
+      statusEl.textContent = "클리어!";
+    }
+    draw();
+  };
+  const start = () => {
+    if (state.running) return;
+    state.running = true;
+    statusEl.textContent = "진행 중";
+    state.timer = setInterval(step, 170);
+  };
+  document.addEventListener("keydown", (e) => {
+    if (!activeHashIs("gamePacman") || isTypingTarget(e.target)) return;
+    const dirs = { ArrowLeft: { x: -1, y: 0 }, a: { x: -1, y: 0 }, A: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, d: { x: 1, y: 0 }, D: { x: 1, y: 0 }, ArrowUp: { x: 0, y: -1 }, w: { x: 0, y: -1 }, W: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 }, s: { x: 0, y: 1 }, S: { x: 0, y: 1 } };
+    if (!dirs[e.key]) return;
+    e.preventDefault();
+    state.next = dirs[e.key];
+  });
+  $("pacmanStartBtn")?.addEventListener("click", start);
+  $("pacmanResetBtn")?.addEventListener("click", reset);
+  reset();
+};
+
+const setupBreakoutGame = () => {
+  if (!$("gameBreakout")) return;
+  const canvas = $("breakoutCanvas");
+  const ctx = canvas.getContext("2d");
+  const state = {
+    timer: null,
+    running: false,
+    score: 0,
+    paddleX: 125,
+    ball: { x: 160, y: 245, vx: 2.2, vy: -2.8, r: 5 },
+    keys: { left: false, right: false },
+    bricks: []
+  };
+  const paddle = { w: 70, h: 9, y: 288 };
+  const brick = { rows: 5, cols: 8, w: 34, h: 14, gap: 4, top: 42, left: 14 };
+
+  const buildBricks = () => {
+    state.bricks = [];
+    for (let r = 0; r < brick.rows; r += 1) {
+      for (let c = 0; c < brick.cols; c += 1) {
+        state.bricks.push({
+          x: brick.left + c * (brick.w + brick.gap),
+          y: brick.top + r * (brick.h + brick.gap),
+          alive: true,
+          tone: r
+        });
+      }
+    }
+  };
+
+  const updateMeta = () => {
+    const left = state.bricks.filter((b) => b.alive).length;
+    $("breakoutScore").textContent = `점수 ${state.score} · 남은 벽돌 ${left}`;
+  };
+
+  const draw = () => {
+    ctx.clearRect(0, 0, 320, 320);
+    ctx.fillStyle = "#101722";
+    ctx.fillRect(0, 0, 320, 320);
+    ctx.fillStyle = "#d8ecff";
+    ctx.font = "11px sans-serif";
+    ctx.fillText("BRICK BREAKER", 12, 22);
+
+    state.bricks.forEach((b) => {
+      if (!b.alive) return;
+      const colors = ["#72b8ff", "#62d0a2", "#ffd36a", "#ff9b77", "#c7a4ff"];
+      ctx.fillStyle = colors[b.tone % colors.length];
+      ctx.fillRect(b.x, b.y, brick.w, brick.h);
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fillRect(b.x, b.y, brick.w, 3);
+    });
+
+    ctx.fillStyle = "#f5fbff";
+    ctx.fillRect(state.paddleX, paddle.y, paddle.w, paddle.h);
+    ctx.beginPath();
+    ctx.arc(state.ball.x, state.ball.y, state.ball.r, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffed8a";
+    ctx.fill();
+  };
+
+  const stop = (message) => {
+    if (state.timer) clearInterval(state.timer);
+    state.timer = null;
+    state.running = false;
+    if (message) $("breakoutStatus").textContent = message;
+  };
+
+  const reset = () => {
+    stop();
+    state.score = 0;
+    state.paddleX = 125;
+    state.ball = { x: 160, y: 245, vx: 2.2, vy: -2.8, r: 5 };
+    buildBricks();
+    updateMeta();
+    $("breakoutStatus").textContent = "시작을 눌러주세요.";
+    draw();
+  };
+
+  const step = () => {
+    if (state.keys.left) state.paddleX -= 5;
+    if (state.keys.right) state.paddleX += 5;
+    state.paddleX = Math.max(0, Math.min(320 - paddle.w, state.paddleX));
+
+    const ball = state.ball;
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+    if (ball.x - ball.r <= 0 || ball.x + ball.r >= 320) ball.vx *= -1;
+    if (ball.y - ball.r <= 0) ball.vy *= -1;
+
+    if (
+      ball.y + ball.r >= paddle.y &&
+      ball.y - ball.r <= paddle.y + paddle.h &&
+      ball.x >= state.paddleX &&
+      ball.x <= state.paddleX + paddle.w &&
+      ball.vy > 0
+    ) {
+      const hit = (ball.x - (state.paddleX + paddle.w / 2)) / (paddle.w / 2);
+      ball.vx = hit * 3.8;
+      ball.vy = -Math.abs(ball.vy) - 0.03;
+    }
+
+    for (const b of state.bricks) {
+      if (!b.alive) continue;
+      if (
+        ball.x + ball.r >= b.x &&
+        ball.x - ball.r <= b.x + brick.w &&
+        ball.y + ball.r >= b.y &&
+        ball.y - ball.r <= b.y + brick.h
+      ) {
+        b.alive = false;
+        state.score += 10;
+        ball.vy *= -1;
+        break;
+      }
+    }
+
+    if (ball.y - ball.r > 320) {
+      updateMeta();
+      draw();
+      stop("공을 놓쳤습니다. 리셋 후 다시 도전하세요.");
+      return;
+    }
+
+    updateMeta();
+    draw();
+    if (!state.bricks.some((b) => b.alive)) stop("클리어! 모든 벽돌을 깼습니다.");
+  };
+
+  const start = () => {
+    if (state.timer) return;
+    state.running = true;
+    $("breakoutStatus").textContent = "진행 중 · 패들을 움직여 공을 받아주세요.";
+    state.timer = setInterval(step, 16);
+  };
+
+  const movePointer = (clientX) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * 320;
+    state.paddleX = Math.max(0, Math.min(320 - paddle.w, x - paddle.w / 2));
+    if (!state.running) draw();
+  };
+
+  canvas.addEventListener("pointermove", (e) => movePointer(e.clientX));
+  document.addEventListener("keydown", (e) => {
+    if (!activeHashIs("gameBreakout") || isTypingTarget(e.target)) return;
+    if (["ArrowLeft", "a", "A"].includes(e.key)) {
+      e.preventDefault();
+      state.keys.left = true;
+    }
+    if (["ArrowRight", "d", "D"].includes(e.key)) {
+      e.preventDefault();
+      state.keys.right = true;
+    }
+  });
+  document.addEventListener("keyup", (e) => {
+    if (["ArrowLeft", "a", "A"].includes(e.key)) state.keys.left = false;
+    if (["ArrowRight", "d", "D"].includes(e.key)) state.keys.right = false;
+  });
+  $("breakoutStartBtn")?.addEventListener("click", start);
+  $("breakoutResetBtn")?.addEventListener("click", reset);
+  reset();
+};
+
+const setupMemoryGame = () => {
+  if (!$("gameMemory")) return;
+  const symbols = ["★", "◆", "●", "▲", "■", "♣", "♥", "☀"];
+  const state = { deck: [], open: [], matched: new Set(), moves: 0, locked: false };
+
+  const shuffle = (items) => {
+    const copy = [...items];
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  const updateMeta = () => {
+    $("memoryScore").textContent = `이동 ${state.moves} · 발견 ${state.matched.size}/8`;
+  };
+
+  const render = () => {
+    $("memoryBoard").innerHTML = "";
+    state.deck.forEach((symbol, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "memory-card";
+      button.dataset.index = String(index);
+      button.textContent = symbol;
+      const isOpen = state.open.includes(index);
+      const isMatched = state.matched.has(symbol);
+      button.classList.toggle("is-hidden", !isOpen && !isMatched);
+      button.classList.toggle("is-matched", isMatched);
+      button.disabled = isMatched || state.locked;
+      button.addEventListener("click", () => flip(index));
+      $("memoryBoard").appendChild(button);
+    });
+    updateMeta();
+  };
+
+  const flip = (index) => {
+    if (state.locked || state.open.includes(index) || state.matched.has(state.deck[index])) return;
+    state.open.push(index);
+    if (state.open.length === 2) {
+      state.moves += 1;
+      const [a, b] = state.open;
+      if (state.deck[a] === state.deck[b]) {
+        state.matched.add(state.deck[a]);
+        state.open = [];
+        $("memoryStatus").textContent = state.matched.size === 8 ? "완료! 모든 쌍을 찾았습니다." : "정답입니다. 다음 쌍을 찾아보세요.";
+      } else {
+        state.locked = true;
+        $("memoryStatus").textContent = "다른 카드입니다. 잠시 후 닫힙니다.";
+        setTimeout(() => {
+          state.open = [];
+          state.locked = false;
+          $("memoryStatus").textContent = "카드 2장을 선택하세요.";
+          render();
+        }, 650);
+      }
+    }
+    render();
+  };
+
+  const reset = () => {
+    state.deck = shuffle([...symbols, ...symbols]);
+    state.open = [];
+    state.matched = new Set();
+    state.moves = 0;
+    state.locked = false;
+    $("memoryStatus").textContent = "카드 2장을 선택하세요.";
+    render();
+  };
+
+  $("memoryResetBtn")?.addEventListener("click", reset);
+  reset();
+};
+
+const setupMinesweeperGame = () => {
+  if (!$("gameMinesweeper")) return;
+  const rows = 9;
+  const cols = 9;
+  const mineCount = 10;
+  const state = { mines: null, open: new Set(), flags: new Set(), over: false };
+  let longPressTimer = null;
+
+  const keyOf = (r, c) => `${r}:${c}`;
+  const parseKey = (key) => key.split(":").map(Number);
+  const inBounds = (r, c) => r >= 0 && c >= 0 && r < rows && c < cols;
+  const around = (r, c) => {
+    const cells = [];
+    for (let dr = -1; dr <= 1; dr += 1) {
+      for (let dc = -1; dc <= 1; dc += 1) {
+        if (!dr && !dc) continue;
+        const nr = r + dr;
+        const nc = c + dc;
+        if (inBounds(nr, nc)) cells.push([nr, nc]);
+      }
+    }
+    return cells;
+  };
+
+  const buildMines = (safeR, safeC) => {
+    const safe = new Set([keyOf(safeR, safeC), ...around(safeR, safeC).map(([r, c]) => keyOf(r, c))]);
+    const mines = new Set();
+    while (mines.size < mineCount) {
+      const r = Math.floor(Math.random() * rows);
+      const c = Math.floor(Math.random() * cols);
+      const key = keyOf(r, c);
+      if (!safe.has(key)) mines.add(key);
+    }
+    state.mines = mines;
+  };
+
+  const countNear = (r, c) => around(r, c).filter(([nr, nc]) => state.mines?.has(keyOf(nr, nc))).length;
+
+  const updateMeta = () => {
+    $("mineScore").textContent = `지뢰 ${mineCount} · 깃발 ${state.flags.size}`;
+  };
+
+  const revealAllMines = () => {
+    state.mines?.forEach((key) => state.open.add(key));
+  };
+
+  const checkWin = () => {
+    if (state.open.size === rows * cols - mineCount) {
+      state.over = true;
+      $("mineStatus").textContent = "클리어! 모든 안전 칸을 열었습니다.";
+      return true;
+    }
+    return false;
+  };
+
+  const reveal = (r, c) => {
+    if (state.over) return;
+    if (!state.mines) buildMines(r, c);
+    const start = keyOf(r, c);
+    if (state.flags.has(start) || state.open.has(start)) return;
+    if (state.mines.has(start)) {
+      state.over = true;
+      revealAllMines();
+      $("mineStatus").textContent = "지뢰를 밟았습니다. 새 게임으로 다시 도전하세요.";
+      render();
+      return;
+    }
+    const queue = [[r, c]];
+    while (queue.length) {
+      const [cr, cc] = queue.shift();
+      const current = keyOf(cr, cc);
+      if (state.open.has(current) || state.flags.has(current)) continue;
+      state.open.add(current);
+      if (countNear(cr, cc) === 0) {
+        around(cr, cc).forEach(([nr, nc]) => {
+          const next = keyOf(nr, nc);
+          if (!state.open.has(next) && !state.flags.has(next)) queue.push([nr, nc]);
+        });
+      }
+    }
+    $("mineStatus").textContent = "좋습니다. 숫자를 보고 다음 칸을 선택하세요.";
+    checkWin();
+    render();
+  };
+
+  const toggleFlag = (r, c) => {
+    if (state.over) return;
+    const key = keyOf(r, c);
+    if (state.open.has(key)) return;
+    if (state.flags.has(key)) state.flags.delete(key);
+    else state.flags.add(key);
+    $("mineStatus").textContent = state.flags.has(key) ? "깃발을 표시했습니다." : "깃발을 해제했습니다.";
+    render();
+  };
+
+  const render = () => {
+    $("mineBoard").innerHTML = "";
+    for (let r = 0; r < rows; r += 1) {
+      for (let c = 0; c < cols; c += 1) {
+        const key = keyOf(r, c);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "mine-cell";
+        button.dataset.key = key;
+        const isOpen = state.open.has(key);
+        const isFlagged = state.flags.has(key);
+        button.classList.toggle("is-open", isOpen);
+        button.classList.toggle("is-flagged", isFlagged);
+        if (isOpen && state.mines?.has(key)) {
+          button.classList.add("is-mine");
+          button.textContent = "*";
+        } else if (isOpen) {
+          const near = countNear(r, c);
+          button.textContent = near ? String(near) : "";
+        } else if (isFlagged) {
+          button.textContent = "⚑";
+        }
+        button.disabled = state.over && !isFlagged;
+        button.addEventListener("click", () => reveal(r, c));
+        button.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          toggleFlag(r, c);
+        });
+        button.addEventListener("pointerdown", () => {
+          longPressTimer = setTimeout(() => toggleFlag(r, c), 520);
+        });
+        button.addEventListener("pointerup", () => clearTimeout(longPressTimer));
+        button.addEventListener("pointerleave", () => clearTimeout(longPressTimer));
+        $("mineBoard").appendChild(button);
+      }
+    }
+    updateMeta();
+  };
+
+  const reset = () => {
+    state.mines = null;
+    state.open = new Set();
+    state.flags = new Set();
+    state.over = false;
+    $("mineStatus").textContent = "첫 칸을 열어 시작하세요.";
+    render();
+  };
+
+  $("mineResetBtn")?.addEventListener("click", reset);
+  reset();
+};
+
+const setupPongGame = () => {
+  if (!$("gamePong")) return;
+  const canvas = $("pongCanvas");
+  const ctx = canvas.getContext("2d");
+  const state = {
+    timer: null,
+    playerY: 130,
+    cpuY: 130,
+    playerScore: 0,
+    cpuScore: 0,
+    ball: { x: 160, y: 160, vx: 3, vy: 2.1 },
+    keys: { up: false, down: false }
+  };
+  const paddle = { w: 9, h: 58 };
+
+  const updateMeta = () => {
+    $("pongScore").textContent = `플레이어 ${state.playerScore} : ${state.cpuScore} CPU`;
+  };
+
+  const resetBall = (dir = 1) => {
+    state.ball = { x: 160, y: 160, vx: 3 * dir, vy: (Math.random() > 0.5 ? 1 : -1) * 2.1 };
+  };
+
+  const draw = () => {
+    ctx.clearRect(0, 0, 320, 320);
+    ctx.fillStyle = "#101722";
+    ctx.fillRect(0, 0, 320, 320);
+    ctx.strokeStyle = "rgba(216,236,255,0.35)";
+    ctx.setLineDash([6, 8]);
+    ctx.beginPath();
+    ctx.moveTo(160, 10);
+    ctx.lineTo(160, 310);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#f5fbff";
+    ctx.fillRect(18, state.playerY, paddle.w, paddle.h);
+    ctx.fillRect(293, state.cpuY, paddle.w, paddle.h);
+    ctx.beginPath();
+    ctx.arc(state.ball.x, state.ball.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#72b8ff";
+    ctx.fill();
+  };
+
+  const stop = (message) => {
+    if (state.timer) clearInterval(state.timer);
+    state.timer = null;
+    if (message) $("pongStatus").textContent = message;
+  };
+
+  const reset = () => {
+    stop();
+    state.playerY = 130;
+    state.cpuY = 130;
+    state.playerScore = 0;
+    state.cpuScore = 0;
+    resetBall(Math.random() > 0.5 ? 1 : -1);
+    updateMeta();
+    $("pongStatus").textContent = "시작을 눌러주세요.";
+    draw();
+  };
+
+  const score = (playerWonPoint) => {
+    if (playerWonPoint) state.playerScore += 1;
+    else state.cpuScore += 1;
+    updateMeta();
+    if (state.playerScore >= 5 || state.cpuScore >= 5) {
+      stop(state.playerScore > state.cpuScore ? "승리! 5점을 먼저 달성했습니다." : "CPU 승리. 다시 도전해보세요.");
+      return;
+    }
+    resetBall(playerWonPoint ? -1 : 1);
+  };
+
+  const step = () => {
+    if (state.keys.up) state.playerY -= 5;
+    if (state.keys.down) state.playerY += 5;
+    state.playerY = Math.max(0, Math.min(320 - paddle.h, state.playerY));
+
+    const cpuTarget = state.ball.y - paddle.h / 2;
+    state.cpuY += Math.max(-3.2, Math.min(3.2, cpuTarget - state.cpuY));
+    state.cpuY = Math.max(0, Math.min(320 - paddle.h, state.cpuY));
+
+    const ball = state.ball;
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+    if (ball.y <= 5 || ball.y >= 315) ball.vy *= -1;
+
+    if (ball.x <= 27 && ball.x >= 15 && ball.y >= state.playerY && ball.y <= state.playerY + paddle.h && ball.vx < 0) {
+      const hit = (ball.y - (state.playerY + paddle.h / 2)) / (paddle.h / 2);
+      ball.vx = Math.abs(ball.vx) + 0.18;
+      ball.vy = hit * 3.6;
+    }
+    if (ball.x >= 293 && ball.x <= 305 && ball.y >= state.cpuY && ball.y <= state.cpuY + paddle.h && ball.vx > 0) {
+      const hit = (ball.y - (state.cpuY + paddle.h / 2)) / (paddle.h / 2);
+      ball.vx = -Math.abs(ball.vx) - 0.18;
+      ball.vy = hit * 3.6;
+    }
+    if (ball.x < -8) score(false);
+    if (ball.x > 328) score(true);
+    draw();
+  };
+
+  const start = () => {
+    if (state.timer) return;
+    $("pongStatus").textContent = "진행 중 · 먼저 5점을 달성하세요.";
+    state.timer = setInterval(step, 16);
+  };
+
+  const movePointer = (clientY) => {
+    const rect = canvas.getBoundingClientRect();
+    const y = ((clientY - rect.top) / rect.height) * 320;
+    state.playerY = Math.max(0, Math.min(320 - paddle.h, y - paddle.h / 2));
+    if (!state.timer) draw();
+  };
+
+  canvas.addEventListener("pointermove", (e) => movePointer(e.clientY));
+  document.addEventListener("keydown", (e) => {
+    if (!activeHashIs("gamePong") || isTypingTarget(e.target)) return;
+    if (["ArrowUp", "w", "W"].includes(e.key)) {
+      e.preventDefault();
+      state.keys.up = true;
+    }
+    if (["ArrowDown", "s", "S"].includes(e.key)) {
+      e.preventDefault();
+      state.keys.down = true;
+    }
+  });
+  document.addEventListener("keyup", (e) => {
+    if (["ArrowUp", "w", "W"].includes(e.key)) state.keys.up = false;
+    if (["ArrowDown", "s", "S"].includes(e.key)) state.keys.down = false;
+  });
+  $("pongStartBtn")?.addEventListener("click", start);
+  $("pongResetBtn")?.addEventListener("click", reset);
+  reset();
+};
+
 const setupStageRouter = () => {
   const nav = $("toolNav");
   const stageHeader = $("stageHeader");
@@ -3910,6 +4803,14 @@ const init = () => {
   setupRpsGame();
   setupTttGame();
   setupUpdownGame();
+  setup2048Game();
+  setupSnakeGame();
+  setupTetrisGame();
+  setupPacmanGame();
+  setupBreakoutGame();
+  setupMemoryGame();
+  setupMinesweeperGame();
+  setupPongGame();
 };
 
 init();

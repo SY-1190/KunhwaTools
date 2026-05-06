@@ -706,6 +706,165 @@ body.home-mode .stage-bar {
   color: #425f83;
 }
 
+.game-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.game-stat-row strong {
+  color: #244c78;
+  font-size: 13px;
+}
+
+.btn-row.compact {
+  margin: 0;
+}
+
+.g2048-board {
+  width: min(100%, 320px);
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  border: 1px solid #c9d9ec;
+  border-radius: 10px;
+  background: #dfe8f4;
+  padding: 8px;
+}
+
+.g2048-tile {
+  border: 0;
+  border-radius: 8px;
+  background: #edf3fb;
+  color: #315575;
+  font-size: 22px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.g2048-tile.v2,
+.g2048-tile.v4 {
+  background: #f6fbff;
+}
+
+.g2048-tile.v8,
+.g2048-tile.v16,
+.g2048-tile.v32 {
+  background: #9fd3ff;
+  color: #103154;
+}
+
+.g2048-tile.v64,
+.g2048-tile.v128,
+.g2048-tile.v256 {
+  background: #69b88f;
+  color: #fff;
+}
+
+.g2048-tile.v512,
+.g2048-tile.v1024,
+.g2048-tile.v2048 {
+  background: #f0b84b;
+  color: #fff;
+}
+
+.arcade-canvas,
+.tetris-canvas {
+  width: min(100%, 320px);
+  image-rendering: pixelated;
+  border: 1px solid #bfd1e7;
+  border-radius: 10px;
+  background: #101722;
+  display: block;
+}
+
+.tetris-canvas {
+  width: min(100%, 240px);
+}
+
+.memory-board,
+.mine-board {
+  width: min(100%, 320px);
+  display: grid;
+  gap: 8px;
+}
+
+.memory-board {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.memory-card,
+.mine-cell {
+  border: 1px solid #c7d8ee;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #f7fbff, #e8f1fc);
+  color: #1d4168;
+  font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
+}
+
+.memory-card {
+  aspect-ratio: 1;
+  font-size: 26px;
+}
+
+.memory-card:not(:disabled):hover,
+.mine-cell:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(74, 134, 207, 0.16);
+}
+
+.memory-card.is-hidden {
+  color: transparent;
+  background: linear-gradient(145deg, #65aef6, #2c78da);
+}
+
+.memory-card.is-hidden::after {
+  content: "?";
+  color: #fff;
+}
+
+.memory-card.is-matched {
+  background: #e7faef;
+  border-color: #9fd5b4;
+}
+
+.mine-board {
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+}
+
+.mine-cell {
+  aspect-ratio: 1;
+  border-radius: 7px;
+  font-size: 13px;
+  padding: 0;
+}
+
+.mine-cell.is-open {
+  background: #fff;
+  box-shadow: none;
+  cursor: default;
+}
+
+.mine-cell.is-flagged {
+  background: #fff5d7;
+  border-color: #efc766;
+  color: #b06d00;
+}
+
+.mine-cell.is-mine {
+  background: #ffe8ea;
+  color: #c82333;
+}
+
 .tool-card {
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -1923,9 +2082,48 @@ body.dark .yacht-main,
 body.dark .yacht-score,
 body.dark .mini-game-panel,
 body.dark .ttt-cell,
-body.dark .mini-log {
+body.dark .mini-log,
+body.dark .g2048-board,
+body.dark .memory-board,
+body.dark .mine-board {
   background: #ffffff;
   border-color: #c9d9ec;
+}
+
+body.dark .game-stat-row strong {
+  color: #244c78;
+}
+
+body.dark .memory-card,
+body.dark .mine-cell {
+  background: linear-gradient(145deg, #f7fbff, #e8f1fc);
+  border-color: #c7d8ee;
+  color: #1d4168;
+}
+
+body.dark .memory-card.is-hidden {
+  color: transparent;
+  background: linear-gradient(145deg, #65aef6, #2c78da);
+}
+
+body.dark .memory-card.is-matched {
+  background: #e7faef;
+  border-color: #9fd5b4;
+}
+
+body.dark .mine-cell.is-open {
+  background: #fff;
+}
+
+body.dark .mine-cell.is-flagged {
+  background: #fff5d7;
+  border-color: #efc766;
+  color: #b06d00;
+}
+
+body.dark .mine-cell.is-mine {
+  background: #ffe8ea;
+  color: #c82333;
 }
 
 body.dark .yacht-meta-chips .chip {

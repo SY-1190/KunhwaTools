@@ -559,6 +559,38 @@
               <h3>4. 업다운</h3>
               <p>1~100 숫자 맞히기 · 힌트와 시도 횟수 제공</p>
             </a>
+            <a class="game-card-link" href="#game2048">
+              <h3>5. 2048</h3>
+              <p>방향키로 타일을 합쳐 2048을 만드는 클래식 퍼즐</p>
+            </a>
+            <a class="game-card-link" href="#gameSnake">
+              <h3>6. Snake</h3>
+              <p>먹이를 먹으며 길어지는 스네이크 아케이드</p>
+            </a>
+            <a class="game-card-link" href="#gameTetris">
+              <h3>7. Tetris</h3>
+              <p>블록을 쌓고 줄을 지우는 기본 테트리스</p>
+            </a>
+            <a class="game-card-link" href="#gamePacman">
+              <h3>8. Pacman</h3>
+              <p>미로 안 점을 모으며 추격을 피하는 미니 팩맨</p>
+            </a>
+            <a class="game-card-link" href="#gameBreakout">
+              <h3>9. Brick Breaker</h3>
+              <p>패들로 공을 튕겨 벽돌을 모두 깨는 아케이드</p>
+            </a>
+            <a class="game-card-link" href="#gameMemory">
+              <h3>10. Memory Cards</h3>
+              <p>같은 카드 쌍을 기억해서 맞히는 집중력 퍼즐</p>
+            </a>
+            <a class="game-card-link" href="#gameMinesweeper">
+              <h3>11. Minesweeper</h3>
+              <p>숫자 힌트로 지뢰를 피해 모든 칸을 여는 클래식</p>
+            </a>
+            <a class="game-card-link" href="#gamePong">
+              <h3>12. Pong</h3>
+              <p>AI와 1:1 랠리를 펼치는 초창기 아케이드 테니스</p>
+            </a>
           </div>
         </article>
 
@@ -649,6 +681,125 @@
             <p class="order-line" id="updownMeta">남은 시도: 10</p>
             <p class="status" id="updownStatus">숫자를 입력하고 확인을 누르세요.</p>
             <div id="updownHistory" class="mini-log"></div>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="game2048">
+          <h2><span class="icon">▣</span> 5. 2048</h2>
+          <p class="sub">방향키/WASD로 이동합니다.</p>
+          <div class="mini-game-panel">
+            <div class="game-stat-row">
+              <strong id="g2048Score">점수 0</strong>
+              <button class="btn ghost" type="button" id="g2048ResetBtn">새 게임</button>
+            </div>
+            <div id="g2048Board" class="g2048-board"></div>
+            <p class="status" id="g2048Status">타일을 합쳐 2048을 만들어보세요.</p>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gameSnake">
+          <h2><span class="icon">◆</span> 6. Snake</h2>
+          <p class="sub">방향키/WASD로 이동합니다.</p>
+          <div class="mini-game-panel">
+            <div class="game-stat-row">
+              <strong id="snakeScore">점수 0</strong>
+              <div class="btn-row compact">
+                <button class="btn primary" type="button" id="snakeStartBtn">시작</button>
+                <button class="btn ghost" type="button" id="snakeResetBtn">리셋</button>
+              </div>
+            </div>
+            <canvas id="snakeCanvas" class="arcade-canvas" width="320" height="320"></canvas>
+            <p class="status" id="snakeStatus">시작을 눌러주세요.</p>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gameTetris">
+          <h2><span class="icon">▦</span> 7. Tetris</h2>
+          <p class="sub">방향키: 이동/회전/빠른낙하 · A/D/S/W도 지원합니다.</p>
+          <div class="mini-game-panel">
+            <div class="game-stat-row">
+              <strong id="tetrisScore">점수 0 · 줄 0</strong>
+              <div class="btn-row compact">
+                <button class="btn primary" type="button" id="tetrisStartBtn">시작</button>
+                <button class="btn ghost" type="button" id="tetrisResetBtn">리셋</button>
+              </div>
+            </div>
+            <canvas id="tetrisCanvas" class="tetris-canvas" width="240" height="480"></canvas>
+            <p class="status" id="tetrisStatus">시작을 눌러주세요.</p>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gamePacman">
+          <h2><span class="icon">●</span> 8. Pacman</h2>
+          <p class="sub">방향키/WASD로 이동해 점을 모으세요.</p>
+          <div class="mini-game-panel">
+            <div class="game-stat-row">
+              <strong id="pacmanScore">점수 0</strong>
+              <div class="btn-row compact">
+                <button class="btn primary" type="button" id="pacmanStartBtn">시작</button>
+                <button class="btn ghost" type="button" id="pacmanResetBtn">리셋</button>
+              </div>
+            </div>
+            <canvas id="pacmanCanvas" class="arcade-canvas" width="320" height="320"></canvas>
+            <p class="status" id="pacmanStatus">시작을 눌러주세요.</p>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gameBreakout">
+          <h2><span class="icon">▰</span> 9. Brick Breaker</h2>
+          <p class="sub">마우스/터치 또는 방향키/A,D로 패들을 움직여 벽돌을 깨세요.</p>
+          <div class="mini-game-panel">
+            <div class="game-stat-row">
+              <strong id="breakoutScore">점수 0 · 남은 벽돌 0</strong>
+              <div class="btn-row compact">
+                <button class="btn primary" type="button" id="breakoutStartBtn">시작</button>
+                <button class="btn ghost" type="button" id="breakoutResetBtn">리셋</button>
+              </div>
+            </div>
+            <canvas id="breakoutCanvas" class="arcade-canvas" width="320" height="320"></canvas>
+            <p class="status" id="breakoutStatus">시작을 눌러주세요.</p>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gameMemory">
+          <h2><span class="icon">◇</span> 10. Memory Cards</h2>
+          <p class="sub">카드를 뒤집어 같은 그림 8쌍을 모두 찾으세요.</p>
+          <div class="mini-game-panel">
+            <div class="game-stat-row">
+              <strong id="memoryScore">이동 0 · 발견 0/8</strong>
+              <button class="btn ghost" type="button" id="memoryResetBtn">새 게임</button>
+            </div>
+            <div id="memoryBoard" class="memory-board" aria-label="메모리 카드 보드"></div>
+            <p class="status" id="memoryStatus">카드 2장을 선택하세요.</p>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gameMinesweeper">
+          <h2><span class="icon">✦</span> 11. Minesweeper</h2>
+          <p class="sub">좌클릭으로 열기 · 우클릭 또는 길게 누르기로 깃발 표시</p>
+          <div class="mini-game-panel">
+            <div class="game-stat-row">
+              <strong id="mineScore">지뢰 10 · 깃발 0</strong>
+              <button class="btn ghost" type="button" id="mineResetBtn">새 게임</button>
+            </div>
+            <div id="mineBoard" class="mine-board" aria-label="지뢰찾기 보드"></div>
+            <p class="status" id="mineStatus">첫 칸을 열어 시작하세요.</p>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="gamePong">
+          <h2><span class="icon">◐</span> 12. Pong</h2>
+          <p class="sub">마우스/터치 또는 방향키/W,S로 내 패들을 움직입니다. 먼저 5점이면 승리합니다.</p>
+          <div class="mini-game-panel">
+            <div class="game-stat-row">
+              <strong id="pongScore">플레이어 0 : 0 CPU</strong>
+              <div class="btn-row compact">
+                <button class="btn primary" type="button" id="pongStartBtn">시작</button>
+                <button class="btn ghost" type="button" id="pongResetBtn">리셋</button>
+              </div>
+            </div>
+            <canvas id="pongCanvas" class="arcade-canvas" width="320" height="320"></canvas>
+            <p class="status" id="pongStatus">시작을 눌러주세요.</p>
           </div>
         </article>
       </section>
