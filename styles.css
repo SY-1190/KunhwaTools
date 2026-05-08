@@ -65,39 +65,34 @@ h2,
   gap: 12px;
 }
 
-.cat-mascot {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: linear-gradient(145deg, #fff7e5, #ffeed5);
-  border: 1px solid #ffd8a5;
+.kunhwa-wordmark {
+  min-width: auto;
+  height: auto;
   display: grid;
   place-items: center;
-  box-shadow: inset 0 1px 0 #fff, 0 6px 14px rgba(227, 146, 38, 0.15);
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition: transform 0.18s ease, filter 0.18s ease;
 }
 
-.cat-mascot:hover {
+.kunhwa-wordmark:hover {
   transform: translateY(-1px);
-  box-shadow: inset 0 1px 0 #fff, 0 8px 18px rgba(227, 146, 38, 0.22);
+  filter: drop-shadow(0 8px 14px rgba(18, 10, 143, 0.18));
 }
 
-.cat-mascot:focus-visible {
-  outline: 2px solid #7db0f1;
+.kunhwa-wordmark:focus-visible {
+  outline: 2px solid #4169e1;
   outline-offset: 2px;
 }
 
-.cat-mascot svg {
-  width: 46px;
-  height: 46px;
-}
-
-.cat-mascot img {
-  width: 46px;
-  height: 46px;
-  object-fit: cover;
-  border-radius: 10px;
+.kunhwa-wordmark span {
+  color: #120a8f;
+  font-family: "IBM Plex Sans", "Noto Sans KR", sans-serif;
+  font-size: clamp(14px, 1.7vw, 19px);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 h1 {
@@ -1880,6 +1875,11 @@ body.dark {
   --shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
 }
 
+body.dark .kunhwa-wordmark span {
+  color: #8ea8ff;
+  text-shadow: 0 1px 8px rgba(126, 161, 255, 0.55);
+}
+
 body.dark input,
 body.dark select,
 body.dark textarea {
@@ -2180,9 +2180,8 @@ body.dark .yacht-meta-chips .chip {
     padding-right: 14px;
   }
 
-  .cat-mascot {
-    width: 50px;
-    height: 50px;
+  .kunhwa-wordmark {
+    min-width: auto;
   }
 
   .span-2 {
