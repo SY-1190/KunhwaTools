@@ -14,6 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
@@ -32,12 +33,16 @@
       <div class="header-actions">
         <div class="header-button-row">
           <button id="themeToggle" class="btn ghost theme-icon-btn" type="button" aria-label="화이트 모드">☀</button>
+          <a href="./patch-notes.html" class="btn ghost header-login-btn" id="patchNotesBtn" aria-label="패치내용">
+            <span id="patchNotesBtnIcon" class="btn-icon-slot" aria-hidden="true"></span>
+            <span>패치내용</span>
+          </a>
           <button id="loginBtn" class="btn ghost header-login-btn" type="button" aria-label="로그인">
             <span id="loginBtnIcon" class="btn-icon-slot" aria-hidden="true"></span>
             <span>로그인</span>
           </button>
         </div>
-        <p class="commit-note">마지막 커밋: ver_0.1.9</p>
+        <p class="commit-note">마지막 커밋: ver_0.1.10</p>
       </div>
     </header>
 
@@ -56,6 +61,7 @@
             <a class="quick-btn" href="#fileRename"><span>✎</span><strong>파일명 일괄변경</strong></a>
             <a class="quick-btn" href="#processTimer"><span>⏱</span><strong>공정 작업시간 측정기</strong></a>
             <a class="quick-btn" href="#qrGenerator"><span>▦</span><strong>QR 코드 생성기</strong></a>
+            <a class="quick-btn long-label" href="#hangulWebEditor"><span>📝</span><strong>한글(hwp/hwpx) 포맷 에디터</strong></a>
           </div>
         </section>
 
@@ -72,6 +78,7 @@
             <a class="stage-chip" href="#fileRename" data-stage-target="fileRename">파일명 일괄변경</a>
             <a class="stage-chip" href="#processTimer" data-stage-target="processTimer">공정 작업시간 측정기</a>
             <a class="stage-chip" href="#qrGenerator" data-stage-target="qrGenerator">QR 코드 생성기</a>
+            <a class="stage-chip" href="#hangulWebEditor" data-stage-target="hangulWebEditor">HWP/HWPX 에디터</a>
           </div>
           <p id="stageTitleText" class="stage-title-text"></p>
         </section>
@@ -540,6 +547,42 @@
             </section>
           </div>
           <p class="status" id="qrStatus"></p>
+        </article>
+
+        <article class="tool-card tool-stage" id="hangulWebEditor">
+          <h2><span class="icon">📝</span> 11. HWP/HWPX 웹 에디터 (rhwp)</h2>
+          <p class="sub">파일을 드래그앤드롭해 변환하고, 필요 시 한글 파일 열기로 새 탭 에디터를 실행합니다.</p>
+          <div class="drop-zone" data-file-input="hangulEditorFile" data-file-kind="HWP/HWPX" data-drop-multiple="false">
+            <p class="drop-main">HWP/HWPX 파일을 끌거나 클릭해 업로드</p>
+            <p class="drop-file-name" id="hangulEditorFileDropName">선택된 파일 없음</p>
+          </div>
+          <input class="visually-hidden" type="file" id="hangulEditorFile" accept=".hwp,.hwpx,application/octet-stream,application/xml,text/xml" />
+          <div class="convert-inline-row">
+            <label>변환 포맷
+              <select id="hangulConvertFormat">
+                <option value="txt">TXT(텍스트)</option>
+                <option value="html">HTML</option>
+                <option value="md">Markdown</option>
+                <option value="pdf">PDF</option>
+                <option value="csv">CSV</option>
+                <option value="xlsx">Excel (.xlsx)</option>
+              </select>
+            </label>
+            <button class="btn primary" id="runHangulConvert" type="button">변환하기</button>
+          </div>
+          <p class="status" id="hangulConvertStatus"></p>
+          <div id="hangulFilePreview" class="hangul-file-preview">
+            <p class="status">파일 미리보기가 여기에 표시됩니다.</p>
+          </div>
+          <div class="hangul-editor-frame-wrap">
+            <div id="hangulEditorFrame" class="hangul-editor-placeholder">
+            </div>
+            <div class="btn-row">
+              <button class="btn primary" id="openRhwpWebEditor" type="button">한글파일 웹에디터 새창열기</button>
+            </div>
+            <p class="status" id="hangulSaveGuideStatus">저장 안내: 웹에디터에서는 다른 이름으로 저장(복제본 저장)을 권장합니다.</p>
+            <p class="status" id="hangulEditorStatus"></p>
+          </div>
         </article>
 
         <article class="tool-card tool-stage" id="gameHub">

@@ -164,6 +164,17 @@ const readAsText = (file) =>
     fr.readAsText(file, "utf-8");
   });
 
+const getErrorMessage = (err, fallback = "알 수 없는 오류가 발생했습니다.") => {
+  if (!err) return fallback;
+  if (typeof err === "string") return err;
+  if (typeof err.message === "string" && err.message.trim()) return err.message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return fallback;
+  }
+};
+
 const isHeicLikeFile = (file) => {
   const ext = (file?.name?.split(".").pop() || "").toLowerCase();
   return ext === "heic" || ext === "heif" || /image\/hei(c|f)/i.test(file?.type || "");
@@ -191,6 +202,7 @@ const ICONS = {
   download: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>`,
   house: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m8.354 1.146 6.5 6.5A.5.5 0 0 1 14.5 8.5H13v5a1 1 0 0 1-1 1h-2.5a.5.5 0 0 1-.5-.5V11a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v3a.5.5 0 0 1-.5.5H4a1 1 0 0 1-1-1v-5H1.5a.5.5 0 0 1-.354-.854l6.5-6.5a.5.5 0 0 1 .708 0"/></svg>`,
   person: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/><path fill-rule="evenodd" d="M8 9a6 6 0 0 0-5.468 3.516A.75.75 0 0 0 3.205 14h9.59a.75.75 0 0 0 .673-1.484A6 6 0 0 0 8 9"/></svg>`,
+  journal: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 1.5A1.5 1.5 0 0 1 4.5 0h7A1.5 1.5 0 0 1 13 1.5v13A1.5 1.5 0 0 1 11.5 16h-7A1.5 1.5 0 0 1 3 14.5zM4.5 1a.5.5 0 0 0-.5.5V2h8v-.5a.5.5 0 0 0-.5-.5zm7.5 2h-8v11.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5z"/><path d="M5 5h6v1H5zm0 2h6v1H5zm0 2h4v1H5z"/></svg>`,
   x: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2.146 2.146a.5.5 0 0 1 .708 0L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854a.5.5 0 0 1 0-.708"/></svg>`,
 };
 
@@ -2497,6 +2509,7 @@ const setupLoginModal = () => {
   };
 
   setIconButton("loginBtnIcon", "person");
+  setIconButton("patchNotesBtnIcon", "journal");
   setIconButton("closeLoginModal", "x");
 
   openBtn.addEventListener("click", openModal);
@@ -4779,6 +4792,369 @@ const setupQr = () => {
   });
 };
 
+const setupHangulWebEditor = () => {
+  const fileInput = $("hangulEditorFile");
+  const formatSelect = $("hangulConvertFormat");
+  const convertBtn = $("runHangulConvert");
+  const previewBox = $("hangulFilePreview");
+  const openWebEditorBtn = $("openRhwpWebEditor");
+  const editorStatus = $("hangulEditorStatus");
+  if (!fileInput || !formatSelect || !convertBtn || !previewBox || !openWebEditorBtn || !editorStatus) return;
+
+  let activeFile = null;
+  let rhwpMod = null;
+  let rhwpReady = false;
+  let extractedText = "";
+
+  const normalizeExtractedText = (raw) => {
+    const src = String(raw || "").replace(/\r/g, "");
+    if (!src.trim()) return "";
+    const lines = src.split("\n");
+    const nonEmpty = lines.filter((l) => l.trim().length > 0);
+    if (!nonEmpty.length) return src.trim();
+    const shortCount = nonEmpty.filter((l) => l.trim().length <= 1).length;
+    const shortRatio = shortCount / nonEmpty.length;
+    if (shortRatio < 0.6) return src.trim();
+
+    // 글자 단위 줄바꿈으로 추출된 경우 문장 단위로 재조합
+    const compact = nonEmpty.map((l) => l.trim()).join("");
+    return compact
+      .replace(/([.!?])\s*/g, "$1\n")
+      .replace(/([다요죠니다임])\s*(?=[A-Za-z0-9가-힣])/g, "$1\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  };
+
+  const ensureRhwp = async () => {
+    if (rhwpReady && rhwpMod) return rhwpMod;
+    if (!rhwpMod) rhwpMod = await import("https://cdn.jsdelivr.net/npm/@rhwp/core@0.7.10/rhwp.js");
+    const initFn = rhwpMod.default || rhwpMod.init;
+    if (typeof initFn !== "function" || typeof rhwpMod.HwpDocument !== "function") throw new Error("rhwp core load failed");
+    if (!globalThis.measureTextWidth) {
+      globalThis.measureTextWidth = (font, text) => {
+        const c = document.createElement("canvas");
+        const ctx = c.getContext("2d");
+        ctx.font = font || "14px sans-serif";
+        return ctx.measureText(text || "").width;
+      };
+    }
+    await initFn({ module_or_path: "https://cdn.jsdelivr.net/npm/@rhwp/core@0.7.10/rhwp_bg.wasm" });
+    rhwpReady = true;
+    return rhwpMod;
+  };
+
+  const readTextFromHwpx = async (file) => {
+    const zip = await JSZip.loadAsync(await readAsArrayBuffer(file));
+    const prv = zip.file("Preview/PrvText.txt");
+    if (prv) {
+      const txt = (await prv.async("string")).trim();
+      if (txt) return txt;
+    }
+    const sections = Object.keys(zip.files).filter((n) => /^Contents\/section\d+\.xml$/i.test(n)).sort();
+    if (!sections.length) throw new Error("HWPX section file not found");
+    const parser = new DOMParser();
+    const out = [];
+    for (const s of sections) {
+      const xml = await zip.file(s).async("string");
+      const doc = parser.parseFromString(xml, "application/xml");
+      const lines = [...doc.getElementsByTagName("*")]
+        .filter((el) => el.localName === "t")
+        .map((el) => (el.textContent || "").trim())
+        .filter(Boolean);
+      if (lines.length) out.push(lines.join("\n"));
+    }
+    return out.join("\n\n").trim();
+  };
+
+  const readTextFromHwp = async (file) => {
+    const mod = await ensureRhwp();
+    const doc = new mod.HwpDocument(new Uint8Array(await readAsArrayBuffer(file)));
+    const parser = new DOMParser();
+    const parts = [];
+    for (let i = 0; i < 300; i += 1) {
+      let svg = "";
+      try {
+        svg = doc.renderPageSvg(i);
+      } catch {
+        break;
+      }
+      if (!svg) break;
+      const xml = parser.parseFromString(svg, "image/svg+xml");
+      const lines = [...xml.querySelectorAll("text")]
+        .map((n) => (n.textContent || "").replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+      if (lines.length) parts.push(lines.join("\n"));
+    }
+    const merged = parts.join("\n\n").trim();
+    if (!merged) throw new Error("HWP text extraction failed");
+    return normalizeExtractedText(merged);
+  };
+
+  const collectRenderedPageSvgs = async (file) => {
+    const mod = await ensureRhwp();
+    const doc = new mod.HwpDocument(new Uint8Array(await readAsArrayBuffer(file)));
+    const pages = [];
+
+    const tryCollect = (startIndex) => {
+      for (let i = startIndex; i < startIndex + 2000; i += 1) {
+        let svg = "";
+        try {
+          svg = doc.renderPageSvg(i);
+        } catch {
+          break;
+        }
+        if (!svg) break;
+        pages.push(svg);
+      }
+    };
+
+    tryCollect(0);
+    if (!pages.length) tryCollect(1);
+    return pages;
+  };
+
+  const renderPreview = async (file) => {
+    previewBox.innerHTML = '<p class="status">미리보기 생성 중...</p>';
+    try {
+      const pages = await collectRenderedPageSvgs(file);
+      const svg = pages[0];
+      if (!svg) throw new Error("first page render failed");
+      previewBox.innerHTML = "";
+      const meta = document.createElement("p");
+      meta.className = "status";
+      meta.textContent = `미리보기: ${file.name} (1페이지)`;
+      const wrap = document.createElement("div");
+      wrap.className = "hangul-preview-svg";
+      wrap.innerHTML = svg;
+      previewBox.append(meta, wrap);
+    } catch (err) {
+      previewBox.innerHTML = `<p class="status">미리보기 실패: ${err.message}</p>`;
+    }
+  };
+
+  const extractText = async (file) => {
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (ext === "hwpx") return readTextFromHwpx(file);
+    if (ext === "hwp") return readTextFromHwp(file);
+    throw new Error("지원 확장자는 .hwp/.hwpx 입니다.");
+  };
+
+  const loadFile = async (file) => {
+    if (!file) return;
+    activeFile = file;
+    setStatus("hangulEditorStatus", `파일 선택됨: ${file.name}`);
+    try {
+      extractedText = normalizeExtractedText(await extractText(file));
+      setStatus("hangulEditorStatus", `문서 로드 완료: ${file.name}`);
+    } catch (err) {
+      extractedText = "";
+      setStatus("hangulEditorStatus", `문서 로드 실패: ${err.message}`);
+    }
+    await renderPreview(file);
+  };
+
+  fileInput.addEventListener("change", () => loadFile(fileInput.files?.[0] || null));
+
+  convertBtn.addEventListener("click", async () => {
+    if (!activeFile) {
+      setStatus("hangulConvertStatus", "먼저 HWP/HWPX 파일을 넣어 주세요.");
+      return;
+    }
+    beginGlobalBusy("문서 변환 중...");
+    try {
+      const text = extractedText?.trim() ? extractedText : await extractText(activeFile);
+      const stem = activeFile.name.replace(/\.[^.]+$/, "");
+      const fmt = formatSelect.value;
+      if (fmt === "txt") {
+        downloadBlob(new Blob([text], { type: "text/plain;charset=utf-8" }), `${stem}.txt`);
+      } else if (fmt === "md") {
+        downloadBlob(new Blob([text], { type: "text/markdown;charset=utf-8" }), `${stem}.md`);
+      } else if (fmt === "html") {
+        const escaped = String(text || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;");
+        const htmlDoc = `<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${stem}</title>
+  <style>
+    body { margin: 24px; font-family: "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif; line-height: 1.7; color: #111; }
+    .doc { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <div class="doc">${escaped}</div>
+</body>
+</html>`;
+        downloadBlob(new Blob([htmlDoc], { type: "text/html;charset=utf-8" }), `${stem}.html`);
+      } else if (fmt === "csv") {
+        const rows = text.split(/\r?\n/).map((l) => `"${l.replaceAll('"', '""')}"`);
+        downloadBlob(new Blob([`line\n${rows.join("\n")}\n`], { type: "text/csv;charset=utf-8" }), `${stem}.csv`);
+      } else if (fmt === "xlsx") {
+        if (!globalThis.XLSX) throw new Error("XLSX 라이브러리 로드 실패");
+        const rows = String(text || "")
+          .split(/\r?\n/)
+          .map((line, idx) => [idx + 1, line]);
+        const aoa = [["No", "내용"], ...rows];
+        const ws = globalThis.XLSX.utils.aoa_to_sheet(aoa);
+        ws["!cols"] = [{ wch: 8 }, { wch: 80 }];
+        const wb = globalThis.XLSX.utils.book_new();
+        globalThis.XLSX.utils.book_append_sheet(wb, ws, "문서");
+        const out = globalThis.XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        downloadBlob(
+          new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+          `${stem}.xlsx`,
+        );
+      } else if (fmt === "pdf") {
+        const pageSvgs = await collectRenderedPageSvgs(activeFile);
+
+        const parseSvgSize = (svgText) => {
+          const viewBoxMatch = svgText.match(/viewBox\s*=\s*"([^"]+)"/i);
+          if (viewBoxMatch) {
+            const nums = viewBoxMatch[1].trim().split(/\s+/).map(Number);
+            if (nums.length === 4 && Number.isFinite(nums[2]) && Number.isFinite(nums[3]) && nums[2] > 0 && nums[3] > 0) {
+              return { width: nums[2], height: nums[3] };
+            }
+          }
+          const widthMatch = svgText.match(/width\s*=\s*"([\d.]+)(px)?"/i);
+          const heightMatch = svgText.match(/height\s*=\s*"([\d.]+)(px)?"/i);
+          const w = widthMatch ? Number(widthMatch[1]) : 595.28;
+          const h = heightMatch ? Number(heightMatch[1]) : 841.89;
+          return {
+            width: Number.isFinite(w) && w > 0 ? w : 595.28,
+            height: Number.isFinite(h) && h > 0 ? h : 841.89,
+          };
+        };
+
+        const svgToPngDataUrl = (svgText, width, height) =>
+          new Promise((resolve, reject) => {
+            const blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                const scale = 2;
+                canvas.width = Math.max(1, Math.round(width * scale));
+                canvas.height = Math.max(1, Math.round(height * scale));
+                const ctx = canvas.getContext("2d");
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL("image/png"));
+              } catch (e) {
+                reject(e);
+              } finally {
+                URL.revokeObjectURL(url);
+              }
+            };
+            img.onerror = () => {
+              URL.revokeObjectURL(url);
+              reject(new Error("SVG 렌더링 실패"));
+            };
+            img.src = url;
+          });
+
+        if (pageSvgs.length) {
+          const pdfDoc = await PDFLib.PDFDocument.create();
+          for (let i = 0; i < pageSvgs.length; i += 1) {
+            setStatus("hangulConvertStatus", `PDF 렌더링 중... (${i + 1}/${pageSvgs.length})`);
+            const svg = pageSvgs[i];
+            const { width, height } = parseSvgSize(svg);
+            const pngDataUrl = await svgToPngDataUrl(svg, width, height);
+            const pngImage = await pdfDoc.embedPng(pngDataUrl);
+            const page = pdfDoc.addPage([width, height]);
+            page.drawImage(pngImage, { x: 0, y: 0, width, height });
+          }
+          downloadBlob(new Blob([await pdfDoc.save()], { type: "application/pdf" }), `${stem}.pdf`);
+        } else {
+          // 렌더 실패 시 텍스트 기반 PDF로 폴백
+          const fallbackText = normalizeExtractedText(text);
+          const pageW = 595.28;
+          const pageH = 841.89;
+          const renderW = 1240;
+          const renderH = 1754;
+          const margin = 72;
+          const fontPx = 24;
+          const lineH = 36;
+          const maxWidth = renderW - margin * 2;
+
+          const wrapLine = (ctx, line) => {
+            const words = String(line || "").split(/\s+/);
+            if (!words.length) return [""];
+            const out = [];
+            let cur = words[0] || "";
+            for (let i = 1; i < words.length; i += 1) {
+              const next = `${cur} ${words[i]}`;
+              if (ctx.measureText(next).width <= maxWidth) cur = next;
+              else {
+                out.push(cur);
+                cur = words[i];
+              }
+            }
+            out.push(cur);
+            return out;
+          };
+
+          const canvas = document.createElement("canvas");
+          canvas.width = renderW;
+          canvas.height = renderH;
+          const ctx = canvas.getContext("2d");
+          ctx.textBaseline = "top";
+          ctx.font = `${fontPx}px "Noto Sans KR", sans-serif`;
+
+          const lines = [];
+          fallbackText.split(/\r?\n/).forEach((line) => {
+            const wrapped = wrapLine(ctx, line);
+            wrapped.forEach((w) => lines.push(w));
+            if (!wrapped.length) lines.push("");
+          });
+
+          const linesPerPage = Math.max(1, Math.floor((renderH - margin * 2) / lineH));
+          const chunks = [];
+          for (let i = 0; i < lines.length; i += linesPerPage) chunks.push(lines.slice(i, i + linesPerPage));
+          if (!chunks.length) chunks.push([""]);
+
+          const pdfDoc = await PDFLib.PDFDocument.create();
+          for (const chunk of chunks) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, renderW, renderH);
+            ctx.fillStyle = "#111111";
+            let y = margin;
+            chunk.forEach((line) => {
+              ctx.fillText(line, margin, y);
+              y += lineH;
+            });
+            const png = canvas.toDataURL("image/png");
+            const pngImage = await pdfDoc.embedPng(png);
+            const page = pdfDoc.addPage([pageW, pageH]);
+            page.drawImage(pngImage, { x: 0, y: 0, width: pageW, height: pageH });
+          }
+          downloadBlob(new Blob([await pdfDoc.save()], { type: "application/pdf" }), `${stem}.pdf`);
+        }
+      }
+      setStatus("hangulConvertStatus", `변환 완료: ${stem}.${fmt}`);
+    } catch (err) {
+      setStatus("hangulConvertStatus", `변환 실패: ${getErrorMessage(err)}`);
+    } finally {
+      endGlobalBusy();
+    }
+  });
+
+  openWebEditorBtn.addEventListener("click", () => {
+    window.open("https://edwardkim.github.io/rhwp/", "_blank", "noopener,noreferrer");
+    if (activeFile) {
+      setStatus("hangulEditorStatus", `웹에디터 새창 열림. 동일 파일(${activeFile.name})을 새창에 드래그앤드롭하세요.`);
+      return;
+    }
+    setStatus("hangulEditorStatus", "웹에디터 새창 열림. 파일을 새창에 드래그앤드롭하세요.");
+  });
+
+};
+
 const init = () => {
   document.body.classList.add("home-mode");
   initOperations();
@@ -4799,6 +5175,7 @@ const init = () => {
   setupBatchRename();
   setupProcessTimer();
   setupQr();
+  setupHangulWebEditor();
   setupYachtGame();
   setupRpsGame();
   setupTttGame();

@@ -303,6 +303,11 @@ h1 {
   font-size: 17px;
 }
 
+.quick-btn.long-label strong {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
 .quick-btn:hover {
   transform: translateY(-1px);
   border-color: #96baf0;
@@ -2153,6 +2158,85 @@ body.dark .yacht-meta-chips .chip {
   border-color: #c3d5ed;
 }
 
+.hangul-editor-frame-wrap {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.convert-inline-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.convert-inline-row .btn {
+  height: 42px;
+}
+
+.hangul-editor-frame,
+.hangul-editor-placeholder {
+  width: 100%;
+  height: 76vh;
+  min-height: 560px;
+  border: 0;
+  display: block;
+  background: #fff;
+}
+
+.hangul-editor-placeholder {
+  box-sizing: border-box;
+  height: auto;
+  min-height: 120px;
+  padding: 14px;
+  color: #46566d;
+  line-height: 1.5;
+}
+
+.hangul-editor-textarea {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  font: 500 14px/1.5 "Noto Sans KR", sans-serif;
+  color: #26374d;
+  resize: vertical;
+  box-sizing: border-box;
+  margin-top: 10px;
+  background: #fff;
+}
+
+.hangul-file-preview {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+
+.hangul-preview-svg {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #dbe4ef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.hangul-preview-svg svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+body.dark .hangul-editor-frame-wrap {
+  border-color: #3a5272;
+  background: #fff;
+}
+
 @keyframes stage-in {
   from {
     opacity: 0;
@@ -2182,6 +2266,15 @@ body.dark .yacht-meta-chips .chip {
   }
 
   .yacht-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .hangul-editor-frame {
+    height: 70vh;
+    min-height: 520px;
+  }
+
+  .convert-inline-row {
     grid-template-columns: 1fr;
   }
 
@@ -2224,5 +2317,10 @@ body.dark .yacht-meta-chips .chip {
 
   .yacht-row {
     grid-template-columns: 1fr 56px 56px 56px;
+  }
+
+  .hangul-editor-frame {
+    height: 68vh;
+    min-height: 420px;
   }
 }
