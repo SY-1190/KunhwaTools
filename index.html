@@ -42,7 +42,7 @@
             <span>로그인</span>
           </button>
         </div>
-        <p class="commit-note">마지막 커밋: ver_0.1.10</p>
+        <p class="commit-note">마지막 커밋: ver_0.1.11</p>
       </div>
     </header>
 
@@ -53,8 +53,8 @@
           <div class="quick-grid">
             <a class="quick-btn" href="#pdfToImage"><span>🗎</span><strong>PDF → 이미지</strong></a>
             <a class="quick-btn" href="#imageToPdf"><span>🖼</span><strong>이미지 → PDF</strong></a>
-            <a class="quick-btn" href="#pdfArrange"><span>↕</span><strong>PDF 순서변경/나누기</strong></a>
-            <a class="quick-btn" href="#pdfMerge"><span>⊞</span><strong>PDF 합치기</strong></a>
+            <a class="quick-btn long-label" href="#pdfArrange"><span>↻</span><strong>PDF 순서변경/나누기/회전</strong></a>
+            <a class="quick-btn" href="#pdfMerge"><span>⊞</span><strong>PDF 합치기/회전</strong></a>
             <a class="quick-btn" href="#pdfCompress"><span>🗜</span><strong>PDF 용량 압축</strong></a>
             <a class="quick-btn" href="#imageResize"><span>⬚</span><strong>이미지 크기조정</strong></a>
             <a class="quick-btn" href="#imageFormat"><span>⇆</span><strong>이미지 포맷변환</strong></a>
@@ -70,8 +70,8 @@
           <div class="stage-menu-scroll" id="stageMenuScroll">
             <a class="stage-chip" href="#pdfToImage" data-stage-target="pdfToImage">PDF → 이미지</a>
             <a class="stage-chip" href="#imageToPdf" data-stage-target="imageToPdf">이미지 → PDF</a>
-            <a class="stage-chip" href="#pdfArrange" data-stage-target="pdfArrange">PDF 순서변경/나누기</a>
-            <a class="stage-chip" href="#pdfMerge" data-stage-target="pdfMerge">PDF 합치기</a>
+            <a class="stage-chip" href="#pdfArrange" data-stage-target="pdfArrange">PDF 순서/분할/회전</a>
+            <a class="stage-chip" href="#pdfMerge" data-stage-target="pdfMerge">PDF 합치기/회전</a>
             <a class="stage-chip" href="#pdfCompress" data-stage-target="pdfCompress">PDF 용량 압축</a>
             <a class="stage-chip" href="#imageResize" data-stage-target="imageResize">이미지 크기조정</a>
             <a class="stage-chip" href="#imageFormat" data-stage-target="imageFormat">이미지 포맷변환</a>
@@ -170,8 +170,8 @@
         </article>
 
         <article class="tool-card tool-stage" id="pdfArrange">
-          <h2><span class="icon">↕</span> 3. PDF 순서 변경 / 페이지 나누기</h2>
-          <p class="sub">PDF 업로드 시 썸네일 자동 로드 · Shift 범위 선택 · 드래그 배치 · 페이지 삭제 지원</p>
+          <h2><span class="icon">↻</span> 3. PDF 순서 변경 / 페이지 나누기 / 회전</h2>
+          <p class="sub">PDF 업로드 시 썸네일 자동 로드 · 전체/개별 페이지 회전 · Shift 범위 선택 · 드래그 배치 · 페이지 삭제 지원</p>
           <div class="drop-zone" data-file-input="arrangePdfFile" data-file-kind="PDF" data-drop-multiple="false">
             <p class="drop-main">PDF를 끌거나 클릭해 업로드</p>
             <p class="drop-file-name" id="arrangePdfFileDropName">선택된 파일 없음</p>
@@ -179,6 +179,33 @@
           <input class="visually-hidden" type="file" id="arrangePdfFile" accept=".pdf" />
           <div class="btn-row">
             <button class="btn ghost" id="cancelArrange" disabled>취소</button>
+          </div>
+
+          <div class="rotation-toolbar" aria-label="PDF 전체 페이지 회전">
+            <p class="order-line">전체 페이지 회전</p>
+            <div class="mini-actions">
+              <button class="btn ghost btn-mini rotation-btn" id="rotateAllLeft" type="button">
+                <span id="rotateAllLeftIcon" class="btn-icon-slot" aria-hidden="true"></span>
+                <span>전체 왼쪽 90°</span>
+              </button>
+              <button class="btn ghost btn-mini rotation-btn" id="rotateAllRight" type="button">
+                <span id="rotateAllRightIcon" class="btn-icon-slot" aria-hidden="true"></span>
+                <span>전체 오른쪽 90°</span>
+              </button>
+              <label class="rotation-select-label" for="arrangeAbsoluteRotation">
+                강제 방향
+                <select id="arrangeAbsoluteRotation">
+                  <option value="0">0° (기본)</option>
+                  <option value="90">90° (오른쪽)</option>
+                  <option value="180">180° (거꾸로)</option>
+                  <option value="270">270° (왼쪽)</option>
+                </select>
+              </label>
+              <button class="btn primary btn-mini rotation-btn" id="applyArrangeAbsoluteRotation" type="button">
+                <span id="applyArrangeAbsoluteRotationIcon" class="btn-icon-slot" aria-hidden="true"></span>
+                <span>선택 각도로 강제 통일</span>
+              </button>
+            </div>
           </div>
 
           <div class="arrange-workspace">
@@ -226,8 +253,8 @@
         </article>
 
         <article class="tool-card tool-stage" id="pdfMerge">
-          <h2><span class="icon">⊞</span> 4. PDF 합치기</h2>
-          <p class="sub">다중 PDF 파일 병합</p>
+          <h2><span class="icon">⊞</span> 4. PDF 합치기 / 회전</h2>
+          <p class="sub">다중 PDF 파일 병합 · 파일별 전체 페이지 회전 · 모든 파일 방향 강제 통일</p>
           <div class="drop-zone" data-file-input="mergePdfFiles" data-file-kind="PDF" data-drop-multiple="true" data-preserve-files="true">
             <p class="drop-main">병합할 PDF를 끌거나 클릭해 업로드</p>
             <p class="drop-file-name" id="mergePdfFilesDropName">선택된 파일 없음</p>
@@ -236,6 +263,24 @@
           <div class="btn-row">
             <button class="btn primary" id="runMergePdf">합치기</button>
             <button class="btn ghost" id="cancelMergePdf" disabled>취소</button>
+          </div>
+          <div class="rotation-toolbar" aria-label="합칠 PDF 회전">
+            <p class="order-line">모든 파일 방향 통일</p>
+            <div class="mini-actions">
+              <label class="rotation-select-label" for="mergeAbsoluteRotation">
+                강제 방향
+                <select id="mergeAbsoluteRotation">
+                  <option value="0">0° (기본)</option>
+                  <option value="90">90° (오른쪽)</option>
+                  <option value="180">180° (거꾸로)</option>
+                  <option value="270">270° (왼쪽)</option>
+                </select>
+              </label>
+              <button class="btn primary btn-mini rotation-btn" id="applyMergeAbsoluteRotation" type="button">
+                <span id="applyMergeAbsoluteRotationIcon" class="btn-icon-slot" aria-hidden="true"></span>
+                <span>모든 파일 방향 통일</span>
+              </button>
+            </div>
           </div>
           <div class="progress-wrap">
             <progress id="progressMergePdf" max="100" value="0"></progress>

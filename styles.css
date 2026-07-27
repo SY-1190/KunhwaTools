@@ -1146,6 +1146,48 @@ progress::-webkit-progress-value {
   gap: 6px;
 }
 
+.rotation-toolbar {
+  margin-top: 8px;
+  border: 1px solid #cddcf0;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rotation-toolbar .order-line {
+  margin: 0;
+}
+
+.rotation-toolbar .mini-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.rotation-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #4c6e95;
+  white-space: nowrap;
+}
+
+.rotation-select-label select {
+  min-width: 118px;
+  padding: 5px 24px 5px 8px;
+  font-size: 12px;
+}
+
+.rotation-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .icon-btn {
   width: 30px;
   height: 30px;
@@ -1313,6 +1355,39 @@ progress::-webkit-progress-value {
   background: #ffe5ea;
   border-color: #e594a3;
   transform: translateY(-1px);
+}
+
+.thumb-rotate-actions {
+  margin-top: 5px;
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+.thumb-rotate {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #bdd2ee;
+  border-radius: 6px;
+  background: #f4f8ff;
+  color: #356ba6;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 0;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.thumb-rotate:hover {
+  border-color: #98bae7;
+  background: #eaf2ff;
+  transform: translateY(-1px);
+}
+
+.thumb-rotate svg {
+  width: 13px;
+  height: 13px;
 }
 
 .drag-placeholder {
@@ -1918,6 +1993,7 @@ body.dark .hub-link {
 }
 
 body.dark .arrange-pane,
+body.dark .rotation-toolbar,
 body.dark .split-bucket,
 body.dark .split-blocks,
 body.dark .thumb-grid,
@@ -1939,7 +2015,7 @@ body.dark .drop-zone.dragover {
   border-color: #74a4ea;
 }
 
-body.dark :is(.tool-subpanel, .arrange-pane, .split-bucket, .split-blocks, .thumb-grid, .drop-zone, .compress-result-item, .rename-plan-item, .media-item, .session-item, .split-block-item)
+body.dark :is(.tool-subpanel, .arrange-pane, .rotation-toolbar, .split-bucket, .split-blocks, .thumb-grid, .drop-zone, .compress-result-item, .rename-plan-item, .media-item, .session-item, .split-block-item)
   :is(input, select, textarea) {
   background: #ffffff;
   color: #1d324d;
@@ -1953,7 +2029,7 @@ body.dark :is(.mini-game-panel, .yacht-main, .yacht-score)
   border-color: #bfcfe2;
 }
 
-body.dark :is(.tool-subpanel, .arrange-pane, .split-bucket, .split-blocks, .thumb-grid, .drop-zone, .compress-result-item, .rename-plan-item, .media-item, .session-item, .split-block-item)
+body.dark :is(.tool-subpanel, .arrange-pane, .rotation-toolbar, .split-bucket, .split-blocks, .thumb-grid, .drop-zone, .compress-result-item, .rename-plan-item, .media-item, .session-item, .split-block-item)
   :is(input, select, textarea)::placeholder {
   color: #5f7692;
 }
@@ -2313,6 +2389,15 @@ body.dark .hangul-editor-frame-wrap {
 
   .stage-bar {
     grid-template-columns: 1fr;
+  }
+
+  .rotation-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rotation-toolbar .mini-actions {
+    flex-wrap: wrap;
   }
 
   .yacht-row {

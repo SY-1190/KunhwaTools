@@ -199,6 +199,9 @@ const sameFileSignature = (a, b) =>
 const ICONS = {
   trash3: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/></svg>`,
   undo: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>`,
+  arrowCounterclockwise: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>`,
+  arrowClockwise: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966a.25.25 0 0 1 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`,
+  check2: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/></svg>`,
   download: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>`,
   house: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m8.354 1.146 6.5 6.5A.5.5 0 0 1 14.5 8.5H13v5a1 1 0 0 1-1 1h-2.5a.5.5 0 0 1-.5-.5V11a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v3a.5.5 0 0 1-.5.5H4a1 1 0 0 1-1-1v-5H1.5a.5.5 0 0 1-.354-.854l6.5-6.5a.5.5 0 0 1 .708 0"/></svg>`,
   person: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/><path fill-rule="evenodd" d="M8 9a6 6 0 0 0-5.468 3.516A.75.75 0 0 0 3.205 14h9.59a.75.75 0 0 0 .673-1.484A6 6 0 0 0 8 9"/></svg>`,
@@ -2547,6 +2550,7 @@ const toolFileState = {
 
 const pdfThumbCache = new Map();
 const pdfPageCountCache = new Map();
+const pdfFrontRotationCache = new Map();
 const PDF_THUMB_CACHE_MAX = 120;
 
 const getFileCacheKey = (file) => `${file.name}__${file.size}__${file.lastModified}`;
@@ -2609,13 +2613,15 @@ const loadPdfFrontThumb = async (file, maxWidth = 130) => {
   const cacheKey = `${getFileCacheKey(file)}__${maxWidth}`;
   const cached = getCachedPdfThumb(cacheKey);
   const cachedPageCount = getCachedPdfPageCount(cacheKey);
+  const cachedRotation = pdfFrontRotationCache.get(cacheKey);
   if (cached && cachedPageCount) {
-    return { thumb: cached, pageCount: cachedPageCount };
+    return { thumb: cached, pageCount: cachedPageCount, firstPageRotation: cachedRotation || 0 };
   }
   const buffer = await readAsArrayBuffer(file);
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
   const pageCount = pdf.numPages;
   const page = await pdf.getPage(1);
+  const firstPageRotation = ((page.rotate % 360) + 360) % 360;
   const base = page.getViewport({ scale: 1 });
   const scale = maxWidth / base.width;
   const viewport = page.getViewport({ scale });
@@ -2626,7 +2632,8 @@ const loadPdfFrontThumb = async (file, maxWidth = 130) => {
   const thumb = canvas.toDataURL("image/png");
   setCachedPdfThumb(cacheKey, thumb);
   setCachedPdfPageCount(cacheKey, pageCount);
-  return { thumb, pageCount };
+  pdfFrontRotationCache.set(cacheKey, firstPageRotation);
+  return { thumb, pageCount, firstPageRotation };
 };
 
 const removeFileAtIndex = (stateKey, inputId, index) => {
@@ -2719,6 +2726,41 @@ const renderImageThumbPreview = async (previewId, stateKey, inputId, reorderable
   };
 };
 
+const mergeFileRotationState = new Map();
+
+const getMergeFileRotation = (file) => {
+  const key = getFileCacheKey(file);
+  if (!mergeFileRotationState.has(key)) {
+    mergeFileRotationState.set(key, { mode: "relative", angle: 0 });
+  }
+  return mergeFileRotationState.get(key);
+};
+
+const getMergePreviewRotation = (file, firstPageRotation) => {
+  const rotation = getMergeFileRotation(file);
+  return rotation.mode === "absolute"
+    ? normalizeArrangeRotation(rotation.angle - firstPageRotation)
+    : rotation.angle;
+};
+
+const formatMergeRotation = (file) => {
+  const rotation = getMergeFileRotation(file);
+  return rotation.mode === "absolute"
+    ? `${rotation.angle}° 고정`
+    : `${rotation.angle}° 상대 회전`;
+};
+
+const applyMergeRotation = (page, file) => {
+  const rotation = getMergeFileRotation(file);
+  if (rotation.mode === "absolute") {
+    page.setRotation(PDFLib.degrees(rotation.angle));
+    return;
+  }
+  if (!rotation.angle) return;
+  const sourceRotation = page.getRotation().angle || 0;
+  page.setRotation(PDFLib.degrees(normalizeArrangeRotation(sourceRotation + rotation.angle)));
+};
+
 const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
   const grid = $(previewId);
   if (!grid) return;
@@ -2734,11 +2776,21 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
       item.className = "thumb-item";
       item.draggable = true;
       item.dataset.idx = String(idx);
-      item.innerHTML = `<button class="thumb-delete" type="button" title="파일 제거" aria-label="파일 제거">${ICONS.trash3}</button><div class="thumb-label">${idx + 1}. ${file.name}</div>`;
+      const rotationActions =
+        stateKey === "mergePdf"
+          ? `<div class="thumb-rotate-actions">
+              <button class="thumb-rotate merge-file-rotate" type="button" data-rotate="-90" title="파일 전체를 왼쪽으로 90도 회전" aria-label="${file.name} 전체 페이지 왼쪽으로 90도 회전">${ICONS.arrowCounterclockwise}</button>
+              <button class="thumb-rotate merge-file-rotate" type="button" data-rotate="90" title="파일 전체를 오른쪽으로 90도 회전" aria-label="${file.name} 전체 페이지 오른쪽으로 90도 회전">${ICONS.arrowClockwise}</button>
+            </div>`
+          : "";
+      item.innerHTML = `<button class="thumb-delete" type="button" title="파일 제거" aria-label="파일 제거">${ICONS.trash3}</button>${rotationActions}<div class="thumb-label">${idx + 1}. ${file.name}</div>`;
       try {
-        const { thumb, pageCount } = await loadPdfFrontThumb(file, 130);
+        const { thumb, pageCount, firstPageRotation } = await loadPdfFrontThumb(file, 130);
         const img = document.createElement("img");
-        img.src = thumb;
+        img.src =
+          stateKey === "mergePdf"
+            ? await renderRotatedThumb(thumb, getMergePreviewRotation(file, firstPageRotation))
+            : thumb;
         img.alt = `${file.name} first page`;
         img.draggable = false;
         img.style.width = "100%";
@@ -2747,7 +2799,10 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
         item.prepend(img);
         const pageTag = document.createElement("div");
         pageTag.className = "thumb-label";
-        pageTag.textContent = `${pageCount}페이지`;
+        pageTag.textContent =
+          stateKey === "mergePdf"
+            ? `${pageCount}페이지 · ${formatMergeRotation(file)}`
+            : `${pageCount}페이지`;
         item.appendChild(pageTag);
       } catch {
         const stub = document.createElement("div");
@@ -2760,7 +2815,19 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
   } finally {
     endGlobalBusy();
   }
-  grid.onclick = (e) => {
+  grid.onclick = async (e) => {
+    const rotate = e.target.closest(".merge-file-rotate");
+    if (rotate && stateKey === "mergePdf") {
+      const cell = rotate.closest(".thumb-item");
+      if (!cell) return;
+      const file = toolFileState.mergePdf[Number(cell.dataset.idx)];
+      if (!file) return;
+      const rotation = getMergeFileRotation(file);
+      rotation.angle = normalizeArrangeRotation(rotation.angle + Number(rotate.dataset.rotate));
+      await renderMergePdfPreview(previewId, stateKey, inputId);
+      setStatus("mergePdfStatus", `${file.name}: ${formatMergeRotation(file)}`);
+      return;
+    }
     const del = e.target.closest(".thumb-delete");
     if (!del) return;
     const cell = e.target.closest(".thumb-item");
@@ -2771,6 +2838,10 @@ const renderMergePdfPreview = async (previewId, stateKey, inputId) => {
   const placeholder = document.createElement("div");
   placeholder.className = "drag-placeholder";
   grid.ondragstart = (e) => {
+    if (e.target.closest("button")) {
+      e.preventDefault();
+      return;
+    }
     const cell = e.target.closest(".thumb-item");
     if (!cell) return;
     dragIdx = Number(cell.dataset.idx);
@@ -2896,6 +2967,61 @@ const getArrangePageByNo = (pageNo) => arrangeState.pages.find((p) => p.pageNo =
 const isPageDeleted = (pageNo) => !!getArrangePageByNo(pageNo)?.deleted;
 const getAvailablePageNos = () =>
   arrangeState.pages.filter((p) => !p.deleted).map((p) => p.pageNo);
+const normalizeArrangeRotation = (angle) => ((angle % 360) + 360) % 360;
+
+const renderRotatedThumb = (sourceDataUrl, rotation) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const angle = normalizeArrangeRotation(rotation);
+      if (angle === 0) {
+        resolve(sourceDataUrl);
+        return;
+      }
+      const swapSides = angle === 90 || angle === 270;
+      const canvas = document.createElement("canvas");
+      canvas.width = swapSides ? img.height : img.width;
+      canvas.height = swapSides ? img.width : img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((angle * Math.PI) / 180);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("회전 미리보기 생성에 실패했습니다."));
+    img.src = sourceDataUrl;
+  });
+
+const rotateArrangePages = async (pageNos, delta) => {
+  const targets = pageNos
+    .map((pageNo) => getArrangePageByNo(pageNo))
+    .filter((page) => page && !page.deleted);
+  for (const page of targets) {
+    page.rotation = normalizeArrangeRotation(page.rotation + delta);
+    page.thumbDataUrl = await renderRotatedThumb(page.originalThumbDataUrl, page.rotation);
+  }
+  rerenderArrangeWorkspace();
+  return targets.length;
+};
+
+const setArrangePagesAbsoluteRotation = async (pageNos, targetRotation) => {
+  const targets = pageNos
+    .map((pageNo) => getArrangePageByNo(pageNo))
+    .filter((page) => page && !page.deleted);
+  for (const page of targets) {
+    page.rotation = normalizeArrangeRotation(targetRotation - page.sourceRotation);
+    page.thumbDataUrl = await renderRotatedThumb(page.originalThumbDataUrl, page.rotation);
+  }
+  rerenderArrangeWorkspace();
+  return targets.length;
+};
+
+const applyArrangeRotation = (copiedPage, pageNo) => {
+  const rotation = getArrangePageByNo(pageNo)?.rotation || 0;
+  if (!rotation) return;
+  const sourceRotation = copiedPage.getRotation().angle || 0;
+  copiedPage.setRotation(PDFLib.degrees(normalizeArrangeRotation(sourceRotation + rotation)));
+};
 
 const cleanArrangeState = () => {
   const available = new Set(getAvailablePageNos());
@@ -2925,7 +3051,14 @@ const createThumbNode = (pageNo, pane) => {
   item.draggable = true;
   item.dataset.page = String(pageNo);
   item.dataset.pane = pane;
-  item.innerHTML = `<button class="thumb-delete" type="button" title="페이지 삭제" aria-label="페이지 삭제">${ICONS.trash3}</button><div class="thumb-label">p.${pageNo}</div>`;
+  item.innerHTML = `
+    <button class="thumb-delete" type="button" title="페이지 삭제" aria-label="페이지 ${pageNo} 삭제">${ICONS.trash3}</button>
+    <div class="thumb-rotate-actions">
+      <button class="thumb-rotate" type="button" data-rotate="-90" title="왼쪽으로 90도 회전" aria-label="페이지 ${pageNo} 왼쪽으로 90도 회전">${ICONS.arrowCounterclockwise}</button>
+      <button class="thumb-rotate" type="button" data-rotate="90" title="오른쪽으로 90도 회전" aria-label="페이지 ${pageNo} 오른쪽으로 90도 회전">${ICONS.arrowClockwise}</button>
+    </div>
+    <div class="thumb-label">p.${pageNo}${page.rotation ? ` · ${page.rotation}°` : ""}</div>
+  `;
   const img = document.createElement("img");
   img.src = page.thumbDataUrl;
   img.alt = `page-${pageNo}`;
@@ -3088,7 +3221,7 @@ const setupArrangeDnD = () => {
   const onThumbClick = (e) => {
     const item = e.target.closest(".thumb-item");
     if (!item) return;
-    if (e.target.closest(".thumb-delete")) return;
+    if (e.target.closest(".thumb-delete, .thumb-rotate")) return;
     const pane = item.dataset.pane;
     const pageNo = Number(item.dataset.page);
     if (pane === "source" || pane === "reorder") {
@@ -3106,7 +3239,24 @@ const setupArrangeDnD = () => {
     setStatus("arrangePdfStatus", `페이지 ${pageNo} 삭제됨`);
   };
 
+  const onRotateClick = async (e) => {
+    const btn = e.target.closest(".thumb-rotate");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const item = btn.closest(".thumb-item");
+    if (!item) return;
+    const pageNo = Number(item.dataset.page);
+    const delta = Number(btn.dataset.rotate);
+    await rotateArrangePages([pageNo], delta);
+    setStatus("arrangePdfStatus", `페이지 ${pageNo}을(를) ${delta < 0 ? "왼쪽" : "오른쪽"}으로 90° 회전했습니다.`);
+  };
+
   const handleDragStart = (e) => {
+    if (e.target.closest("button")) {
+      e.preventDefault();
+      return;
+    }
     const item = e.target.closest(".thumb-item");
     if (!item) return;
     const pane = item.dataset.pane;
@@ -3189,6 +3339,7 @@ const setupArrangeDnD = () => {
   [sourceGrid, reorderGrid].forEach((grid) => {
     grid.addEventListener("click", onThumbClick);
     grid.addEventListener("click", onDeleteClick);
+    grid.addEventListener("click", onRotateClick);
     grid.addEventListener("dragstart", handleDragStart);
     grid.addEventListener("dragend", handleDragEnd);
   });
@@ -3223,6 +3374,7 @@ const setupArrangeDnD = () => {
   });
 
   splitWrap.addEventListener("click", onDeleteClick);
+  splitWrap.addEventListener("click", onRotateClick);
   splitWrap.addEventListener("dragstart", handleDragStart);
   splitWrap.addEventListener("dragend", handleDragEnd);
   splitWrap.addEventListener("dragover", (e) => {
@@ -3274,7 +3426,14 @@ const renderArrangeThumbs = async (file) => {
         viewport,
       }).promise;
       const thumbDataUrl = canvas.toDataURL("image/png");
-      arrangeState.pages.push({ pageNo: i, thumbDataUrl, deleted: false });
+      arrangeState.pages.push({
+        pageNo: i,
+        originalThumbDataUrl: thumbDataUrl,
+        thumbDataUrl,
+        sourceRotation: normalizeArrangeRotation(page.rotate || 0),
+        rotation: 0,
+        deleted: false,
+      });
       arrangeState.reorderOrder.push(i);
       updateProgress("arrange", i, pdf.numPages);
     }
@@ -3295,6 +3454,9 @@ const setupPdfArrange = () => {
   setIconButton("undoArrangeDelete", "undo");
   setIconButton("runReorderPdf", "download");
   setIconButton("runSplitPdf", "download");
+  setIconButton("rotateAllLeftIcon", "arrowCounterclockwise");
+  setIconButton("rotateAllRightIcon", "arrowClockwise");
+  setIconButton("applyArrangeAbsoluteRotationIcon", "check2");
   setupArrangeDnD();
   rerenderArrangeWorkspace();
 
@@ -3323,6 +3485,22 @@ const setupPdfArrange = () => {
     rerenderArrangeWorkspace();
   });
 
+  $("rotateAllLeft").addEventListener("click", async () => {
+    const count = await rotateArrangePages(getAvailablePageNos(), -90);
+    setStatus("arrangePdfStatus", `전체 ${count}개 페이지를 왼쪽으로 90° 회전했습니다.`);
+  });
+
+  $("rotateAllRight").addEventListener("click", async () => {
+    const count = await rotateArrangePages(getAvailablePageNos(), 90);
+    setStatus("arrangePdfStatus", `전체 ${count}개 페이지를 오른쪽으로 90° 회전했습니다.`);
+  });
+
+  $("applyArrangeAbsoluteRotation").addEventListener("click", async () => {
+    const targetRotation = Number($("arrangeAbsoluteRotation").value);
+    const count = await setArrangePagesAbsoluteRotation(getAvailablePageNos(), targetRotation);
+    setStatus("arrangePdfStatus", `전체 ${count}개 페이지 방향을 ${targetRotation}°로 강제 통일했습니다.`);
+  });
+
   $("runReorderPdf").addEventListener("click", async () => {
     const file = $("arrangePdfFile").files[0];
     if (!file) {
@@ -3347,6 +3525,7 @@ const setupPdfArrange = () => {
       );
       copied.forEach((p, idx) => {
         checkCancelled("arrange");
+        applyArrangeRotation(p, finalOrder[idx]);
         out.addPage(p);
         updateProgress("arrange", idx + 1, copied.length);
       });
@@ -3389,7 +3568,10 @@ const setupPdfArrange = () => {
           src,
           groups[i].map((n) => n - 1)
         );
-        pages.forEach((p) => out.addPage(p));
+        pages.forEach((p, pageIndex) => {
+          applyArrangeRotation(p, groups[i][pageIndex]);
+          out.addPage(p);
+        });
         outputs.push({
           name: `split-${i + 1}.pdf`,
           bytes: await out.save(),
@@ -3420,9 +3602,26 @@ const setupPdfArrange = () => {
 
 const setupPdfMerge = () => {
   if (!$("runMergePdf")) return;
+  setIconButton("applyMergeAbsoluteRotationIcon", "check2");
   $("mergePdfFiles")?.addEventListener("change", async () => {
     toolFileState.mergePdf = [...$("mergePdfFiles").files];
+    toolFileState.mergePdf.forEach((file) => getMergeFileRotation(file));
     await renderMergePdfPreview("mergePdfPreview", "mergePdf", "mergePdfFiles");
+  });
+  $("applyMergeAbsoluteRotation").addEventListener("click", async () => {
+    const files = toolFileState.mergePdf;
+    if (!files.length) {
+      setStatus("mergePdfStatus", "병합할 PDF를 먼저 선택해주세요.");
+      return;
+    }
+    const targetRotation = Number($("mergeAbsoluteRotation").value);
+    files.forEach((file) => {
+      const rotation = getMergeFileRotation(file);
+      rotation.mode = "absolute";
+      rotation.angle = targetRotation;
+    });
+    await renderMergePdfPreview("mergePdfPreview", "mergePdf", "mergePdfFiles");
+    setStatus("mergePdfStatus", `모든 파일의 전체 페이지 방향을 ${targetRotation}°로 강제 통일했습니다.`);
   });
   $("runMergePdf").addEventListener("click", async () => {
     const files = [...$("mergePdfFiles").files];
@@ -3439,7 +3638,10 @@ const setupPdfMerge = () => {
         setStatus("mergePdfStatus", `파일 병합 중 (${i + 1}/${files.length})`);
         const doc = await PDFLib.PDFDocument.load(await readAsArrayBuffer(files[i]));
         const pages = await merged.copyPages(doc, [...Array(doc.getPageCount()).keys()]);
-        pages.forEach((p) => merged.addPage(p));
+        pages.forEach((p) => {
+          applyMergeRotation(p, files[i]);
+          merged.addPage(p);
+        });
         updateProgress("mergePdf", i + 1, files.length);
       }
       checkCancelled("mergePdf");
