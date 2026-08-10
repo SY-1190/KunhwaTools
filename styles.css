@@ -2850,6 +2850,10 @@ body.dark .hangul-editor-frame-wrap {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .qr-option-grid .qr-color-label {
+    grid-column: 1 / -1;
+  }
+
   .qr-preset {
     min-height: 96px;
   }
