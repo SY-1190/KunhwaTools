@@ -2004,6 +2004,11 @@ input[type="color"]::-moz-color-swatch {
   margin: 0;
 }
 
+.qr-nav-btn[hidden],
+.qr-final-actions[hidden] {
+  display: none !important;
+}
+
 .qr-bulk-panel {
   margin-top: 14px;
   border-top: 1px solid #dbe4ef;
