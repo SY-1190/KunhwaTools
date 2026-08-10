@@ -206,6 +206,13 @@ const ICONS = {
   house: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m8.354 1.146 6.5 6.5A.5.5 0 0 1 14.5 8.5H13v5a1 1 0 0 1-1 1h-2.5a.5.5 0 0 1-.5-.5V11a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v3a.5.5 0 0 1-.5.5H4a1 1 0 0 1-1-1v-5H1.5a.5.5 0 0 1-.354-.854l6.5-6.5a.5.5 0 0 1 .708 0"/></svg>`,
   person: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/><path fill-rule="evenodd" d="M8 9a6 6 0 0 0-5.468 3.516A.75.75 0 0 0 3.205 14h9.59a.75.75 0 0 0 .673-1.484A6 6 0 0 0 8 9"/></svg>`,
   journal: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 1.5A1.5 1.5 0 0 1 4.5 0h7A1.5 1.5 0 0 1 13 1.5v13A1.5 1.5 0 0 1 11.5 16h-7A1.5 1.5 0 0 1 3 14.5zM4.5 1a.5.5 0 0 0-.5.5V2h8v-.5a.5.5 0 0 0-.5-.5zm7.5 2h-8v11.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5z"/><path d="M5 5h6v1H5zm0 2h6v1H5zm0 2h4v1H5z"/></svg>`,
+  link45: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1 1 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4 4 0 0 1-.128-1.287z"/><path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243z"/></svg>`,
+  wifi: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M15.384 6.115a.485.485 0 0 0-.047-.736A12.44 12.44 0 0 0 8 3C5.259 3 2.723 3.882.663 5.379a.485.485 0 0 0-.048.736.52.52 0 0 0 .668.05A11.45 11.45 0 0 1 8 4c2.507 0 4.827.802 6.716 2.164.205.148.49.13.668-.049"/><path d="M13.229 8.271a.482.482 0 0 0-.063-.745A9.46 9.46 0 0 0 8 6c-1.905 0-3.68.56-5.166 1.526a.48.48 0 0 0-.063.745.525.525 0 0 0 .652.065A8.46 8.46 0 0 1 8 7a8.46 8.46 0 0 1 4.576 1.336c.206.132.48.108.653-.065m-2.183 2.183c.226-.226.185-.605-.1-.75A6.5 6.5 0 0 0 8 9c-1.06 0-2.062.254-2.946.704-.285.145-.326.524-.1.75l.015.015c.16.16.407.19.611.09A5.5 5.5 0 0 1 8 10c.868 0 1.69.201 2.42.56.203.1.45.07.61-.091zM9.06 12.44c.196-.196.198-.52-.04-.66A2 2 0 0 0 8 11.5a2 2 0 0 0-1.02.28c-.238.14-.236.464-.04.66l.706.706a.5.5 0 0 0 .707 0l.707-.707z"/></svg>`,
+  calendarEvent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M11 6.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/></svg>`,
+  ticket: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4.85v.9h1v-.9zm7 0v.9h1v-.9zm-7 1.8v.9h1v-.9zm7 0v.9h1v-.9zm-7 1.8v.9h1v-.9zm7 0v.9h1v-.9zm-7 1.8v.9h1v-.9zm7 0v.9h1v-.9z"/><path d="M1.5 3A1.5 1.5 0 0 0 0 4.5V6a.5.5 0 0 0 .5.5 1.5 1.5 0 1 1 0 3 .5.5 0 0 0-.5.5v1.5A1.5 1.5 0 0 0 1.5 13h13a1.5 1.5 0 0 0 1.5-1.5V10a.5.5 0 0 0-.5-.5 1.5 1.5 0 0 1 0-3A.5.5 0 0 0 16 6V4.5A1.5 1.5 0 0 0 14.5 3zM1 4.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v1.05a2.5 2.5 0 0 0 0 4.9v1.05a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-1.05a2.5 2.5 0 0 0 0-4.9z"/></svg>`,
+  pencil: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M15.502 1.94a.5.5 0 0 1 0 .706l-1 1a.5.5 0 0 1-.707 0l-1.439-1.439a.5.5 0 0 1 0-.707l1-1a.5.5 0 0 1 .707 0z"/><path d="M13.5 3.207 5 11.707V13h1.293l8.5-8.5z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/></svg>`,
+  arrowLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/></svg>`,
+  arrowRight: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/></svg>`,
   x: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2.146 2.146a.5.5 0 0 1 .708 0L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854a.5.5 0 0 1 0-.708"/></svg>`,
 };
 
@@ -4752,6 +4759,241 @@ const setupQr = () => {
     lastBlob: null,
     lastExt: "png",
     renderUrl: null,
+    currentStep: 1,
+    selectedType: "url",
+    formValues: {},
+    previewRequest: 0,
+    previewTimer: null,
+  };
+
+  const qrPageTypes = {
+    url: {
+      label: "URL 링크",
+      title: "URL 링크 정보",
+      fields: [
+        { key: "title", label: "페이지 제목", placeholder: "페이지 제목", span: 2 },
+        { key: "description", label: "페이지 설명", type: "textarea", placeholder: "페이지 설명", span: 2 },
+        { key: "url", label: "웹사이트 URL", placeholder: "https://example.com", required: true, span: 2 },
+      ],
+    },
+    contact: {
+      label: "명함",
+      title: "명함 정보",
+      fields: [
+        { key: "name", label: "이름", placeholder: "홍길동", required: true },
+        { key: "company", label: "회사", placeholder: "회사명" },
+        { key: "phone", label: "전화번호", type: "tel", placeholder: "010-0000-0000", required: true },
+        { key: "email", label: "이메일", type: "email", placeholder: "name@example.com" },
+        { key: "url", label: "웹사이트", placeholder: "https://example.com", span: 2 },
+      ],
+    },
+    menu: {
+      label: "메뉴판",
+      title: "메뉴판 정보",
+      fields: [
+        { key: "title", label: "메뉴판 제목", placeholder: "메뉴판", required: true, span: 2 },
+        { key: "description", label: "설명", type: "textarea", placeholder: "메뉴 또는 매장 설명", span: 2 },
+        { key: "url", label: "메뉴 링크", placeholder: "https://example.com/menu", required: true, span: 2 },
+      ],
+    },
+    invite: {
+      label: "초대장",
+      title: "초대장 정보",
+      fields: [
+        { key: "title", label: "행사명", placeholder: "행사명", required: true, span: 2 },
+        { key: "date", label: "날짜", type: "date", required: true },
+        { key: "time", label: "시간", type: "time" },
+        { key: "location", label: "장소", placeholder: "행사 장소", span: 2 },
+        { key: "details", label: "안내 내용", type: "textarea", placeholder: "행사 안내", span: 2 },
+      ],
+    },
+    wifi: {
+      label: "와이파이",
+      title: "와이파이 정보",
+      fields: [
+        { key: "ssid", label: "네트워크 이름", placeholder: "Wi-Fi 이름", required: true, span: 2 },
+        { key: "security", label: "보안 방식", type: "select", options: [["WPA", "WPA/WPA2"], ["WEP", "WEP"], ["nopass", "비밀번호 없음"]] },
+        { key: "password", label: "비밀번호", type: "password", placeholder: "Wi-Fi 비밀번호" },
+        { key: "hidden", label: "숨김 네트워크", type: "checkbox", span: 2 },
+      ],
+    },
+    coupon: {
+      label: "쿠폰",
+      title: "쿠폰 정보",
+      fields: [
+        { key: "title", label: "쿠폰명", placeholder: "쿠폰명", required: true, span: 2 },
+        { key: "code", label: "쿠폰 코드", placeholder: "COUPON-001", required: true },
+        { key: "expiry", label: "사용 기한", type: "date" },
+        { key: "url", label: "관련 링크", placeholder: "https://example.com", span: 2 },
+      ],
+    },
+    guide: {
+      label: "안내문",
+      title: "안내문 정보",
+      fields: [
+        { key: "title", label: "제목", placeholder: "안내 제목", required: true, span: 2 },
+        { key: "details", label: "안내 내용", type: "textarea", placeholder: "안내할 내용을 입력하세요.", required: true, span: 2 },
+        { key: "url", label: "관련 링크", placeholder: "https://example.com", span: 2 },
+      ],
+    },
+    custom: {
+      label: "직접 제작",
+      title: "직접 제작 정보",
+      fields: [
+        { key: "content", label: "QR 내용", type: "textarea", placeholder: "QR 코드에 담을 내용을 입력하세요.", required: true, span: 2 },
+      ],
+    },
+  };
+
+  const normalizeQrUrl = (value) => {
+    const url = String(value || "").trim();
+    if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url)) return url;
+    return `https://${url}`;
+  };
+
+  const escapeVcard = (value) => String(value || "").replace(/([\\;,])/g, "\\$1").replace(/\n/g, "\\n");
+  const escapeWifi = (value) => String(value || "").replace(/([\\;,:"])/g, "\\$1");
+
+  const buildQrPayload = () => {
+    const values = state.formValues[state.selectedType] || {};
+    const config = qrPageTypes[state.selectedType];
+    if (config.fields.some((field) => field.required && !String(values[field.key] || "").trim())) return "";
+    switch (state.selectedType) {
+      case "url":
+      case "menu":
+        return normalizeQrUrl(values.url);
+      case "contact":
+        return [
+          "BEGIN:VCARD",
+          "VERSION:3.0",
+          `FN:${escapeVcard(values.name)}`,
+          values.company ? `ORG:${escapeVcard(values.company)}` : "",
+          values.phone ? `TEL:${escapeVcard(values.phone)}` : "",
+          values.email ? `EMAIL:${escapeVcard(values.email)}` : "",
+          values.url ? `URL:${normalizeQrUrl(values.url)}` : "",
+          "END:VCARD",
+        ].filter(Boolean).join("\n");
+      case "invite": {
+        const date = String(values.date || "").replace(/-/g, "");
+        const time = String(values.time || "").replace(/:/g, "") || "0000";
+        return [
+          "BEGIN:VEVENT",
+          `SUMMARY:${escapeVcard(values.title)}`,
+          date ? `DTSTART:${date}T${time}00` : "",
+          values.location ? `LOCATION:${escapeVcard(values.location)}` : "",
+          values.details ? `DESCRIPTION:${escapeVcard(values.details)}` : "",
+          "END:VEVENT",
+        ].filter(Boolean).join("\n");
+      }
+      case "wifi":
+        return `WIFI:T:${values.security || "WPA"};S:${escapeWifi(values.ssid)};P:${escapeWifi(values.password)};H:${values.hidden ? "true" : "false"};;`;
+      case "coupon":
+        return [
+          values.title,
+          values.code ? `쿠폰 코드: ${values.code}` : "",
+          values.expiry ? `사용 기한: ${values.expiry}` : "",
+          values.url ? normalizeQrUrl(values.url) : "",
+        ].filter(Boolean).join("\n");
+      case "guide":
+        return [values.title, values.details, values.url ? normalizeQrUrl(values.url) : ""].filter(Boolean).join("\n");
+      case "custom":
+        return String(values.content || "").trim();
+      default:
+        return "";
+    }
+  };
+
+  const validateQrFields = () => {
+    const config = qrPageTypes[state.selectedType];
+    const values = state.formValues[state.selectedType] || {};
+    const missing = config.fields.find((field) => field.required && !String(values[field.key] || "").trim());
+    return missing ? `${missing.label}을(를) 입력해주세요.` : "";
+  };
+
+  const renderQrFields = () => {
+    const config = qrPageTypes[state.selectedType];
+    const values = state.formValues[state.selectedType] || {};
+    state.formValues[state.selectedType] = values;
+    $("qrFieldsTitle").textContent = config.title;
+    $("qrPreviewType").textContent = config.label;
+    const box = $("qrPageFields");
+    box.innerHTML = "";
+
+    config.fields.forEach((field) => {
+      const label = document.createElement("label");
+      if (field.span === 2) label.classList.add("span-2");
+
+      if (field.type === "checkbox") {
+        label.classList.add("inline-check");
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = !!values[field.key];
+        input.addEventListener("change", () => {
+          values[field.key] = input.checked;
+          syncQrPayload();
+        });
+        label.append(input, document.createTextNode(field.label));
+        box.appendChild(label);
+        return;
+      }
+
+      label.appendChild(document.createTextNode(field.label));
+      let input;
+      if (field.type === "textarea") {
+        input = document.createElement("textarea");
+      } else if (field.type === "select") {
+        input = document.createElement("select");
+        field.options.forEach(([value, text]) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = text;
+          input.appendChild(option);
+        });
+      } else {
+        input = document.createElement("input");
+        input.type = field.type || "text";
+      }
+      input.id = `qrField-${field.key}`;
+      if (field.placeholder) input.placeholder = field.placeholder;
+      input.required = !!field.required;
+      input.value = values[field.key] || (field.key === "security" ? "WPA" : "");
+      values[field.key] = input.value;
+      input.addEventListener("input", () => {
+        values[field.key] = input.value;
+        syncQrPayload();
+      });
+      input.addEventListener("change", () => {
+        values[field.key] = input.value;
+        syncQrPayload();
+      });
+      label.appendChild(input);
+      box.appendChild(label);
+    });
+    syncQrPayload();
+  };
+
+  const updateQrStepUi = () => {
+    document.querySelectorAll("[data-qr-step-target]").forEach((button) => {
+      const step = Number(button.dataset.qrStepTarget);
+      button.classList.toggle("is-active", step === state.currentStep);
+      button.classList.toggle("is-complete", step < state.currentStep);
+      if (step === state.currentStep) button.setAttribute("aria-current", "step");
+      else button.removeAttribute("aria-current");
+    });
+    document.querySelectorAll("[data-qr-step-panel]").forEach((panel) => {
+      const active = Number(panel.dataset.qrStepPanel) === state.currentStep;
+      panel.hidden = !active;
+      panel.classList.toggle("is-active", active);
+    });
+    $("qrPrevStep").hidden = state.currentStep === 1;
+    $("qrNextStep").hidden = state.currentStep === 3;
+    $("qrFinalActions").hidden = state.currentStep !== 3;
+  };
+
+  const goToQrStep = (step) => {
+    state.currentStep = Math.max(1, Math.min(3, Number(step) || 1));
+    if (state.currentStep === 3) renderQrFields();
+    updateQrStepUi();
   };
 
   const syncQrColorUi = () => {
@@ -4866,18 +5108,32 @@ const setupQr = () => {
     box.innerHTML = "";
     const img = document.createElement("img");
     img.src = url;
-    img.alt = "QR preview";
-    img.style.width = "100%";
-    img.style.maxWidth = "360px";
-    img.style.height = "auto";
+    img.alt = `${qrPageTypes[state.selectedType].label} QR 코드 미리보기`;
     box.appendChild(img);
+  };
+
+  const renderQrPreviewEmpty = () => {
+    $("qrPreview").innerHTML = '<div class="qr-preview-empty"><span aria-hidden="true">▦</span><p>정보를 입력하면 QR 코드가 표시됩니다.</p></div>';
   };
 
   const refreshQrPreviewLive = async () => {
     const options = getQrOptions();
-    if (!options.text) return;
+    if (!options.text) {
+      state.previewRequest += 1;
+      if (state.renderUrl?.startsWith("blob:")) URL.revokeObjectURL(state.renderUrl);
+      state.lastBlob = null;
+      state.renderUrl = null;
+      renderQrPreviewEmpty();
+      return;
+    }
+    const request = ++state.previewRequest;
     try {
       const asset = await buildQrAsset(options);
+      if (request !== state.previewRequest) {
+        if (asset.previewUrl.startsWith("blob:")) URL.revokeObjectURL(asset.previewUrl);
+        return;
+      }
+      if (state.renderUrl?.startsWith("blob:")) URL.revokeObjectURL(state.renderUrl);
       state.lastBlob = asset.blob;
       state.lastExt = asset.ext;
       state.renderUrl = asset.previewUrl;
@@ -4887,22 +5143,96 @@ const setupQr = () => {
     }
   };
 
-  ["qrFg", "qrBg", "qrTransparentBg"].forEach((id) => {
+  const queueQrPreview = () => {
+    clearTimeout(state.previewTimer);
+    state.previewTimer = setTimeout(refreshQrPreviewLive, 180);
+  };
+
+  const syncQrPayload = () => {
+    const payload = buildQrPayload();
+    $("qrInput").value = payload;
+    const values = state.formValues[state.selectedType] || {};
+    const heading = values.title || values.name || values.ssid || qrPageTypes[state.selectedType].label;
+    const excerpt = payload.replace(/\n/g, " · ").slice(0, 180);
+    $("qrPayloadPreview").textContent = payload ? `${heading} · ${excerpt}` : "연결할 정보를 입력해주세요.";
+    queueQrPreview();
+  };
+
+  ["qrFg", "qrBg", "qrTransparentBg", "qrSize", "qrMargin"].forEach((id) => {
     $(id)?.addEventListener("input", () => {
       syncQrColorUi();
-      refreshQrPreviewLive();
+      document.querySelectorAll("[data-qr-preset]").forEach((button) => {
+        button.classList.remove("is-selected");
+        button.setAttribute("aria-pressed", "false");
+      });
+      queueQrPreview();
     });
     $(id)?.addEventListener("change", () => {
       syncQrColorUi();
-      refreshQrPreviewLive();
+      queueQrPreview();
     });
   });
+
+  document.querySelectorAll("input[name='qrFormat']").forEach((input) => {
+    input.addEventListener("change", queueQrPreview);
+  });
+
+  const qrPresets = {
+    basic: { fg: "#000000", bg: "#ffffff", margin: 40, transparent: false },
+    navy: { fg: "#173c68", bg: "#ffffff", margin: 48, transparent: false },
+    green: { fg: "#126b50", bg: "#f6fff9", margin: 40, transparent: false },
+    reverse: { fg: "#ffffff", bg: "#1d2a38", margin: 48, transparent: false },
+  };
+
+  document.querySelectorAll("[data-qr-preset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const preset = qrPresets[button.dataset.qrPreset];
+      $("qrFg").value = preset.fg;
+      $("qrBg").value = preset.bg;
+      $("qrMargin").value = preset.margin;
+      $("qrTransparentBg").checked = preset.transparent;
+      document.querySelectorAll("[data-qr-preset]").forEach((item) => {
+        const selected = item === button;
+        item.classList.toggle("is-selected", selected);
+        item.setAttribute("aria-pressed", String(selected));
+      });
+      syncQrColorUi();
+      queueQrPreview();
+    });
+  });
+
+  document.querySelectorAll("[data-qr-page-type]").forEach((button) => {
+    const icon = button.querySelector(".qr-type-icon");
+    if (icon && ICONS[button.dataset.qrIcon]) icon.innerHTML = ICONS[button.dataset.qrIcon];
+    button.addEventListener("click", () => {
+      state.selectedType = button.dataset.qrPageType;
+      document.querySelectorAll("[data-qr-page-type]").forEach((item) => {
+        const selected = item === button;
+        item.classList.toggle("is-selected", selected);
+        item.setAttribute("aria-checked", String(selected));
+      });
+      $("qrPreviewType").textContent = qrPageTypes[state.selectedType].label;
+      syncQrPayload();
+    });
+  });
+
+  document.querySelectorAll("[data-qr-step-target]").forEach((button) => {
+    button.addEventListener("click", () => goToQrStep(button.dataset.qrStepTarget));
+  });
+  $("qrPrevStep").addEventListener("click", () => goToQrStep(state.currentStep - 1));
+  $("qrNextStep").addEventListener("click", () => goToQrStep(state.currentStep + 1));
+  $("qrPrevIcon").innerHTML = ICONS.arrowLeft;
+  $("qrNextIcon").innerHTML = ICONS.arrowRight;
   syncQrColorUi();
+  state.formValues.url = { title: "", description: "", url: "" };
+  renderQrFields();
+  updateQrStepUi();
 
   $("runQr").addEventListener("click", async () => {
     const options = getQrOptions();
-    if (!options.text) {
-      setStatus("qrStatus", "QR 내용을 입력해주세요.");
+    const validationMessage = validateQrFields();
+    if (validationMessage || !options.text) {
+      setStatus("qrStatus", validationMessage || "QR 내용을 입력해주세요.");
       return;
     }
     beginGlobalBusy("QR 이미지를 생성 중입니다...");
@@ -4922,12 +5252,28 @@ const setupQr = () => {
     }
   });
 
-  $("saveQr").addEventListener("click", () => {
-    if (!state.lastBlob) {
-      setStatus("qrStatus", "먼저 QR 코드를 생성해주세요.");
+  $("saveQr").addEventListener("click", async () => {
+    const options = getQrOptions();
+    const validationMessage = validateQrFields();
+    if (validationMessage || !options.text) {
+      setStatus("qrStatus", validationMessage || "QR 내용을 입력해주세요.");
       return;
     }
-    downloadBlob(state.lastBlob, `qrcode.${state.lastExt}`);
+    beginGlobalBusy("QR 파일을 준비 중입니다...");
+    try {
+      const asset = await buildQrAsset(options);
+      if (state.renderUrl?.startsWith("blob:")) URL.revokeObjectURL(state.renderUrl);
+      state.lastBlob = asset.blob;
+      state.lastExt = asset.ext;
+      state.renderUrl = asset.previewUrl;
+      renderQrPreview(asset.previewUrl);
+      downloadBlob(asset.blob, `qrcode.${asset.ext}`);
+      setStatus("qrStatus", `QR ${asset.ext.toUpperCase()} 저장 완료`);
+    } catch (err) {
+      setStatus("qrStatus", `QR 저장 오류: ${err.message}`);
+    } finally {
+      endGlobalBusy();
+    }
   });
 
   $("downloadQrBulkTemplate").addEventListener("click", () => {

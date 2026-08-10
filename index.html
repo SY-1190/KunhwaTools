@@ -42,7 +42,7 @@
             <span>로그인</span>
           </button>
         </div>
-        <p class="commit-note">마지막 커밋: ver_0.1.11</p>
+        <p class="commit-note">마지막 커밋: ver_0.1.12</p>
       </div>
     </header>
 
@@ -540,56 +540,136 @@
 
         <article class="tool-card tool-stage" id="qrGenerator">
           <h2><span class="icon">▦</span> 10. QR 코드 생성기</h2>
-          <p class="sub">단일/벌크 QR 생성 · 서식(CSV)을 엑셀에서 열어 작성 후 업로드 가능</p>
+          <p class="sub">코드 디자인부터 정보 입력까지 3단계로 QR 코드를 만듭니다.</p>
+          <nav class="qr-stepper" aria-label="QR 생성 단계">
+            <button type="button" class="qr-step is-active" data-qr-step-target="1" aria-current="step">
+              <span class="qr-step-number">1</span><span>코드 디자인</span>
+            </button>
+            <span class="qr-step-line" aria-hidden="true"></span>
+            <button type="button" class="qr-step" data-qr-step-target="2">
+              <span class="qr-step-number">2</span><span>페이지 유형 선택</span>
+            </button>
+            <span class="qr-step-line" aria-hidden="true"></span>
+            <button type="button" class="qr-step" data-qr-step-target="3">
+              <span class="qr-step-number">3</span><span>페이지 정보 입력</span>
+            </button>
+          </nav>
+
           <div class="qr-layout">
-            <section class="qr-controls">
-              <label>QR 내용<input type="text" id="qrInput" placeholder="https://tools.mytory.net" /></label>
-              <label>너비(px, 최대 2000)<input type="number" id="qrSize" value="1000" min="120" max="2000" /></label>
-              <label>여백(px)<input type="number" id="qrMargin" value="40" min="0" max="200" /></label>
-              <label class="qr-color-label">전경색(FG)
-                <div class="qr-color-row">
-                  <input type="color" id="qrFg" value="#000000" />
-                  <span id="qrFgHex" class="qr-color-hex">#000000</span>
-                  <span id="qrFgSwatch" class="qr-color-swatch" aria-hidden="true"></span>
+            <section class="qr-workflow" aria-live="polite">
+              <div class="qr-step-panel is-active" data-qr-step-panel="1">
+                <div class="qr-section-heading">
+                  <p class="panel-kicker">STEP 1</p>
+                  <h3>코드 디자인</h3>
                 </div>
-              </label>
-              <label class="qr-color-label">배경색(BG)
-                <div class="qr-color-row">
-                  <input type="color" id="qrBg" value="#ffffff" />
-                  <span id="qrBgHex" class="qr-color-hex">#ffffff</span>
-                  <span id="qrBgSwatch" class="qr-color-swatch" aria-hidden="true"></span>
+                <div class="qr-preset-grid" role="group" aria-label="QR 디자인 프리셋">
+                  <button type="button" class="qr-preset is-selected" data-qr-preset="basic" aria-pressed="true">
+                    <span class="qr-preset-sample qr-preset-basic" aria-hidden="true"></span><strong>기본</strong>
+                  </button>
+                  <button type="button" class="qr-preset" data-qr-preset="navy" aria-pressed="false">
+                    <span class="qr-preset-sample qr-preset-navy" aria-hidden="true"></span><strong>네이비</strong>
+                  </button>
+                  <button type="button" class="qr-preset" data-qr-preset="green" aria-pressed="false">
+                    <span class="qr-preset-sample qr-preset-green" aria-hidden="true"></span><strong>그린</strong>
+                  </button>
+                  <button type="button" class="qr-preset" data-qr-preset="reverse" aria-pressed="false">
+                    <span class="qr-preset-sample qr-preset-reverse" aria-hidden="true"></span><strong>반전</strong>
+                  </button>
                 </div>
-              </label>
-              <label class="inline-check"><input type="checkbox" id="qrTransparentBg" /> 투명 배경</label>
-              <p class="qr-color-help">FG는 QR 점(패턴) 색상, BG는 배경 색상입니다.</p>
-              <fieldset class="qr-format-group">
-                <legend>이미지 포맷</legend>
-                <label><input type="radio" name="qrFormat" value="png" checked /> PNG</label>
-                <label><input type="radio" name="qrFormat" value="jpeg" /> JPG</label>
-                <label><input type="radio" name="qrFormat" value="webp" /> WebP</label>
-                <label><input type="radio" name="qrFormat" value="svg" /> SVG</label>
-              </fieldset>
-              <div class="btn-row">
-                <button class="btn primary" id="runQr">QR 생성</button>
-                <button class="btn ghost" id="saveQr">QR 저장</button>
+
+                <div class="qr-option-grid">
+                  <label>너비(px)
+                    <input type="number" id="qrSize" value="1000" min="120" max="2000" />
+                  </label>
+                  <label>여백(px)
+                    <input type="number" id="qrMargin" value="40" min="0" max="200" />
+                  </label>
+                  <label class="qr-color-label">전경색
+                    <div class="qr-color-row">
+                      <input type="color" id="qrFg" value="#000000" aria-label="QR 전경색" />
+                      <span id="qrFgHex" class="qr-color-hex">#000000</span>
+                      <span id="qrFgSwatch" class="qr-color-swatch" aria-hidden="true"></span>
+                    </div>
+                  </label>
+                  <label class="qr-color-label">배경색
+                    <div class="qr-color-row">
+                      <input type="color" id="qrBg" value="#ffffff" aria-label="QR 배경색" />
+                      <span id="qrBgHex" class="qr-color-hex">#FFFFFF</span>
+                      <span id="qrBgSwatch" class="qr-color-swatch" aria-hidden="true"></span>
+                    </div>
+                  </label>
+                </div>
+                <label class="inline-check qr-transparent-check"><input type="checkbox" id="qrTransparentBg" /> 투명 배경</label>
+                <fieldset class="qr-format-group">
+                  <legend>저장 포맷</legend>
+                  <label><input type="radio" name="qrFormat" value="png" checked /><span>PNG</span></label>
+                  <label><input type="radio" name="qrFormat" value="jpeg" /><span>JPG</span></label>
+                  <label><input type="radio" name="qrFormat" value="webp" /><span>WebP</span></label>
+                  <label><input type="radio" name="qrFormat" value="svg" /><span>SVG</span></label>
+                </fieldset>
               </div>
-              <hr />
-              <h3 class="subpanel-title">벌크 QR</h3>
-              <div class="btn-row">
-                <button class="btn ghost" id="downloadQrBulkTemplate">CSV 양식 다운로드</button>
+
+              <div class="qr-step-panel" data-qr-step-panel="2" hidden>
+                <div class="qr-section-heading">
+                  <p class="panel-kicker">STEP 2</p>
+                  <h3>페이지 유형 선택</h3>
+                </div>
+                <div class="qr-type-grid" role="radiogroup" aria-label="QR 페이지 유형">
+                  <button type="button" class="qr-type is-selected" data-qr-page-type="url" data-qr-icon="link45" role="radio" aria-checked="true"><span class="qr-type-icon" aria-hidden="true"></span><strong>URL 링크</strong><small>웹사이트 연결</small></button>
+                  <button type="button" class="qr-type" data-qr-page-type="contact" data-qr-icon="person" role="radio" aria-checked="false"><span class="qr-type-icon" aria-hidden="true"></span><strong>명함</strong><small>연락처 공유</small></button>
+                  <button type="button" class="qr-type" data-qr-page-type="menu" data-qr-icon="journal" role="radio" aria-checked="false"><span class="qr-type-icon" aria-hidden="true"></span><strong>메뉴판</strong><small>메뉴 링크</small></button>
+                  <button type="button" class="qr-type" data-qr-page-type="invite" data-qr-icon="calendarEvent" role="radio" aria-checked="false"><span class="qr-type-icon" aria-hidden="true"></span><strong>초대장</strong><small>행사 정보</small></button>
+                  <button type="button" class="qr-type" data-qr-page-type="wifi" data-qr-icon="wifi" role="radio" aria-checked="false"><span class="qr-type-icon" aria-hidden="true"></span><strong>와이파이</strong><small>네트워크 연결</small></button>
+                  <button type="button" class="qr-type" data-qr-page-type="coupon" data-qr-icon="ticket" role="radio" aria-checked="false"><span class="qr-type-icon" aria-hidden="true"></span><strong>쿠폰</strong><small>쿠폰 정보</small></button>
+                  <button type="button" class="qr-type" data-qr-page-type="guide" data-qr-icon="journal" role="radio" aria-checked="false"><span class="qr-type-icon" aria-hidden="true"></span><strong>안내문</strong><small>안내 내용</small></button>
+                  <button type="button" class="qr-type" data-qr-page-type="custom" data-qr-icon="pencil" role="radio" aria-checked="false"><span class="qr-type-icon" aria-hidden="true"></span><strong>직접 제작</strong><small>자유 내용</small></button>
+                </div>
               </div>
-              <div class="drop-zone" data-file-input="qrBulkFile" data-file-kind="CSV" data-drop-multiple="false">
-                <p class="drop-main">CSV 양식을 끌거나 클릭해 업로드</p>
-                <p class="drop-file-name" id="qrBulkFileDropName">선택된 파일 없음</p>
+
+              <div class="qr-step-panel" data-qr-step-panel="3" hidden>
+                <div class="qr-section-heading">
+                  <p class="panel-kicker">STEP 3</p>
+                  <h3 id="qrFieldsTitle">URL 링크 정보</h3>
+                </div>
+                <div id="qrPageFields" class="qr-page-fields"></div>
+                <input type="hidden" id="qrInput" value="" />
               </div>
-              <input class="visually-hidden" type="file" id="qrBulkFile" accept=".csv,text/csv" />
-              <div class="btn-row">
-                <button class="btn ghost" id="runQrBulk">벌크 QR ZIP 생성</button>
+
+              <div class="qr-wizard-actions">
+                <button type="button" class="btn ghost qr-nav-btn" id="qrPrevStep" hidden><span id="qrPrevIcon" aria-hidden="true"></span> 이전</button>
+                <span class="qr-action-spacer"></span>
+                <button type="button" class="btn primary qr-nav-btn" id="qrNextStep">다음 <span id="qrNextIcon" aria-hidden="true"></span></button>
+                <div class="btn-row qr-final-actions" id="qrFinalActions" hidden>
+                  <button class="btn primary" id="runQr" type="button">QR 생성</button>
+                  <button class="btn ghost" id="saveQr" type="button">QR 저장</button>
+                </div>
               </div>
+
+              <details class="qr-bulk-panel">
+                <summary>벌크 QR 생성</summary>
+                <div class="qr-bulk-body">
+                  <button class="btn ghost" id="downloadQrBulkTemplate" type="button">CSV 양식 다운로드</button>
+                  <div class="drop-zone" data-file-input="qrBulkFile" data-file-kind="CSV" data-drop-multiple="false">
+                    <p class="drop-main">CSV 양식을 끌거나 클릭해 업로드</p>
+                    <p class="drop-file-name" id="qrBulkFileDropName">선택된 파일 없음</p>
+                  </div>
+                  <input class="visually-hidden" type="file" id="qrBulkFile" accept=".csv,text/csv" />
+                  <button class="btn ghost" id="runQrBulk" type="button">벌크 QR ZIP 생성</button>
+                </div>
+              </details>
             </section>
-            <section class="qr-side">
-              <div id="qrPreview" class="qr-preview"></div>
-            </section>
+
+            <aside class="qr-side" aria-label="QR 미리보기">
+              <div class="qr-preview-shell">
+                <div class="qr-preview-heading">
+                  <span>미리보기</span><strong id="qrPreviewType">URL 링크</strong>
+                </div>
+                <div id="qrPreview" class="qr-preview">
+                  <div class="qr-preview-empty"><span aria-hidden="true">▦</span><p>정보를 입력하면 QR 코드가 표시됩니다.</p></div>
+                </div>
+                <div id="qrPayloadPreview" class="qr-payload-preview">연결할 정보를 입력해주세요.</div>
+              </div>
+            </aside>
           </div>
           <p class="status" id="qrStatus"></p>
         </article>
