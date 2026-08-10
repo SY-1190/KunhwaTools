@@ -4764,6 +4764,7 @@ const setupQr = () => {
     formValues: {},
     previewRequest: 0,
     previewTimer: null,
+    qrModulePromise: null,
   };
 
   const qrPageTypes = {
@@ -5029,48 +5030,45 @@ const setupQr = () => {
     };
   };
 
-  const makeQrCanvas = (options) =>
-    new Promise((resolve, reject) => {
-      try {
-        const tmp = document.createElement("div");
-        tmp.style.position = "fixed";
-        tmp.style.left = "-9999px";
-        document.body.appendChild(tmp);
-        // qrcodejs renders immediately to canvas/img.
-        new QRCode(tmp, {
-          text: options.text,
-          width: options.size,
-          height: options.size,
-          colorDark: options.fg,
-          colorLight: options.transparent ? "rgba(0,0,0,0)" : options.bg,
-          correctLevel: QRCode.CorrectLevel.M,
-        });
-        setTimeout(() => {
-          const srcCanvas = tmp.querySelector("canvas");
-          const srcImg = tmp.querySelector("img");
-          const out = document.createElement("canvas");
-          const outSize = options.size + options.margin * 2;
-          out.width = outSize;
-          out.height = outSize;
-          const ctx = out.getContext("2d");
-          if (!options.transparent) {
-            ctx.fillStyle = options.bg;
-            ctx.fillRect(0, 0, out.width, out.height);
-          } else {
-            ctx.clearRect(0, 0, out.width, out.height);
-          }
-          if (srcCanvas) {
-            ctx.drawImage(srcCanvas, options.margin, options.margin, options.size, options.size);
-          } else if (srcImg) {
-            ctx.drawImage(srcImg, options.margin, options.margin, options.size, options.size);
-          }
-          tmp.remove();
-          resolve(out);
-        }, 0);
-      } catch (err) {
-        reject(err);
-      }
+  const ensureQrRenderer = async () => {
+    if (!state.qrModulePromise) {
+      state.qrModulePromise = import("https://esm.sh/qrcode@1.5.4");
+    }
+    const mod = await state.qrModulePromise;
+    const renderer = mod.default || mod;
+    if (typeof renderer.toCanvas !== "function") {
+      throw new Error("QR 렌더러를 불러오지 못했습니다.");
+    }
+    return renderer;
+  };
+
+  const makeQrCanvas = async (options) => {
+    const renderer = await ensureQrRenderer();
+    const source = document.createElement("canvas");
+    await renderer.toCanvas(source, options.text, {
+      errorCorrectionLevel: "M",
+      margin: 0,
+      width: options.size,
+      color: {
+        dark: options.fg,
+        light: options.transparent ? "#00000000" : options.bg,
+      },
     });
+
+    const out = document.createElement("canvas");
+    const outSize = options.size + options.margin * 2;
+    out.width = outSize;
+    out.height = outSize;
+    const ctx = out.getContext("2d");
+    if (!options.transparent) {
+      ctx.fillStyle = options.bg;
+      ctx.fillRect(0, 0, out.width, out.height);
+    } else {
+      ctx.clearRect(0, 0, out.width, out.height);
+    }
+    ctx.drawImage(source, options.margin, options.margin, options.size, options.size);
+    return out;
+  };
 
   const canvasToBlob = (canvas, mime, quality) =>
     new Promise((resolve) => {
