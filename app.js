@@ -4746,9 +4746,9 @@ const setupProcessTimer = () => {
 
 const setupQr = () => {
   if (
-    !$("runQr") ||
     !$("saveQr") ||
     !$("qrPreview") ||
+    !$("qrPagePreview") ||
     !$("runQrBulk") ||
     !$("downloadQrBulkTemplate")
   ) {
@@ -4854,6 +4854,116 @@ const setupQr = () => {
 
   const escapeVcard = (value) => String(value || "").replace(/([\\;,])/g, "\\$1").replace(/\n/g, "\\n");
   const escapeWifi = (value) => String(value || "").replace(/([\\;,:"])/g, "\\$1");
+
+  const escapeQrHtml = (value) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const renderQrPagePreview = () => {
+    const box = $("qrPagePreview");
+    const config = qrPageTypes[state.selectedType];
+    const values = state.formValues[state.selectedType] || {};
+    const value = (key, fallback) => escapeQrHtml(String(values[key] || "").trim() || fallback);
+    const iconKey = {
+      url: "link45",
+      contact: "person",
+      menu: "journal",
+      invite: "calendarEvent",
+      wifi: "wifi",
+      coupon: "ticket",
+      guide: "journal",
+      custom: "pencil",
+    }[state.selectedType];
+    const icon = ICONS[iconKey] || "";
+    box.className = `qr-page-preview qr-page-preview-${state.selectedType}`;
+    box.setAttribute("aria-label", `${config.label} 기본 디자인 미리보기`);
+
+    switch (state.selectedType) {
+      case "url":
+        box.innerHTML = `
+          <div class="qr-page-preview-top">
+            <span class="qr-page-preview-icon">${icon}</span>
+            <div><span class="qr-page-preview-kicker">WEB LINK</span><h4>${value("title", "웹사이트 바로가기")}</h4></div>
+          </div>
+          <p class="qr-page-preview-copy">${value("description", "링크를 열어 자세한 정보를 확인하세요.")}</p>
+          <div class="qr-page-link-line"><span>${value("url", "https://example.com")}</span><b>열기</b></div>`;
+        break;
+      case "contact": {
+        const initial = escapeQrHtml(String(values.name || "KH").trim().slice(0, 2).toUpperCase());
+        box.innerHTML = `
+          <div class="qr-contact-identity">
+            <span class="qr-contact-avatar">${initial}</span>
+            <div><span class="qr-page-preview-kicker">DIGITAL CARD</span><h4>${value("name", "홍길동")}</h4><p>${value("company", "KUNHWA")}</p></div>
+          </div>
+          <div class="qr-contact-lines"><span>${value("phone", "010-0000-0000")}</span><span>${value("email", "name@example.com")}</span></div>
+          <div class="qr-page-preview-action">연락처 저장</div>`;
+        break;
+      }
+      case "menu":
+        box.innerHTML = `
+          <div class="qr-page-preview-top">
+            <span class="qr-page-preview-icon">${icon}</span>
+            <div><span class="qr-page-preview-kicker">TODAY'S MENU</span><h4>${value("title", "오늘의 메뉴")}</h4></div>
+          </div>
+          <p class="qr-page-preview-copy">${value("description", "신선한 메뉴를 간편하게 확인하세요.")}</p>
+          <div class="qr-menu-tabs"><span>추천</span><span>메인</span><span>음료</span></div>
+          <div class="qr-menu-row"><b>시그니처 메뉴</b><span>12,000원</span></div>
+          <div class="qr-menu-row"><b>오늘의 음료</b><span>4,500원</span></div>`;
+        break;
+      case "invite": {
+        const date = String(values.date || "2026-08-10").split("-");
+        box.innerHTML = `
+          <div class="qr-invite-heading">
+            <div class="qr-invite-date"><strong>${escapeQrHtml(date[2] || "10")}</strong><span>${escapeQrHtml(date[1] || "08")}월</span></div>
+            <div class="qr-invite-main"><span class="qr-page-preview-kicker">YOU'RE INVITED</span><h4>${value("title", "초대합니다")}</h4><p>${value("location", "행사 장소")}</p></div>
+          </div>
+          <p class="qr-page-preview-copy">${value("details", "소중한 자리에 함께해 주세요.")}</p>
+          <div class="qr-page-preview-action">일정 확인</div>`;
+        break;
+      }
+      case "wifi":
+        box.innerHTML = `
+          <span class="qr-wifi-icon">${icon}</span>
+          <span class="qr-page-preview-kicker">WI-FI ACCESS</span>
+          <h4>${value("ssid", "KUNHWA Wi-Fi")}</h4>
+          <div class="qr-wifi-security"><span>${value("security", "WPA/WPA2")}</span><span>••••••••</span></div>
+          <div class="qr-page-preview-action">Wi-Fi 연결</div>`;
+        break;
+      case "coupon":
+        box.innerHTML = `
+          <div class="qr-coupon-top"><span class="qr-page-preview-icon">${icon}</span><span class="qr-page-preview-kicker">SPECIAL COUPON</span></div>
+          <h4>${value("title", "WELCOME COUPON")}</h4>
+          <div class="qr-coupon-code"><span>COUPON CODE</span><strong>${value("code", "COUPON-001")}</strong></div>
+          <div class="qr-coupon-expiry">사용 기한 ${value("expiry", "2026-12-31")}</div>
+          <div class="qr-page-preview-action">쿠폰 사용</div>`;
+        break;
+      case "guide":
+        box.innerHTML = `
+          <div class="qr-page-preview-top">
+            <span class="qr-page-preview-icon">${icon}</span>
+            <div><span class="qr-page-preview-kicker">INFORMATION</span><h4>${value("title", "이용 안내")}</h4></div>
+          </div>
+          <p class="qr-page-preview-copy">${value("details", "필요한 안내 내용을 한눈에 확인하세요.")}</p>
+          <div class="qr-guide-row"><b>01</b><span>안내 내용 확인</span></div>
+          <div class="qr-guide-row"><b>02</b><span>관련 링크 이동</span></div>`;
+        break;
+      case "custom":
+        box.innerHTML = `
+          <div class="qr-page-preview-top">
+            <span class="qr-page-preview-icon">${icon}</span>
+            <div><span class="qr-page-preview-kicker">CUSTOM PAGE</span><h4>직접 제작</h4></div>
+          </div>
+          <p class="qr-page-preview-copy">${value("content", "자유롭게 내용을 구성하세요.")}</p>
+          <div class="qr-custom-lines"><span></span><span></span><span></span></div>`;
+        break;
+      default:
+        box.innerHTML = "";
+    }
+  };
 
   const buildQrPayload = () => {
     const values = state.formValues[state.selectedType] || {};
@@ -5110,8 +5220,8 @@ const setupQr = () => {
     box.appendChild(img);
   };
 
-  const renderQrPreviewEmpty = () => {
-    $("qrPreview").innerHTML = '<div class="qr-preview-empty"><span aria-hidden="true">▦</span><p>정보를 입력하면 QR 코드가 표시됩니다.</p></div>';
+  const renderQrPreviewLoading = (message = "QR 미리보기 생성 대기 중") => {
+    $("qrPreview").innerHTML = `<div class="qr-preview-loading" role="status"><span class="qr-spinner" aria-hidden="true"></span><p>${escapeQrHtml(message)}</p></div>`;
   };
 
   const refreshQrPreviewLive = async () => {
@@ -5121,10 +5231,11 @@ const setupQr = () => {
       if (state.renderUrl?.startsWith("blob:")) URL.revokeObjectURL(state.renderUrl);
       state.lastBlob = null;
       state.renderUrl = null;
-      renderQrPreviewEmpty();
+      renderQrPreviewLoading();
       return;
     }
     const request = ++state.previewRequest;
+    renderQrPreviewLoading("QR 미리보기 생성 중");
     try {
       const asset = await buildQrAsset(options);
       if (request !== state.previewRequest) {
@@ -5137,7 +5248,7 @@ const setupQr = () => {
       state.renderUrl = asset.previewUrl;
       renderQrPreview(asset.previewUrl);
     } catch {
-      // Ignore live-preview errors; explicit "QR 생성" will surface details.
+      // Ignore live-preview errors; explicit save will surface details.
     }
   };
 
@@ -5149,6 +5260,7 @@ const setupQr = () => {
   const syncQrPayload = () => {
     const payload = buildQrPayload();
     $("qrInput").value = payload;
+    renderQrPagePreview();
     const values = state.formValues[state.selectedType] || {};
     const heading = values.title || values.name || values.ssid || qrPageTypes[state.selectedType].label;
     const excerpt = payload.replace(/\n/g, " · ").slice(0, 180);
@@ -5221,34 +5333,11 @@ const setupQr = () => {
   $("qrNextStep").addEventListener("click", () => goToQrStep(state.currentStep + 1));
   $("qrPrevIcon").innerHTML = ICONS.arrowLeft;
   $("qrNextIcon").innerHTML = ICONS.arrowRight;
+  $("qrSaveIcon").innerHTML = ICONS.download;
   syncQrColorUi();
   state.formValues.url = { title: "", description: "", url: "" };
   renderQrFields();
   updateQrStepUi();
-
-  $("runQr").addEventListener("click", async () => {
-    const options = getQrOptions();
-    const validationMessage = validateQrFields();
-    if (validationMessage || !options.text) {
-      setStatus("qrStatus", validationMessage || "QR 내용을 입력해주세요.");
-      return;
-    }
-    beginGlobalBusy("QR 이미지를 생성 중입니다...");
-    try {
-      setGlobalBusyMessage("QR 코드를 렌더링 중입니다...");
-      if (state.renderUrl?.startsWith("blob:")) URL.revokeObjectURL(state.renderUrl);
-      const asset = await buildQrAsset(options);
-      state.lastBlob = asset.blob;
-      state.lastExt = asset.ext;
-      state.renderUrl = asset.previewUrl;
-      renderQrPreview(asset.previewUrl);
-      setStatus("qrStatus", "QR 코드 생성 완료");
-    } catch (err) {
-      setStatus("qrStatus", `QR 생성 오류: ${err.message}`);
-    } finally {
-      endGlobalBusy();
-    }
-  });
 
   $("saveQr").addEventListener("click", async () => {
     const options = getQrOptions();
@@ -5259,6 +5348,8 @@ const setupQr = () => {
     }
     beginGlobalBusy("QR 파일을 준비 중입니다...");
     try {
+      state.previewRequest += 1;
+      renderQrPreviewLoading("QR 생성 및 저장 중");
       const asset = await buildQrAsset(options);
       if (state.renderUrl?.startsWith("blob:")) URL.revokeObjectURL(state.renderUrl);
       state.lastBlob = asset.blob;
