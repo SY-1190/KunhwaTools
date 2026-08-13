@@ -3110,6 +3110,48 @@ body.dark .yacht-meta-chips .chip {
   display: block;
 }
 
+.pdf-excel-action-row {
+  margin-top: 10px;
+}
+
+.pdf-excel-action-row .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.pdf-excel-action-row .btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pdf-excel-preview {
+  margin-top: 10px;
+  min-height: 220px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7f9fc;
+  overflow: auto;
+}
+
+.pdf-excel-preview-meta {
+  margin: 0 0 10px;
+  color: #445d79;
+  font-weight: 700;
+}
+
+.pdf-excel-preview-canvas {
+  display: block;
+  width: min(100%, 760px);
+  height: auto;
+  margin: 0 auto;
+  border: 1px solid #d5deea;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(28, 52, 83, 0.08);
+}
+
 body.dark .hangul-editor-frame-wrap {
   border-color: #3a5272;
   background: #fff;

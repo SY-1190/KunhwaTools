@@ -206,6 +206,7 @@ const ICONS = {
   house: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m8.354 1.146 6.5 6.5A.5.5 0 0 1 14.5 8.5H13v5a1 1 0 0 1-1 1h-2.5a.5.5 0 0 1-.5-.5V11a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v3a.5.5 0 0 1-.5.5H4a1 1 0 0 1-1-1v-5H1.5a.5.5 0 0 1-.354-.854l6.5-6.5a.5.5 0 0 1 .708 0"/></svg>`,
   person: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/><path fill-rule="evenodd" d="M8 9a6 6 0 0 0-5.468 3.516A.75.75 0 0 0 3.205 14h9.59a.75.75 0 0 0 .673-1.484A6 6 0 0 0 8 9"/></svg>`,
   journal: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 1.5A1.5 1.5 0 0 1 4.5 0h7A1.5 1.5 0 0 1 13 1.5v13A1.5 1.5 0 0 1 11.5 16h-7A1.5 1.5 0 0 1 3 14.5zM4.5 1a.5.5 0 0 0-.5.5V2h8v-.5a.5.5 0 0 0-.5-.5zm7.5 2h-8v11.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5z"/><path d="M5 5h6v1H5zm0 2h6v1H5zm0 2h4v1H5z"/></svg>`,
+  fileEarmarkSpreadsheet: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5h-2z"/><path d="M4.5 8.5A.5.5 0 0 1 5 8h6a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5zM5.5 9v1h2V9zm3 0v1h2V9zm-3 2v1h2v-1zm3 0v1h2v-1z"/></svg>`,
   link45: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1 1 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4 4 0 0 1-.128-1.287z"/><path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243z"/></svg>`,
   wifi: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M15.384 6.115a.485.485 0 0 0-.047-.736A12.44 12.44 0 0 0 8 3C5.259 3 2.723 3.882.663 5.379a.485.485 0 0 0-.048.736.52.52 0 0 0 .668.05A11.45 11.45 0 0 1 8 4c2.507 0 4.827.802 6.716 2.164.205.148.49.13.668-.049"/><path d="M13.229 8.271a.482.482 0 0 0-.063-.745A9.46 9.46 0 0 0 8 6c-1.905 0-3.68.56-5.166 1.526a.48.48 0 0 0-.063.745.525.525 0 0 0 .652.065A8.46 8.46 0 0 1 8 7a8.46 8.46 0 0 1 4.576 1.336c.206.132.48.108.653-.065m-2.183 2.183c.226-.226.185-.605-.1-.75A6.5 6.5 0 0 0 8 9c-1.06 0-2.062.254-2.946.704-.285.145-.326.524-.1.75l.015.015c.16.16.407.19.611.09A5.5 5.5 0 0 1 8 10c.868 0 1.69.201 2.42.56.203.1.45.07.61-.091zM9.06 12.44c.196-.196.198-.52-.04-.66A2 2 0 0 0 8 11.5a2 2 0 0 0-1.02.28c-.238.14-.236.464-.04.66l.706.706a.5.5 0 0 0 .707 0l.707-.707z"/></svg>`,
   calendarEvent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M11 6.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/></svg>`,
@@ -5429,6 +5430,550 @@ const setupQr = () => {
   });
 };
 
+const cleanSpreadsheetText = (value) =>
+  String(value || "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+const parseJsonOr = (value, fallback) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const clusterNumbers = (values, tolerance = 3) => {
+  const groups = [];
+  [...values]
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b)
+    .forEach((value) => {
+      const group = groups.at(-1);
+      const center = group ? group.reduce((sum, item) => sum + item, 0) / group.length : 0;
+      if (!group || Math.abs(value - center) > tolerance) groups.push([value]);
+      else group.push(value);
+    });
+  return groups.map((group) => group.reduce((sum, value) => sum + value, 0) / group.length);
+};
+
+const uniqueSheetName = (rawName, usedNames) => {
+  const base = String(rawName || "문서")
+    .replace(/[\\/?*\[\]:]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 31) || "문서";
+  let name = base;
+  let suffix = 2;
+  while (usedNames.has(name)) {
+    const tail = ` ${suffix}`;
+    name = `${base.slice(0, 31 - tail.length)}${tail}`;
+    suffix += 1;
+  }
+  usedNames.add(name);
+  return name;
+};
+
+const downloadStructuredWorkbook = (sheetSpecs, fileName) => {
+  if (!globalThis.XLSX) throw new Error("XLSX 라이브러리 로드 실패");
+  if (!sheetSpecs.length) throw new Error("Excel로 변환할 문서 내용이 없습니다.");
+  const workbook = globalThis.XLSX.utils.book_new();
+  const usedNames = new Set();
+
+  sheetSpecs.forEach((spec, index) => {
+    const rowCount = Math.max(1, spec.rows?.length || 0);
+    const colCount = Math.max(1, ...((spec.rows || []).map((row) => row.length)), spec.columnWidths?.length || 0);
+    const rows = Array.from({ length: rowCount }, (_, rowIdx) =>
+      Array.from({ length: colCount }, (_, colIdx) => cleanSpreadsheetText(spec.rows?.[rowIdx]?.[colIdx] || "")),
+    );
+    const worksheet = globalThis.XLSX.utils.aoa_to_sheet(rows);
+    worksheet["!merges"] = (spec.merges || []).map((merge) => ({
+      s: { r: merge.row, c: merge.col },
+      e: { r: merge.row + merge.rowSpan - 1, c: merge.col + merge.colSpan - 1 },
+    }));
+    worksheet["!cols"] = Array.from({ length: colCount }, (_, colIdx) => ({
+      wch: Math.max(6, Math.min(36, Math.round((spec.columnWidths?.[colIdx] || 84) / 7))),
+    }));
+    worksheet["!rows"] = Array.from({ length: rowCount }, (_, rowIdx) => ({
+      hpx: Math.max(20, Math.min(110, spec.rowHeights?.[rowIdx] || 24)),
+    }));
+    worksheet["!pageSetup"] = { orientation: colCount > 8 ? "landscape" : "portrait", fitToWidth: 1, fitToHeight: 0 };
+
+    const range = globalThis.XLSX.utils.decode_range(worksheet["!ref"] || "A1:A1");
+    for (let row = range.s.r; row <= range.e.r; row += 1) {
+      for (let col = range.s.c; col <= range.e.c; col += 1) {
+        const address = globalThis.XLSX.utils.encode_cell({ r: row, c: col });
+        const cell = worksheet[address] || (worksheet[address] = { t: "s", v: "" });
+        cell.s = {
+          font: { name: "맑은 고딕", sz: 10 },
+          alignment: { vertical: "center", wrapText: true },
+          border: {
+            top: { style: "thin", color: { rgb: "C8D1DC" } },
+            bottom: { style: "thin", color: { rgb: "C8D1DC" } },
+            left: { style: "thin", color: { rgb: "C8D1DC" } },
+            right: { style: "thin", color: { rgb: "C8D1DC" } },
+          },
+        };
+      }
+    }
+    (spec.merges || [])
+      .filter((merge) => merge.col === 0 && merge.colSpan === colCount && rows[merge.row]?.[0])
+      .forEach((merge) => {
+        const cell = worksheet[globalThis.XLSX.utils.encode_cell({ r: merge.row, c: merge.col })];
+        if (cell?.s?.font) cell.s.font.bold = true;
+        if (cell?.s?.alignment) cell.s.alignment.horizontal = "center";
+      });
+
+    globalThis.XLSX.utils.book_append_sheet(workbook, worksheet, uniqueSheetName(spec.name || `${index + 1}페이지`, usedNames));
+  });
+
+  const output = globalThis.XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+    compression: true,
+    cellStyles: true,
+  });
+  downloadBlob(
+    new Blob([output], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    fileName,
+  );
+};
+
+const positionedRunsToSheet = (rawRuns, name, guides = null) => {
+  const runs = rawRuns
+    .map((run) => ({
+      text: cleanSpreadsheetText(run.text),
+      x: Number(run.x) || 0,
+      y: Number(run.y) || 0,
+      w: Math.max(1, Number(run.w) || 1),
+      h: Math.max(8, Number(run.h) || 12),
+    }))
+    .filter((run) => run.text)
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  if (!runs.length) return { name, rows: [[""]], columnWidths: [120], rowHeights: [24], merges: [] };
+
+  const combineCellRuns = (cellRuns) => {
+    const lines = [];
+    [...cellRuns]
+      .sort((a, b) => a.y - b.y || a.x - b.x)
+      .forEach((run) => {
+        const line = lines.find((candidate) => Math.abs(candidate.y - run.y) <= Math.max(5, Math.min(candidate.h, run.h) * 0.55));
+        if (!line) {
+          lines.push({ y: run.y, h: run.h, items: [run] });
+          return;
+        }
+        line.items.push(run);
+        line.y = (line.y * (line.items.length - 1) + run.y) / line.items.length;
+        line.h = Math.max(line.h, run.h);
+      });
+    return lines
+      .sort((a, b) => a.y - b.y)
+      .map((line) => {
+        let right = null;
+        return line.items
+          .sort((a, b) => a.x - b.x)
+          .map((run) => {
+            const gap = right === null ? 0 : run.x - right;
+            right = Math.max(right ?? run.x, run.x + run.w);
+            return `${gap > Math.max(3, run.h * 0.25) ? " " : ""}${run.text}`;
+          })
+          .join("")
+          .trim();
+      })
+      .filter(Boolean)
+      .join("\n");
+  };
+
+  const scale = guides?.scale || 1;
+  const vertical = guides?.vertical?.length >= 2 ? [...guides.vertical] : null;
+  const horizontal = guides?.horizontal?.length >= 2 ? [...guides.horizontal] : null;
+  if (vertical && horizontal) {
+    const minX = Math.min(...runs.map((run) => run.x));
+    const maxX = Math.max(...runs.map((run) => run.x + run.w));
+    const minY = Math.min(...runs.map((run) => run.y));
+    const maxY = Math.max(...runs.map((run) => run.y + run.h));
+    if (minX < vertical[0] - 12) vertical.unshift(Math.max(0, minX - 8));
+    if (maxX > vertical.at(-1) + 12) vertical.push(maxX + 8);
+    if (minY < horizontal[0] - 12) horizontal.unshift(Math.max(0, minY - 8));
+    if (maxY > horizontal.at(-1) + 12) horizontal.push(maxY + 8);
+    const xBounds = clusterNumbers(vertical, 5).filter((value, idx, arr) => idx === 0 || value - arr[idx - 1] >= 12);
+    const yBounds = clusterNumbers(horizontal, 5).filter((value, idx, arr) => idx === 0 || value - arr[idx - 1] >= 12);
+    if (xBounds.length >= 2 && yBounds.length >= 2 && xBounds.length <= 40 && yBounds.length <= 120) {
+      const rows = Array.from({ length: yBounds.length - 1 }, () => Array(xBounds.length - 1).fill(""));
+      const cellRuns = Array.from({ length: rows.length }, () => Array.from({ length: rows[0].length }, () => []));
+      runs.forEach((run) => {
+        const cx = run.x + run.w / 2;
+        const cy = run.y + run.h / 2;
+        const nextCol = xBounds.findIndex((bound) => bound > cx);
+        const nextRow = yBounds.findIndex((bound) => bound > cy);
+        const col = nextCol < 0 ? rows[0].length - 1 : Math.max(0, Math.min(rows[0].length - 1, nextCol - 1));
+        const row = nextRow < 0 ? rows.length - 1 : Math.max(0, Math.min(rows.length - 1, nextRow - 1));
+        cellRuns[row][col].push(run);
+      });
+      cellRuns.forEach((rowRuns, row) => rowRuns.forEach((items, col) => {
+        rows[row][col] = combineCellRuns(items);
+      }));
+      return {
+        name,
+        rows,
+        columnWidths: xBounds.slice(0, -1).map((value, idx) => (xBounds[idx + 1] - value) / scale),
+        rowHeights: yBounds.slice(0, -1).map((value, idx) => (yBounds[idx + 1] - value) / scale),
+        merges: [],
+      };
+    }
+  }
+
+  const lines = [];
+  runs.forEach((run) => {
+    const current = lines.at(-1);
+    if (!current || Math.abs(run.y - current.y) > Math.max(4, run.h * 0.55)) {
+      lines.push({ y: run.y, h: run.h, items: [run] });
+      return;
+    }
+    current.items.push(run);
+    current.y = (current.y * (current.items.length - 1) + run.y) / current.items.length;
+    current.h = Math.max(current.h, run.h);
+  });
+  const segmentsByLine = lines.map((line) => {
+    const segments = [];
+    line.items
+      .sort((a, b) => a.x - b.x)
+      .forEach((run) => {
+        const segment = segments.at(-1);
+        const gap = segment ? run.x - (segment.x + segment.w) : Infinity;
+        if (!segment || gap > Math.max(10, run.h * 0.75)) segments.push({ ...run });
+        else {
+          segment.text = `${segment.text}${gap > 2 ? " " : ""}${run.text}`;
+          segment.w = Math.max(segment.w, run.x + run.w - segment.x);
+        }
+      });
+    return segments;
+  });
+  const clusters = [];
+  segmentsByLine.flat().forEach((segment) => {
+    let cluster = clusters.find((item) => Math.abs(item.x - segment.x) <= 18);
+    if (!cluster) {
+      cluster = { x: segment.x, count: 0 };
+      clusters.push(cluster);
+    }
+    cluster.x = (cluster.x * cluster.count + segment.x) / (cluster.count + 1);
+    cluster.count += 1;
+  });
+  let anchors = clusters.filter((cluster) => cluster.count >= 2).map((cluster) => cluster.x);
+  if (!anchors.length) anchors = clusters.map((cluster) => cluster.x);
+  anchors = clusterNumbers(anchors, 18).sort((a, b) => a - b).slice(0, 30);
+  if (!anchors.length) anchors = [Math.min(...runs.map((run) => run.x))];
+  const rows = segmentsByLine.map((segments) => {
+    const row = Array(anchors.length).fill("");
+    segments.forEach((segment) => {
+      let col = 0;
+      let distance = Infinity;
+      anchors.forEach((anchor, idx) => {
+        const nextDistance = Math.abs(segment.x - anchor);
+        if (nextDistance < distance) {
+          col = idx;
+          distance = nextDistance;
+        }
+      });
+      row[col] = `${row[col]}${row[col] ? " " : ""}${segment.text}`;
+    });
+    return row;
+  });
+  return {
+    name,
+    rows,
+    columnWidths: anchors.map((anchor, idx) => Math.max(70, (anchors[idx + 1] || anchor + 180) - anchor)),
+    rowHeights: lines.map((line) => Math.max(22, line.h * 1.6)),
+    merges: [],
+  };
+};
+
+const detectCanvasGridGuides = (canvas) => {
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  const image = context.getImageData(0, 0, canvas.width, canvas.height);
+  const isLinePixel = (offset) =>
+    image.data[offset] < 220 && image.data[offset + 1] < 220 && image.data[offset + 2] < 220;
+  const horizontal = [];
+  const horizontalEdges = [];
+  for (let y = 0; y < canvas.height; y += 1) {
+    let run = 0;
+    let gap = 0;
+    let start = 0;
+    let best = { length: 0, start: 0, end: 0 };
+    for (let x = 0; x < canvas.width; x += 1) {
+      if (isLinePixel((y * canvas.width + x) * 4)) {
+        if (!run) start = x;
+        run += gap + 1;
+        gap = 0;
+        if (run > best.length) best = { length: run, start, end: x };
+      } else if (run && gap < 2) gap += 1;
+      else {
+        run = 0;
+        gap = 0;
+      }
+    }
+    if (best.length >= Math.max(70, canvas.width * 0.04)) {
+      horizontal.push(y);
+      horizontalEdges.push(best.start, best.end);
+    }
+  }
+  const vertical = [];
+  for (let x = 0; x < canvas.width; x += 1) {
+    let run = 0;
+    let gap = 0;
+    let best = 0;
+    for (let y = 0; y < canvas.height; y += 1) {
+      if (isLinePixel((y * canvas.width + x) * 4)) {
+        run += gap + 1;
+        gap = 0;
+        best = Math.max(best, run);
+      } else if (run && gap < 2) gap += 1;
+      else {
+        run = 0;
+        gap = 0;
+      }
+    }
+    if (best >= 45) vertical.push(x);
+  }
+  const horizontalGuides = clusterNumbers(horizontal, 4);
+  const verticalGuides = clusterNumbers([...vertical, ...horizontalEdges], 4);
+  return {
+    horizontal: horizontalGuides,
+    vertical: verticalGuides,
+    scale: 2,
+  };
+};
+
+let tesseractLoaderPromise = null;
+const ensureTesseract = async () => {
+  if (globalThis.Tesseract?.createWorker) return globalThis.Tesseract;
+  if (!tesseractLoaderPromise) {
+    tesseractLoaderPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+      script.onload = () => resolve(globalThis.Tesseract);
+      script.onerror = () => reject(new Error("한글 OCR 모듈을 불러오지 못했습니다."));
+      document.head.appendChild(script);
+    });
+  }
+  return tesseractLoaderPromise;
+};
+
+const extractRhwpSpreadsheetSheets = async (file, ensureRhwp) => {
+  const mod = await ensureRhwp();
+  const doc = new mod.HwpDocument(new Uint8Array(await readAsArrayBuffer(file)));
+  try {
+    const pageCount = doc.pageCount();
+    const pageLayouts = Array.from({ length: pageCount }, (_, pageIdx) => ({
+      pageIdx,
+      controls: parseJsonOr(doc.getPageControlLayout(pageIdx), { controls: [] }),
+      text: parseJsonOr(doc.getPageTextLayout(pageIdx), { runs: [] }),
+    }));
+    const tables = new Map();
+    pageLayouts.forEach((page) => {
+      (page.controls.controls || []).forEach((control) => {
+        if (control.type !== "table") return;
+        const key = `${control.secIdx}:${control.paraIdx}:${control.controlIdx}`;
+        if (!tables.has(key)) tables.set(key, { ...control, pageIdx: page.pageIdx });
+      });
+    });
+
+    const sheetSpecs = [];
+    const tableCountByPage = new Map();
+    for (const table of tables.values()) {
+      const dimensions = parseJsonOr(doc.getTableDimensions(table.secIdx, table.paraIdx, table.controlIdx), {
+        rowCount: table.rowCount || 1,
+        colCount: table.colCount || 1,
+      });
+      const rowCount = Math.max(1, dimensions.rowCount || table.rowCount || 1);
+      const colCount = Math.max(1, dimensions.colCount || table.colCount || 1);
+      let cells = parseJsonOr(doc.getTableCellBboxes(table.secIdx, table.paraIdx, table.controlIdx), []);
+      if (!cells.length) cells = table.cells || [];
+      const rows = Array.from({ length: rowCount }, () => Array(colCount).fill(""));
+      const columnWidths = Array(colCount).fill(72);
+      const rowHeights = Array(rowCount).fill(24);
+      const merges = [];
+
+      cells.forEach((cell) => {
+        const cellIdx = Number(cell.cellIdx);
+        const row = Number(cell.row) || 0;
+        const col = Number(cell.col) || 0;
+        const rowSpan = Math.max(1, Number(cell.rowSpan) || 1);
+        const colSpan = Math.max(1, Number(cell.colSpan) || 1);
+        const paragraphCount = doc.getCellParagraphCount(table.secIdx, table.paraIdx, table.controlIdx, cellIdx);
+        const paragraphs = Array.from({ length: paragraphCount }, (_, cellParaIdx) => {
+          const length = doc.getCellParagraphLength(table.secIdx, table.paraIdx, table.controlIdx, cellIdx, cellParaIdx);
+          return doc.getTextInCell(table.secIdx, table.paraIdx, table.controlIdx, cellIdx, cellParaIdx, 0, length);
+        });
+        if (rows[row]?.[col] !== undefined) rows[row][col] = cleanSpreadsheetText(paragraphs.join("\n"));
+        const width = Math.max(48, (Number(cell.w) || 84) / colSpan);
+        const height = Math.max(20, (Number(cell.h) || 24) / rowSpan);
+        for (let idx = col; idx < Math.min(colCount, col + colSpan); idx += 1) columnWidths[idx] = Math.max(columnWidths[idx], width);
+        for (let idx = row; idx < Math.min(rowCount, row + rowSpan); idx += 1) rowHeights[idx] = Math.max(rowHeights[idx], height);
+        if (rowSpan > 1 || colSpan > 1) merges.push({ row, col, rowSpan, colSpan });
+      });
+
+      const pageNumber = table.pageIdx + 1;
+      const tableOrder = (tableCountByPage.get(pageNumber) || 0) + 1;
+      tableCountByPage.set(pageNumber, tableOrder);
+      sheetSpecs.push({
+        name: `${pageNumber}페이지${tableOrder > 1 ? ` 표${tableOrder}` : ""}`,
+        rows,
+        columnWidths,
+        rowHeights,
+        merges,
+      });
+    }
+
+    pageLayouts.forEach((page) => {
+      const bodyRuns = (page.text.runs || []).filter((run) => cleanSpreadsheetText(run.text) && !(run.cellPath?.length));
+      if (bodyRuns.length) sheetSpecs.push(positionedRunsToSheet(bodyRuns, `${page.pageIdx + 1}페이지 본문`));
+    });
+    if (!sheetSpecs.length) {
+      pageLayouts.forEach((page) => {
+        const runs = (page.text.runs || []).filter((run) => cleanSpreadsheetText(run.text));
+        if (runs.length) sheetSpecs.push(positionedRunsToSheet(runs, `${page.pageIdx + 1}페이지`));
+      });
+    }
+    if (!sheetSpecs.length) throw new Error("문서 표 또는 본문 구조를 찾지 못했습니다.");
+    return sheetSpecs;
+  } finally {
+    doc.free?.();
+  }
+};
+
+const setupPdfToExcel = () => {
+  const fileInput = $("pdfExcelFile");
+  const modeSelect = $("pdfExcelMode");
+  const convertBtn = $("runPdfToExcel");
+  const previewBox = $("pdfExcelPreview");
+  if (!fileInput || !modeSelect || !convertBtn || !previewBox) return;
+  let activeFile = null;
+  $("runPdfToExcelIcon").innerHTML = ICONS.fileEarmarkSpreadsheet;
+
+  const renderPreview = async (file) => {
+    previewBox.innerHTML = '<p class="status">PDF 미리보기 생성 중...</p>';
+    try {
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await readAsArrayBuffer(file)) }).promise;
+      const page = await pdf.getPage(1);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = Math.min(1.2, 760 / baseViewport.width);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      const textContent = await page.getTextContent();
+      const textCount = textContent.items.filter((item) => item.str?.trim()).length;
+      const meta = document.createElement("p");
+      meta.className = "status pdf-excel-preview-meta";
+      meta.textContent = `${file.name} · ${pdf.numPages}페이지 · ${textCount ? "텍스트 좌표 감지" : "이미지형 PDF (OCR 필요)"}`;
+      canvas.className = "pdf-excel-preview-canvas";
+      previewBox.replaceChildren(meta, canvas);
+      setStatus("pdfExcelStatus", `PDF 로드 완료: ${pdf.numPages}페이지`);
+    } catch (err) {
+      previewBox.innerHTML = `<p class="status">PDF 미리보기 실패: ${getErrorMessage(err)}</p>`;
+      setStatus("pdfExcelStatus", `PDF 로드 실패: ${getErrorMessage(err)}`);
+    }
+  };
+
+  fileInput.addEventListener("change", () => {
+    activeFile = fileInput.files?.[0] || null;
+    if (activeFile) renderPreview(activeFile);
+  });
+
+  convertBtn.addEventListener("click", async () => {
+    if (!activeFile) {
+      setStatus("pdfExcelStatus", "먼저 PDF 파일을 넣어 주세요.");
+      return;
+    }
+    beginGlobalBusy("PDF를 Excel로 변환 중...");
+    let ocrWorker = null;
+    try {
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await readAsArrayBuffer(activeFile)) }).promise;
+      const sheetSpecs = [];
+      let textPages = 0;
+      let ocrPages = 0;
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+        setGlobalBusyMessage(`PDF ${pageNumber}/${pdf.numPages}페이지 분석 중...`);
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: 1 });
+        const content = await page.getTextContent();
+        const textRuns = content.items
+          .filter((item) => item.str?.trim())
+          .map((item) => ({
+            text: item.str,
+            x: item.transform[4],
+            y: viewport.height - item.transform[5],
+            w: item.width,
+            h: item.height || Math.abs(item.transform[3]) || 12,
+          }));
+        const useOcr = modeSelect.value === "ocr" || (modeSelect.value === "auto" && textRuns.length < 3);
+        if (!useOcr && textRuns.length) {
+          sheetSpecs.push(positionedRunsToSheet(textRuns, `${pageNumber}페이지`));
+          textPages += 1;
+          continue;
+        }
+        if (modeSelect.value === "text") {
+          throw new Error(`${pageNumber}페이지에서 PDF 텍스트를 찾지 못했습니다. 자동 감지 또는 한글 OCR을 선택해 주세요.`);
+        }
+        if (!ocrWorker) {
+          const Tesseract = await ensureTesseract();
+          ocrWorker = await Tesseract.createWorker(["kor", "eng"], 1, {
+            logger: (message) => {
+              if (message.status === "recognizing text") {
+                setGlobalBusyMessage(`PDF ${pageNumber}/${pdf.numPages}페이지 OCR ${Math.round(message.progress * 100)}%`);
+              }
+            },
+          });
+          await ocrWorker.setParameters({
+            tessedit_pageseg_mode: "11",
+            preserve_interword_spaces: "1",
+            user_defined_dpi: "300",
+          });
+        }
+        const ocrViewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(ocrViewport.width);
+        canvas.height = Math.ceil(ocrViewport.height);
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: context, viewport: ocrViewport }).promise;
+        const result = await ocrWorker.recognize(canvas, {}, { blocks: true, tsv: true });
+        const blockLines = (result.data.blocks || []).flatMap((block) =>
+          (block.paragraphs || []).flatMap((paragraph) =>
+            paragraph.lines || [],
+          ),
+        );
+        const ocrLines = blockLines.length ? blockLines : result.data.lines || [];
+        const ocrRuns = ocrLines
+          .filter((line) => line.text?.trim() && line.bbox && (line.confidence ?? 100) >= 20)
+          .map((line) => ({
+            text: line.text,
+            x: line.bbox.x0,
+            y: line.bbox.y0,
+            w: line.bbox.x1 - line.bbox.x0,
+            h: line.bbox.y1 - line.bbox.y0,
+          }));
+        if (!ocrRuns.length) throw new Error(`${pageNumber}페이지에서 OCR 텍스트를 찾지 못했습니다.`);
+        sheetSpecs.push(positionedRunsToSheet(ocrRuns, `${pageNumber}페이지 OCR`, detectCanvasGridGuides(canvas)));
+        ocrPages += 1;
+      }
+      const stem = activeFile.name.replace(/\.pdf$/i, "");
+      downloadStructuredWorkbook(sheetSpecs, `${stem}.xlsx`);
+      setStatus("pdfExcelStatus", `변환 완료: ${pdf.numPages}페이지 (텍스트 ${textPages}, OCR ${ocrPages})`);
+    } catch (err) {
+      setStatus("pdfExcelStatus", `변환 실패: ${getErrorMessage(err)}`);
+    } finally {
+      await ocrWorker?.terminate?.();
+      endGlobalBusy();
+    }
+  });
+};
+
 const setupHangulWebEditor = () => {
   const fileInput = $("hangulEditorFile");
   const formatSelect = $("hangulConvertFormat");
@@ -5464,7 +6009,7 @@ const setupHangulWebEditor = () => {
 
   const ensureRhwp = async () => {
     if (rhwpReady && rhwpMod) return rhwpMod;
-    if (!rhwpMod) rhwpMod = await import("https://cdn.jsdelivr.net/npm/@rhwp/core@0.7.10/rhwp.js");
+    if (!rhwpMod) rhwpMod = await import("https://cdn.jsdelivr.net/npm/@rhwp/core@0.8.0/rhwp.js");
     const initFn = rhwpMod.default || rhwpMod.init;
     if (typeof initFn !== "function" || typeof rhwpMod.HwpDocument !== "function") throw new Error("rhwp core load failed");
     if (!globalThis.measureTextWidth) {
@@ -5475,7 +6020,7 @@ const setupHangulWebEditor = () => {
         return ctx.measureText(text || "").width;
       };
     }
-    await initFn({ module_or_path: "https://cdn.jsdelivr.net/npm/@rhwp/core@0.7.10/rhwp_bg.wasm" });
+    await initFn({ module_or_path: "https://cdn.jsdelivr.net/npm/@rhwp/core@0.8.0/rhwp_bg.wasm" });
     rhwpReady = true;
     return rhwpMod;
   };
@@ -5631,20 +6176,9 @@ const setupHangulWebEditor = () => {
         const rows = text.split(/\r?\n/).map((l) => `"${l.replaceAll('"', '""')}"`);
         downloadBlob(new Blob([`line\n${rows.join("\n")}\n`], { type: "text/csv;charset=utf-8" }), `${stem}.csv`);
       } else if (fmt === "xlsx") {
-        if (!globalThis.XLSX) throw new Error("XLSX 라이브러리 로드 실패");
-        const rows = String(text || "")
-          .split(/\r?\n/)
-          .map((line, idx) => [idx + 1, line]);
-        const aoa = [["No", "내용"], ...rows];
-        const ws = globalThis.XLSX.utils.aoa_to_sheet(aoa);
-        ws["!cols"] = [{ wch: 8 }, { wch: 80 }];
-        const wb = globalThis.XLSX.utils.book_new();
-        globalThis.XLSX.utils.book_append_sheet(wb, ws, "문서");
-        const out = globalThis.XLSX.write(wb, { bookType: "xlsx", type: "array" });
-        downloadBlob(
-          new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
-          `${stem}.xlsx`,
-        );
+        setStatus("hangulConvertStatus", "표 셀과 병합 구조를 분석 중...");
+        const sheets = await extractRhwpSpreadsheetSheets(activeFile, ensureRhwp);
+        downloadStructuredWorkbook(sheets, `${stem}.xlsx`);
       } else if (fmt === "pdf") {
         const pageSvgs = await collectRenderedPageSvgs(activeFile);
 
@@ -5813,6 +6347,7 @@ const init = () => {
   setupProcessTimer();
   setupQr();
   setupHangulWebEditor();
+  setupPdfToExcel();
   setupYachtGame();
   setupRpsGame();
   setupTttGame();
