@@ -3112,6 +3112,24 @@ body.dark .yacht-meta-chips .chip {
 
 .pdf-excel-action-row {
   margin-top: 10px;
+  grid-template-columns: minmax(180px, 360px);
+  justify-content: start;
+}
+
+.pdf-excel-drop-zone {
+  position: relative;
+}
+
+.pdf-excel-clear {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+}
+
+.pdf-excel-clear[hidden],
+.pdf-excel-result[hidden] {
+  display: none;
 }
 
 .pdf-excel-action-row .btn {
@@ -3119,11 +3137,49 @@ body.dark .yacht-meta-chips .chip {
   align-items: center;
   justify-content: center;
   gap: 7px;
+  width: 100%;
 }
 
 .pdf-excel-action-row .btn svg {
   width: 16px;
   height: 16px;
+}
+
+.pdf-excel-result {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #a9c8b3;
+  border-radius: 8px;
+  background: #f2fbf5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pdf-excel-result strong {
+  display: block;
+  color: #1e5d35;
+  font-size: 14px;
+}
+
+.pdf-excel-result p {
+  margin: 4px 0 0;
+  color: #486557;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pdf-excel-result .btn-row {
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+
+.pdf-excel-result .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
 }
 
 .pdf-excel-preview {
@@ -3155,6 +3211,11 @@ body.dark .yacht-meta-chips .chip {
 body.dark .hangul-editor-frame-wrap {
   border-color: #3a5272;
   background: #fff;
+}
+
+body.dark .pdf-excel-result {
+  border-color: #5a7d68;
+  background: #edf7f0;
 }
 
 @keyframes stage-in {
@@ -3205,6 +3266,16 @@ body.dark .hangul-editor-frame-wrap {
 
   .convert-inline-row {
     grid-template-columns: 1fr;
+  }
+
+  .pdf-excel-result {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pdf-excel-result .btn-row,
+  .pdf-excel-result .btn {
+    width: 100%;
   }
 
   .rps-actions {

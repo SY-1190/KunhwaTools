@@ -5684,81 +5684,255 @@ const positionedRunsToSheet = (rawRuns, name, guides = null) => {
   return {
     name,
     rows,
-    columnWidths: anchors.map((anchor, idx) => Math.max(70, (anchors[idx + 1] || anchor + 180) - anchor)),
-    rowHeights: lines.map((line) => Math.max(22, line.h * 1.6)),
+    columnWidths: anchors.map((anchor, idx) => Math.max(70, ((anchors[idx + 1] || anchor + 180) - anchor) / scale)),
+    rowHeights: lines.map((line) => Math.max(22, (line.h * 1.6) / scale)),
     merges: [],
   };
 };
 
-const detectCanvasGridGuides = (canvas) => {
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  const image = context.getImageData(0, 0, canvas.width, canvas.height);
-  const isLinePixel = (offset) =>
-    image.data[offset] < 220 && image.data[offset + 1] < 220 && image.data[offset + 2] < 220;
-  const horizontal = [];
-  const horizontalEdges = [];
-  for (let y = 0; y < canvas.height; y += 1) {
-    let run = 0;
-    let gap = 0;
-    let start = 0;
-    let best = { length: 0, start: 0, end: 0 };
-    for (let x = 0; x < canvas.width; x += 1) {
-      if (isLinePixel((y * canvas.width + x) * 4)) {
-        if (!run) start = x;
-        run += gap + 1;
-        gap = 0;
-        if (run > best.length) best = { length: run, start, end: x };
-      } else if (run && gap < 2) gap += 1;
-      else {
-        run = 0;
-        gap = 0;
+const medianPdfValue = (values, fallback = 0) => {
+  const sorted = values.filter(Number.isFinite).sort((left, right) => left - right);
+  if (!sorted.length) return fallback;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+};
+
+const groupPdfRunsIntoLines = (rawRuns) => {
+  const runs = rawRuns
+    .map((run) => ({
+      text: cleanSpreadsheetText(run.text),
+      x: Number(run.x) || 0,
+      y: Number(run.y) || 0,
+      w: Math.max(1, Number(run.w) || 1),
+      h: Math.max(8, Number(run.h) || 12),
+      bold: Boolean(run.bold),
+    }))
+    .filter((run) => run.text)
+    .sort((left, right) => left.y - right.y || left.x - right.x);
+  const lines = [];
+
+  runs.forEach((run) => {
+    let line = null;
+    for (let idx = lines.length - 1; idx >= Math.max(0, lines.length - 5); idx -= 1) {
+      const candidate = lines[idx];
+      const tolerance = Math.max(3, Math.min(candidate.h, run.h) * 0.48);
+      if (Math.abs(candidate.y - run.y) <= tolerance) {
+        line = candidate;
+        break;
       }
     }
-    if (best.length >= Math.max(70, canvas.width * 0.04)) {
-      horizontal.push(y);
-      horizontalEdges.push(best.start, best.end);
+    if (!line) {
+      lines.push({ y: run.y, h: run.h, items: [run] });
+      return;
     }
+    line.items.push(run);
+    line.y = (line.y * (line.items.length - 1) + run.y) / line.items.length;
+    line.h = Math.max(line.h, run.h);
+  });
+
+  return lines
+    .map((line) => {
+      const items = line.items.sort((left, right) => left.x - right.x);
+      let right = null;
+      let previous = null;
+      const text = items.map((run) => {
+        const gap = right === null ? 0 : run.x - right;
+        const addSpace = previous && gap > Math.max(1.5, Math.min(previous.h, run.h) * 0.12);
+        right = Math.max(right ?? run.x, run.x + run.w);
+        previous = run;
+        return `${addSpace ? " " : ""}${run.text}`;
+      }).join("").trim();
+      const x = Math.min(...items.map((item) => item.x));
+      const end = Math.max(...items.map((item) => item.x + item.w));
+      return {
+        text,
+        x,
+        y: Math.min(...items.map((item) => item.y)),
+        w: end - x,
+        h: Math.max(...items.map((item) => item.h)),
+        bold: items.some((item) => item.bold),
+      };
+    })
+    .filter((line) => line.text)
+    .sort((left, right) => left.y - right.y || left.x - right.x);
+};
+
+const detectPdfColumnLayout = (lines, pageWidth) => {
+  if (lines.length < 8 || pageWidth <= 0) return null;
+  const eligible = lines.filter((line) => line.w <= pageWidth * 0.62);
+  if (eligible.length < 8) return null;
+  let best = null;
+
+  for (let ratio = 0.35; ratio <= 0.65; ratio += 0.025) {
+    const split = pageWidth * ratio;
+    const gutter = Math.max(24, pageWidth * 0.035);
+    const left = eligible.filter((line) => line.x + line.w <= split - gutter / 2);
+    const right = eligible.filter((line) => line.x >= split + gutter / 2);
+    if (left.length < 4 || right.length < 4) continue;
+    const separatedRatio = (left.length + right.length) / eligible.length;
+    if (separatedRatio < 0.72) continue;
+    const leftStart = Math.min(...left.map((line) => line.y));
+    const leftEnd = Math.max(...left.map((line) => line.y + line.h));
+    const rightStart = Math.min(...right.map((line) => line.y));
+    const rightEnd = Math.max(...right.map((line) => line.y + line.h));
+    const overlap = Math.max(0, Math.min(leftEnd, rightEnd) - Math.max(leftStart, rightStart));
+    const overlapRatio = overlap / Math.max(1, Math.min(leftEnd - leftStart, rightEnd - rightStart));
+    if (overlapRatio < 0.28) continue;
+    const balance = Math.min(left.length, right.length) / Math.max(left.length, right.length);
+    const score = separatedRatio * 0.55 + overlapRatio * 0.25 + balance * 0.2;
+    if (!best || score > best.score) best = { split, gutter, score };
   }
-  const vertical = [];
-  for (let x = 0; x < canvas.width; x += 1) {
-    let run = 0;
-    let gap = 0;
-    let best = 0;
-    for (let y = 0; y < canvas.height; y += 1) {
-      if (isLinePixel((y * canvas.width + x) * 4)) {
-        run += gap + 1;
-        gap = 0;
-        best = Math.max(best, run);
-      } else if (run && gap < 2) gap += 1;
-      else {
-        run = 0;
-        gap = 0;
-      }
+
+  return best;
+};
+
+const groupPdfRunsForColumnLayout = (rawRuns, columns, pageWidth) => {
+  const leftRuns = [];
+  const rightRuns = [];
+  const wideRuns = [];
+  const leftEdge = columns.split - columns.gutter / 2;
+  const rightEdge = columns.split + columns.gutter / 2;
+
+  rawRuns.forEach((run) => {
+    const x = Number(run.x) || 0;
+    const width = Math.max(1, Number(run.w) || 1);
+    const end = x + width;
+    const crossesGutter = x < leftEdge && end > rightEdge;
+    if (crossesGutter && width >= pageWidth * 0.42) {
+      wideRuns.push(run);
+    } else if (x + width / 2 < columns.split) {
+      leftRuns.push(run);
+    } else {
+      rightRuns.push(run);
     }
-    if (best >= 45) vertical.push(x);
-  }
-  const horizontalGuides = clusterNumbers(horizontal, 4);
-  const verticalGuides = clusterNumbers([...vertical, ...horizontalEdges], 4);
+  });
+
   return {
-    horizontal: horizontalGuides,
-    vertical: verticalGuides,
-    scale: 2,
+    left: groupPdfRunsIntoLines(leftRuns),
+    right: groupPdfRunsIntoLines(rightRuns),
+    wide: groupPdfRunsIntoLines(wideRuns),
   };
 };
 
-let tesseractLoaderPromise = null;
-const ensureTesseract = async () => {
-  if (globalThis.Tesseract?.createWorker) return globalThis.Tesseract;
-  if (!tesseractLoaderPromise) {
-    tesseractLoaderPromise = new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
-      script.onload = () => resolve(globalThis.Tesseract);
-      script.onerror = () => reject(new Error("한글 OCR 모듈을 불러오지 못했습니다."));
-      document.head.appendChild(script);
-    });
+const createPdfFlowCellMeta = (line, medianHeight, pageHeight) => {
+  const ratio = line.h / Math.max(1, medianHeight);
+  if (ratio >= 1.45) return { kind: "title", size: 16, bold: true, color: "FF172033" };
+  if (ratio >= 1.16 || line.bold) return { kind: "heading", size: 12, bold: true, color: "FF172033" };
+  if (line.y >= pageHeight * 0.82 && ratio <= 0.95) return { kind: "note", size: 9, bold: false, color: "FF667085" };
+  return { kind: "body", size: 10, bold: false, color: "FF243247" };
+};
+
+const pdfFlowRunsToSheet = (rawRuns, name, pageWidth, pageHeight, scale) => {
+  const lines = groupPdfRunsIntoLines(rawRuns);
+  if (!lines.length) {
+    return {
+      name,
+      rows: [["페이지에서 인식 가능한 텍스트를 찾지 못했습니다."]],
+      excelColumnWidths: [92],
+      excelRowHeights: [28],
+      cellMeta: [[{ kind: "note", size: 10, bold: false, color: "FF667085" }]],
+      merges: [],
+      layoutMode: "document",
+    };
   }
-  return tesseractLoaderPromise;
+
+  const medianHeight = medianPdfValue(lines.map((line) => line.h), 12 * scale);
+  const lineGaps = lines.slice(1).map((line, idx) => line.y - (lines[idx].y + lines[idx].h)).filter((gap) => gap > 0);
+  const medianGap = medianPdfValue(lineGaps, medianHeight * 0.5);
+  const columns = detectPdfColumnLayout(lines, pageWidth);
+  const rows = [];
+  const cellMeta = [];
+  const excelRowHeights = [];
+  const merges = [];
+  let previousBottom = null;
+
+  const addGap = (nextY) => {
+    if (previousBottom === null || nextY - previousBottom <= Math.max(medianHeight * 1.2, medianGap * 2.2)) return;
+    rows.push(columns ? [null, null] : [null]);
+    cellMeta.push(columns ? [null, null] : [null]);
+    excelRowHeights.push(9);
+  };
+
+  if (!columns) {
+    lines.forEach((line) => {
+      addGap(line.y);
+      rows.push([line.text]);
+      cellMeta.push([createPdfFlowCellMeta(line, medianHeight, pageHeight)]);
+      excelRowHeights.push(Math.max(18, Math.min(48, (line.h / scale) * 1.55)));
+      previousBottom = line.y + line.h;
+    });
+    return {
+      name,
+      rows,
+      excelColumnWidths: [96],
+      excelRowHeights,
+      cellMeta,
+      merges,
+      layoutMode: "document",
+    };
+  }
+
+  const columnLines = groupPdfRunsForColumnLayout(rawRuns, columns, pageWidth);
+  const bands = [];
+  [
+    ...columnLines.left.map((line) => ({ line, side: 0 })),
+    ...columnLines.right.map((line) => ({ line, side: 1 })),
+    ...columnLines.wide.map((line) => ({ line, side: -1 })),
+  ].sort((left, right) => left.line.y - right.line.y || left.side - right.side).forEach(({ line, side }) => {
+    let band = bands.find((candidate) =>
+      Math.abs(candidate.y - line.y) <= Math.max(4, Math.min(candidate.h, line.h) * 0.55) &&
+      (side < 0 || !candidate.lines[side]),
+    );
+    if (!band) {
+      band = { y: line.y, h: line.h, lines: [null, null], wide: null };
+      bands.push(band);
+    }
+    if (side < 0) band.wide = band.wide ? { ...band.wide, text: `${band.wide.text} ${line.text}` } : line;
+    else band.lines[side] = line;
+    band.h = Math.max(band.h, line.h);
+  });
+
+  bands.sort((left, right) => left.y - right.y).forEach((band) => {
+    addGap(band.y);
+    const rowIdx = rows.length;
+    if (band.wide) {
+      rows.push([band.wide.text, null]);
+      cellMeta.push([createPdfFlowCellMeta(band.wide, medianHeight, pageHeight), null]);
+      merges.push({ row: rowIdx, col: 0, rowSpan: 1, colSpan: 2 });
+    } else {
+      rows.push(band.lines.map((line) => line?.text || null));
+      cellMeta.push(band.lines.map((line) => line ? createPdfFlowCellMeta(line, medianHeight, pageHeight) : null));
+    }
+    excelRowHeights.push(Math.max(18, Math.min(48, (band.h / scale) * 1.55)));
+    previousBottom = band.y + band.h;
+  });
+
+  return {
+    name,
+    rows,
+    excelColumnWidths: [48, 48],
+    excelRowHeights,
+    cellMeta,
+    merges,
+    layoutMode: "columns",
+  };
+};
+
+const createPdfPagePreview = (canvas) => {
+  const maxWidth = 760;
+  const ratio = Math.min(1, maxWidth / canvas.width);
+  const preview = document.createElement("canvas");
+  preview.width = Math.max(1, Math.round(canvas.width * ratio));
+  preview.height = Math.max(1, Math.round(canvas.height * ratio));
+  const context = preview.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, preview.width, preview.height);
+  context.drawImage(canvas, 0, 0, preview.width, preview.height);
+  return {
+    dataUrl: preview.toDataURL("image/jpeg", 0.7),
+    width: preview.width,
+    height: preview.height,
+  };
 };
 
 const extractRhwpSpreadsheetSheets = async (file, ensureRhwp) => {
@@ -5844,134 +6018,1082 @@ const extractRhwpSpreadsheetSheets = async (file, ensureRhwp) => {
   }
 };
 
+const PDF_TO_EXCEL_MAX_BYTES = 20 * 1024 * 1024;
+const PDF_TO_EXCEL_XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const INDUSTRIAL_SAFETY_ITEMS = [
+  "안전·보건관리자 임금 등",
+  "안전시설비 등",
+  "보호구 등",
+  "안전보건진단비 등",
+  "안전보건교육비 등",
+  "근로자 건강장해예방비 등",
+  "건설재해예방전문지도기관 기술지도비",
+  "본사 전담조직 근로자 임금 등",
+  "위험성평가 등에 따른 소요비용",
+];
+
+const INDUSTRIAL_SAFETY_FRONT_MERGES = [
+  "B2:H2", "I2:K2", "B4:L4", "B7:L7", "B8:D8", "E8:G8", "H8:H12", "I8:J8", "K8:L8",
+  "B9:D12", "E9:G12", "I9:J9", "K9:L9", "I10:J10", "K10:L10", "I11:J11", "K11:L11",
+  "I12:J12", "K12:L12", "B13:D15", "E13:G15", "H13:J15", "K13:L15", "B17:L17", "B18:H18",
+  "I18:K18", "B19:H19", "I19:K19", "B20:H20", "I20:K20", "B21:H21", "I21:K21", "B22:H22",
+  "I22:K22", "B23:H23", "I23:K23", "B24:H24", "I24:K24", "B25:H25", "I25:K25", "B26:H26",
+  "I26:K26", "B27:H27", "I27:K27", "B28:H28", "I28:K28", "B43:L43",
+];
+
+const INDUSTRIAL_SAFETY_TEMPLATE = {
+  id: "industrial-safety-health-management-cost-plan-2025-05-30",
+  version: "2025-05-30",
+  displayName: "산업안전보건관리비 사용계획서",
+  detector: {
+    pageCount: 2,
+    pageSize: "A4",
+    orientation: "portrait",
+    minimumConfidence: 0.78,
+    visualHashes: [
+      "0000000000000000007ffe00000000001800000021000400010012003140800001701ffe7ffffffe010000000100fc0000000000000000000000000028000002200000023e0000023e0000022a80000209c00002000000007ffffffe7ffffffe00000000000000000000000000000000000000000000000000000000000003f6",
+      "00000000000000007ffffffe00000000000cb062000000002a0000000000000000000000000000007ffffffe00000000000000007ffffffe0000000000000000000000000000000000000000000000002f80000000000000000000000000000000000000000000001bc000000000000000000000000000000000000000000000",
+    ],
+    anchors: [
+      ["산업안전보건관리비 사용계획서", "1. 일반사항", "2. 항목별 실행계획"],
+      ["3. 세부 사용계획", "세부항목", "산출 명세"],
+    ],
+  },
+  workbook: {
+    fileName: "산업안전보건관리비_사용계획서_변환.xlsx",
+    sheets: ["앞쪽", "뒤쪽"],
+  },
+};
+
+const PDF_TO_EXCEL_TEMPLATE_REGISTRY = [INDUSTRIAL_SAFETY_TEMPLATE];
+
+class PdfExcelConversionError extends Error {
+  constructor(code, message, cause = null) {
+    super(message);
+    this.name = "PdfExcelConversionError";
+    this.code = code;
+    this.cause = cause;
+  }
+}
+
+const PDF_EXCEL_ERROR_MESSAGES = {
+  INVALID_FILE_TYPE: "PDF 파일만 선택할 수 있습니다.",
+  INVALID_PDF: "올바른 PDF 파일을 읽지 못했습니다.",
+  ENCRYPTED_PDF: "암호로 보호된 PDF는 변환할 수 없습니다.",
+  FILE_TOO_LARGE: "PDF 파일은 20MB 이하만 변환할 수 있습니다.",
+  PDF_RENDER_FAILED: "PDF 페이지를 분석하지 못했습니다.",
+  OCR_LOAD_FAILED: "이미지 PDF 분석 모듈을 불러오지 못했습니다.",
+  OCR_FAILED: "이미지 PDF에서 텍스트를 분석하지 못했습니다.",
+  WORKBOOK_GENERATION_FAILED: "Excel 문서를 생성하지 못했습니다.",
+  WORKBOOK_VALIDATION_FAILED: "생성된 Excel 문서의 구조 검증에 실패했습니다.",
+};
+
+const createPdfExcelError = (code, cause = null) =>
+  new PdfExcelConversionError(code, PDF_EXCEL_ERROR_MESSAGES[code] || "PDF 변환에 실패했습니다.", cause);
+
+const formatFileSize = (bytes) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const normalizeTemplateText = (value) =>
+  String(value || "")
+    .replace(/\s+/g, "")
+    .replace(/[()\[\]{}<>·.,:;_-]/g, "")
+    .toLowerCase();
+
+const renderPdfPageCanvas = async (page, targetWidth) => {
+  try {
+    const baseViewport = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({ scale: targetWidth / baseViewport.width });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: context, viewport }).promise;
+    return canvas;
+  } catch (err) {
+    throw createPdfExcelError("PDF_RENDER_FAILED", err);
+  }
+};
+
+const createPdfVisualHash = (canvas) => {
+  const sample = document.createElement("canvas");
+  sample.width = 32;
+  sample.height = 32;
+  const context = sample.getContext("2d", { willReadFrequently: true });
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, sample.width, sample.height);
+  const cropX = Math.round(canvas.width * 0.06);
+  const cropY = Math.round(canvas.height * 0.04);
+  const cropWidth = Math.round(canvas.width * 0.88);
+  const cropHeight = Math.round(canvas.height * 0.92);
+  context.drawImage(canvas, cropX, cropY, cropWidth, cropHeight, 0, 0, sample.width, sample.height);
+  const { data } = context.getImageData(0, 0, sample.width, sample.height);
+  const grays = [];
+  for (let offset = 0; offset < data.length; offset += 4) {
+    grays.push(data[offset] * 0.299 + data[offset + 1] * 0.587 + data[offset + 2] * 0.114);
+  }
+  const average = grays.reduce((sum, value) => sum + value, 0) / grays.length;
+  const bits = grays.map((gray) => (gray < average - 3 ? "1" : "0")).join("");
+  return (bits.match(/.{1,4}/g) || [])
+    .map((chunk) => Number.parseInt(chunk, 2).toString(16))
+    .join("");
+};
+
+const HEX_BIT_COUNTS = [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4];
+const comparePdfVisualHashes = (left, right) => {
+  if (!left || !right || left.length !== right.length) return 0;
+  let difference = 0;
+  for (let idx = 0; idx < left.length; idx += 1) {
+    difference += HEX_BIT_COUNTS[Number.parseInt(left[idx], 16) ^ Number.parseInt(right[idx], 16)];
+  }
+  return 1 - difference / (left.length * 4);
+};
+
+const isA4PortraitPage = (width, height) => {
+  if (!(width > 0 && height > 0) || width >= height) return false;
+  const a4Ratio = 210 / 297;
+  const ratio = width / height;
+  const pointsMatch = Math.abs(width - 595.28) <= 12 && Math.abs(height - 841.89) <= 12;
+  return pointsMatch || Math.abs(ratio - a4Ratio) <= 0.025;
+};
+
+const inspectPdfForExcel = async (file) => {
+  if (!file) throw createPdfExcelError("INVALID_PDF");
+  if (file.size > PDF_TO_EXCEL_MAX_BYTES) throw createPdfExcelError("FILE_TOO_LARGE");
+  if ((file.type && file.type !== "application/pdf") || !/\.pdf$/i.test(file.name)) {
+    throw createPdfExcelError("INVALID_FILE_TYPE");
+  }
+  const bytes = new Uint8Array(await readAsArrayBuffer(file));
+  if (new TextDecoder("ascii").decode(bytes.slice(0, 5)) !== "%PDF-") {
+    throw createPdfExcelError("INVALID_PDF");
+  }
+
+  let pdf;
+  try {
+    pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  } catch (err) {
+    if (err?.name === "PasswordException") throw createPdfExcelError("ENCRYPTED_PDF", err);
+    throw createPdfExcelError("INVALID_PDF", err);
+  }
+
+  const pages = [];
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: 1 });
+    const textContent = await page.getTextContent();
+    const textRuns = textContent.items
+      .filter((item) => item.str?.trim())
+      .map((item) => {
+        const height = Math.max(8, item.height || Math.abs(item.transform?.[3]) || 12);
+        return {
+          text: item.str,
+          x: Number(item.transform?.[4]) || 0,
+          y: viewport.height - (Number(item.transform?.[5]) || 0) - height,
+          w: Math.max(1, Number(item.width) || 1),
+          h: height,
+          bold: /bold|black|heavy/i.test(`${item.fontName || ""} ${textContent.styles?.[item.fontName]?.fontFamily || ""}`),
+        };
+      });
+    const text = textRuns.map((run) => run.text).join(" ").trim();
+    const fingerprintCanvas = await renderPdfPageCanvas(page, 256);
+    pages.push({
+      pageNumber,
+      width: viewport.width,
+      height: viewport.height,
+      text,
+      textRuns,
+      visualHash: createPdfVisualHash(fingerprintCanvas),
+    });
+  }
+  return { pdf, pages };
+};
+
+const evaluatePdfTemplate = (inspection, template) => {
+  if (inspection.pages.length !== template.detector.pageCount) {
+    return { template, matched: false, confidence: 0, reason: "page-count" };
+  }
+  if (!inspection.pages.every((page) => isA4PortraitPage(page.width, page.height))) {
+    return { template, matched: false, confidence: 0, reason: "page-size" };
+  }
+  const visualScores = inspection.pages.map((page, idx) =>
+    comparePdfVisualHashes(page.visualHash, template.detector.visualHashes[idx]),
+  );
+  const visualConfidence = visualScores.reduce((sum, score) => sum + score, 0) / visualScores.length;
+  const anchorMatches = template.detector.anchors.flatMap((anchors, pageIdx) => {
+    const normalizedPage = normalizeTemplateText(inspection.pages[pageIdx]?.text);
+    return anchors.map((anchor) => normalizedPage.includes(normalizeTemplateText(anchor)));
+  });
+  const anchorConfidence = anchorMatches.length
+    ? anchorMatches.filter(Boolean).length / anchorMatches.length
+    : 0;
+  const confidence = Math.max(visualConfidence, anchorConfidence);
+  return {
+    template,
+    matched: confidence >= template.detector.minimumConfidence,
+    confidence,
+    visualConfidence,
+    anchorConfidence,
+    reason: confidence >= template.detector.minimumConfidence ? "matched" : "confidence",
+  };
+};
+
+const findKnownPdfTemplate = (inspection) => {
+  const evaluations = PDF_TO_EXCEL_TEMPLATE_REGISTRY
+    .map((template) => evaluatePdfTemplate(inspection, template))
+    .sort((left, right) => right.confidence - left.confidence);
+  const best = evaluations[0];
+  return best?.matched ? best : null;
+};
+
+let excelJsLoaderPromise = null;
+const ensureExcelJs = async () => {
+  if (globalThis.ExcelJS?.Workbook) return globalThis.ExcelJS;
+  if (!excelJsLoaderPromise) {
+    excelJsLoaderPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+      script.onload = () => {
+        if (globalThis.ExcelJS?.Workbook) resolve(globalThis.ExcelJS);
+        else reject(createPdfExcelError("WORKBOOK_GENERATION_FAILED"));
+      };
+      script.onerror = () => reject(createPdfExcelError("WORKBOOK_GENERATION_FAILED"));
+      document.head.appendChild(script);
+    });
+  }
+  return excelJsLoaderPromise;
+};
+
+const parseExcelColumn = (letters) =>
+  [...letters].reduce((value, letter) => value * 26 + letter.charCodeAt(0) - 64, 0);
+
+const parseExcelRange = (range) => {
+  const [start, end = start] = range.toUpperCase().split(":");
+  const parseCell = (address) => {
+    const match = /^([A-Z]+)(\d+)$/.exec(address);
+    return { col: parseExcelColumn(match[1]), row: Number(match[2]) };
+  };
+  return { start: parseCell(start), end: parseCell(end) };
+};
+
+const forEachExcelCell = (sheet, range, callback) => {
+  const { start, end } = parseExcelRange(range);
+  for (let row = start.row; row <= end.row; row += 1) {
+    for (let col = start.col; col <= end.col; col += 1) callback(sheet.getCell(row, col), row, col, start, end);
+  }
+};
+
+const EXCEL_BORDER_THIN = { style: "thin", color: { argb: "FF6B7280" } };
+const EXCEL_BORDER_MEDIUM = { style: "medium", color: { argb: "FF111111" } };
+
+const setExcelCellStyle = (cell, {
+  size = 10,
+  bold = false,
+  color = "FF111111",
+  horizontal = "left",
+  vertical = "middle",
+  wrapText = false,
+  numFmt = null,
+} = {}) => {
+  cell.font = { name: "맑은 고딕", family: 2, size, bold, color: { argb: color } };
+  cell.alignment = { horizontal, vertical, wrapText };
+  if (numFmt) cell.numFmt = numFmt;
+};
+
+const setExcelTableBorders = (sheet, range) => {
+  forEachExcelCell(sheet, range, (cell, row, col, start, end) => {
+    cell.border = {
+      top: row === start.row ? EXCEL_BORDER_MEDIUM : EXCEL_BORDER_THIN,
+      bottom: row === end.row ? EXCEL_BORDER_MEDIUM : EXCEL_BORDER_THIN,
+      left: col === start.col ? EXCEL_BORDER_MEDIUM : EXCEL_BORDER_THIN,
+      right: col === end.col ? EXCEL_BORDER_MEDIUM : EXCEL_BORDER_THIN,
+    };
+  });
+};
+
+const setExcelMergedOutlineBorders = (sheet, merges, tableRange) => {
+  const table = parseExcelRange(tableRange);
+  merges.forEach((range) => {
+    const merge = parseExcelRange(range);
+    if (merge.start.row < table.start.row || merge.end.row > table.end.row || merge.start.col < table.start.col || merge.end.col > table.end.col) return;
+    const cell = sheet.getCell(merge.start.row, merge.start.col);
+    cell.border = {
+      ...(cell.border || {}),
+      ...(merge.start.row === table.start.row ? { top: EXCEL_BORDER_MEDIUM } : {}),
+      ...(merge.end.row === table.end.row ? { bottom: EXCEL_BORDER_MEDIUM } : {}),
+      ...(merge.start.col === table.start.col ? { left: EXCEL_BORDER_MEDIUM } : {}),
+      ...(merge.end.col === table.end.col ? { right: EXCEL_BORDER_MEDIUM } : {}),
+    };
+  });
+};
+
+const setExcelHorizontalBorder = (sheet, range, side = "bottom") => {
+  forEachExcelCell(sheet, range, (cell) => {
+    cell.border = { ...(cell.border || {}), [side]: EXCEL_BORDER_MEDIUM };
+  });
+};
+
+const initializeExcelSheet = (sheet, columns, rowHeights, contentRange, printArea) => {
+  sheet.columns = columns.map((width) => ({ width }));
+  rowHeights.forEach((height, idx) => {
+    sheet.getRow(idx + 1).height = height;
+  });
+  sheet.views = [{ showGridLines: false }];
+  sheet.pageSetup = {
+    paperSize: 9,
+    orientation: "portrait",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 1,
+    horizontalCentered: true,
+    verticalCentered: false,
+    printArea,
+    margins: { left: 0.7, right: 0.7, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 },
+  };
+  forEachExcelCell(sheet, contentRange, (cell) => setExcelCellStyle(cell));
+};
+
+const buildIndustrialSafetyWorkbook = async () => {
+  const ExcelJS = await ensureExcelJs();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "KunhwaTools";
+  workbook.created = new Date();
+  workbook.modified = new Date();
+  workbook.calcProperties.fullCalcOnLoad = true;
+  workbook.calcProperties.forceFullCalc = true;
+  workbook.calcProperties.calcMode = "auto";
+
+  const front = workbook.addWorksheet("앞쪽");
+  initializeExcelSheet(
+    front,
+    [2.5, 5.63, 5.63, 5.63, 8.13, 8.13, 8.13, 6.88, 9, 9, 8.75, 8.75, 2.5],
+    [15, 18.75, 9, 30, 15, 12, 21, 24, 25.5, 25.5, 25.5, 25.5, 25.5, 25.5, 25.5, 13.5, 21, 25.5, 24, 24, 24, 24, 24, 24, 24, 24, 24, 25.5, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 13.5, 6, 16.5],
+    "B2:L43",
+    "B2:L43",
+  );
+  INDUSTRIAL_SAFETY_FRONT_MERGES.forEach((range) => front.mergeCells(range));
+
+  front.getCell("B2").value = "■ 산업안전보건법 시행규칙 [별지 제102호서식]";
+  setExcelCellStyle(front.getCell("B2"), { size: 9 });
+  front.getCell("I2").value = "<개정 2025. 5. 30.>";
+  setExcelCellStyle(front.getCell("I2"), { size: 9, color: "FF1D4ED8" });
+  front.getCell("B4").value = "산업안전보건관리비 사용계획서";
+  setExcelCellStyle(front.getCell("B4"), { size: 20, horizontal: "center" });
+  front.getCell("L5").value = "(앞 쪽)";
+  setExcelCellStyle(front.getCell("L5"), { size: 9, horizontal: "right" });
+
+  front.getCell("B7").value = "1. 일반사항";
+  setExcelCellStyle(front.getCell("B7"), { size: 11 });
+  setExcelHorizontalBorder(front, "B7:L7");
+  front.getCell("B8").value = "발주자";
+  front.getCell("H8").value = "공사\n금액";
+  setExcelCellStyle(front.getCell("H8"), { horizontal: "center", wrapText: true });
+  front.getCell("I8").value = "계";
+  setExcelCellStyle(front.getCell("I8"), { horizontal: "center" });
+  front.getCell("K8").value = { formula: "SUM(K9:K12)", result: 0 };
+  setExcelCellStyle(front.getCell("K8"), { horizontal: "right", numFmt: '#,##0;[Red]-#,##0;""' });
+  front.getCell("B9").value = "공사종류\n(해당란에 √ 표)";
+  setExcelCellStyle(front.getCell("B9"), { wrapText: true });
+  front.getCell("E9").value = "[   ] 건축공사\n[   ] 토목공사\n[   ] 중건설공사\n[   ] 특수건설공사";
+  setExcelCellStyle(front.getCell("E9"), { wrapText: true });
+  ["① 재료비(관급별도)", "② 관급재료비", "③ 직접노무비", "④ 그 밖의 사항"].forEach((label, idx) => {
+    const row = 9 + idx;
+    front.getCell(`I${row}`).value = label;
+    setExcelCellStyle(front.getCell(`I${row}`));
+    setExcelCellStyle(front.getCell(`K${row}`), { horizontal: "right", numFmt: '#,##0;[Red]-#,##0;""' });
+  });
+  front.getCell("B13").value = "산업안전보건관리비";
+  front.getCell("E13").value = { formula: "I28", result: 0 };
+  setExcelCellStyle(front.getCell("E13"), { horizontal: "right", numFmt: '#,##0;[Red]-#,##0;""' });
+  front.getCell("H13").value = "산업안전보건관리비 계산\n대상금액\n[공사금액 중 ①+②+③]";
+  setExcelCellStyle(front.getCell("H13"), { wrapText: true });
+  front.getCell("K13").value = { formula: "SUM(K9:K11)", result: 0 };
+  setExcelCellStyle(front.getCell("K13"), { horizontal: "right", numFmt: '#,##0;[Red]-#,##0;""' });
+  setExcelTableBorders(front, "B8:L15");
+  setExcelMergedOutlineBorders(front, INDUSTRIAL_SAFETY_FRONT_MERGES, "B8:L15");
+
+  front.getCell("B17").value = "2. 항목별 실행계획";
+  setExcelCellStyle(front.getCell("B17"), { size: 11 });
+  setExcelHorizontalBorder(front, "B17:L17");
+  front.getCell("B18").value = "항목";
+  front.getCell("I18").value = "금액";
+  front.getCell("L18").value = "비율(%)";
+  ["B18", "I18", "L18"].forEach((address) => setExcelCellStyle(front.getCell(address), { horizontal: "center" }));
+  INDUSTRIAL_SAFETY_ITEMS.forEach((item, idx) => {
+    const frontRow = 19 + idx;
+    const backRow = 7 + idx;
+    front.getCell(`B${frontRow}`).value = item;
+    setExcelCellStyle(front.getCell(`B${frontRow}`), { wrapText: true });
+    front.getCell(`I${frontRow}`).value = {
+      formula: `IF('뒤쪽'!F${backRow}="","",'뒤쪽'!F${backRow})`,
+      result: "",
+    };
+    setExcelCellStyle(front.getCell(`I${frontRow}`), { horizontal: "right", numFmt: '#,##0;[Red]-#,##0;""' });
+    front.getCell(`L${frontRow}`).value = {
+      formula: `IF($I$28=0,0,I${frontRow}/$I$28)`,
+      result: 0,
+    };
+    setExcelCellStyle(front.getCell(`L${frontRow}`), { horizontal: "right", numFmt: '0.0%;-0.0%;"%"' });
+  });
+  front.getCell("B28").value = "총계";
+  setExcelCellStyle(front.getCell("B28"), { bold: true, horizontal: "center" });
+  front.getCell("I28").value = { formula: "SUM(I19:I27)", result: 0 };
+  setExcelCellStyle(front.getCell("I28"), { horizontal: "right", numFmt: '#,##0;[Red]-#,##0;""' });
+  front.getCell("L28").value = 1;
+  setExcelCellStyle(front.getCell("L28"), { horizontal: "right", numFmt: "0%" });
+  setExcelTableBorders(front, "B18:L28");
+  setExcelMergedOutlineBorders(front, INDUSTRIAL_SAFETY_FRONT_MERGES, "B18:L28");
+  front.getCell("B43").value = "210mm×297mm[일반용지 60g/㎡(재활용품)]";
+  setExcelCellStyle(front.getCell("B43"), { size: 8, color: "FF4B5563", horizontal: "right" });
+  setExcelHorizontalBorder(front, "B42:L42");
+
+  const back = workbook.addWorksheet("뒤쪽");
+  initializeExcelSheet(
+    back,
+    [2.5, 25.63, 11.88, 6.88, 6.88, 11.88, 12.5, 8.75, 2.5],
+    [37.5, 16.5, 6, 10.5, 22.5, 27, 60, 60, 60, 60, 60, 60, 60, 60, 60],
+    "B2:H15",
+    "B2:H15",
+  );
+  back.mergeCells("B5:H5");
+  back.getCell("H2").value = "(뒤쪽)";
+  setExcelCellStyle(back.getCell("H2"), { size: 9, horizontal: "right" });
+  setExcelHorizontalBorder(back, "B3:H3");
+  back.getCell("B5").value = "3. 세부 사용계획";
+  setExcelCellStyle(back.getCell("B5"), { size: 11 });
+  setExcelHorizontalBorder(back, "B5:H5");
+  ["항목", "세부항목", "단위", "수 량", "금액", "산출 명세", "사용시기"].forEach((label, idx) => {
+    const cell = back.getCell(6, idx + 2);
+    cell.value = label;
+    setExcelCellStyle(cell, { horizontal: "center" });
+  });
+  INDUSTRIAL_SAFETY_ITEMS.forEach((item, idx) => {
+    const row = 7 + idx;
+    back.getCell(`B${row}`).value = item;
+    setExcelCellStyle(back.getCell(`B${row}`), { wrapText: true });
+    setExcelCellStyle(back.getCell(`C${row}`), { wrapText: true });
+    setExcelCellStyle(back.getCell(`D${row}`), { horizontal: "center" });
+    setExcelCellStyle(back.getCell(`E${row}`), { horizontal: "right", numFmt: '0.00;[Red]-0.00;""' });
+    setExcelCellStyle(back.getCell(`F${row}`), { horizontal: "right", numFmt: '#,##0;[Red]-#,##0;""' });
+    setExcelCellStyle(back.getCell(`G${row}`), { wrapText: true });
+    setExcelCellStyle(back.getCell(`H${row}`), { wrapText: true });
+  });
+  setExcelTableBorders(back, "B6:H15");
+  return workbook;
+};
+
+const validateIndustrialSafetyWorkbook = (workbook) => {
+  const errors = [];
+  const front = workbook.getWorksheet("앞쪽");
+  const back = workbook.getWorksheet("뒤쪽");
+  if (workbook.worksheets.length !== 2 || !front || !back) errors.push("sheet-structure");
+  if (!front || !back) throw createPdfExcelError("WORKBOOK_VALIDATION_FAILED", errors);
+  const actualMerges = new Set(front.model.merges || []);
+  INDUSTRIAL_SAFETY_FRONT_MERGES.forEach((range) => {
+    if (!actualMerges.has(range)) errors.push(`merge:${range}`);
+  });
+  if (!(back.model.merges || []).includes("B5:H5")) errors.push("merge:B5:H5");
+  const expectedFormulas = {
+    K8: "SUM(K9:K12)",
+    K13: "SUM(K9:K11)",
+    E13: "I28",
+    I28: "SUM(I19:I27)",
+  };
+  Object.entries(expectedFormulas).forEach(([address, formula]) => {
+    if (front.getCell(address).value?.formula !== formula) errors.push(`formula:${address}`);
+  });
+  INDUSTRIAL_SAFETY_ITEMS.forEach((item, idx) => {
+    const frontRow = 19 + idx;
+    const backRow = 7 + idx;
+    if (front.getCell(`B${frontRow}`).value !== item || back.getCell(`B${backRow}`).value !== item) {
+      errors.push(`item:${idx + 1}`);
+    }
+    if (front.getCell(`I${frontRow}`).value?.formula !== `IF('뒤쪽'!F${backRow}="","",'뒤쪽'!F${backRow})`) {
+      errors.push(`formula:I${frontRow}`);
+    }
+    if (front.getCell(`L${frontRow}`).value?.formula !== `IF($I$28=0,0,I${frontRow}/$I$28)`) {
+      errors.push(`formula:L${frontRow}`);
+    }
+  });
+  if (front.pageSetup.printArea !== "B2:L43" || back.pageSetup.printArea !== "B2:H15") errors.push("print-area");
+  if (errors.length) throw createPdfExcelError("WORKBOOK_VALIDATION_FAILED", errors);
+};
+
+const validateGeneratedXlsx = async (ExcelJS, buffer) => {
+  try {
+    const roundTrip = new ExcelJS.Workbook();
+    await roundTrip.xlsx.load(buffer);
+    validateIndustrialSafetyWorkbook(roundTrip);
+    const zip = await JSZip.loadAsync(buffer);
+    const requiredParts = ["[Content_Types].xml", "xl/workbook.xml", "xl/worksheets/sheet1.xml", "xl/worksheets/sheet2.xml"];
+    if (requiredParts.some((part) => !zip.file(part))) throw new Error("xlsx-parts");
+    if (zip.file("xl/vbaProject.bin") || Object.keys(zip.files).some((name) => name.startsWith("xl/externalLinks/"))) {
+      throw new Error("unsafe-xlsx-parts");
+    }
+  } catch (err) {
+    if (err instanceof PdfExcelConversionError) throw err;
+    throw createPdfExcelError("WORKBOOK_VALIDATION_FAILED", err);
+  }
+};
+
+const buildPdfTemplateWorkbookBlob = async (template) => {
+  if (template.id !== INDUSTRIAL_SAFETY_TEMPLATE.id) throw createPdfExcelError("WORKBOOK_GENERATION_FAILED");
+  try {
+    const ExcelJS = await ensureExcelJs();
+    const workbook = await buildIndustrialSafetyWorkbook();
+    validateIndustrialSafetyWorkbook(workbook);
+    const buffer = await workbook.xlsx.writeBuffer();
+    await validateGeneratedXlsx(ExcelJS, buffer);
+    return new Blob([buffer], { type: PDF_TO_EXCEL_XLSX_TYPE });
+  } catch (err) {
+    if (err instanceof PdfExcelConversionError) throw err;
+    throw createPdfExcelError("WORKBOOK_GENERATION_FAILED", err);
+  }
+};
+
+const detectPdfGridGuides = (canvas, scale) => {
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  const image = context.getImageData(0, 0, canvas.width, canvas.height);
+  const isDark = (offset) =>
+    image.data[offset + 3] > 80 &&
+    (image.data[offset] * 0.299 + image.data[offset + 1] * 0.587 + image.data[offset + 2] * 0.114) < 175;
+  const longestRun = (length, offsetAt) => {
+    let run = 0;
+    let gap = 0;
+    let start = 0;
+    let best = { length: 0, start: 0, end: 0 };
+    for (let idx = 0; idx < length; idx += 1) {
+      if (isDark(offsetAt(idx))) {
+        if (!run) start = idx;
+        run += gap + 1;
+        gap = 0;
+        if (run > best.length) best = { length: run, start, end: idx };
+      } else if (run && gap < 2) gap += 1;
+      else {
+        run = 0;
+        gap = 0;
+      }
+    }
+    return best;
+  };
+
+  const horizontal = [];
+  const minimumHorizontal = Math.max(90, canvas.width * 0.08);
+  for (let y = 0; y < canvas.height; y += 1) {
+    const best = longestRun(canvas.width, (x) => (y * canvas.width + x) * 4);
+    if (best.length >= minimumHorizontal) {
+      horizontal.push(y);
+    }
+  }
+
+  const vertical = [];
+  const minimumVertical = Math.max(90, canvas.height * 0.06);
+  for (let x = 0; x < canvas.width; x += 1) {
+    const best = longestRun(canvas.height, (y) => (y * canvas.width + x) * 4);
+    if (best.length >= minimumVertical) vertical.push(x);
+  }
+
+  const horizontalGuides = clusterNumbers(horizontal, Math.max(3, scale * 1.5));
+  const verticalGuides = clusterNumbers(vertical, Math.max(3, scale * 1.5));
+  return {
+    horizontal: horizontalGuides.length >= 2 ? horizontalGuides : [],
+    vertical: verticalGuides.length >= 2 ? verticalGuides : [],
+    scale,
+  };
+};
+
+const isPdfGridLayout = (guides) => {
+  const horizontalCount = guides.horizontal.length;
+  const verticalCount = guides.vertical.length;
+  return horizontalCount >= 2 && verticalCount >= 2 && (verticalCount >= 3 || horizontalCount >= 4);
+};
+
+let pdfOcrLoaderPromise = null;
+const ensurePdfOcr = async () => {
+  if (globalThis.Tesseract?.createWorker) return globalThis.Tesseract;
+  if (!pdfOcrLoaderPromise) {
+    pdfOcrLoaderPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js";
+      script.onload = () => {
+        if (globalThis.Tesseract?.createWorker) resolve(globalThis.Tesseract);
+        else reject(createPdfExcelError("OCR_LOAD_FAILED"));
+      };
+      script.onerror = () => reject(createPdfExcelError("OCR_LOAD_FAILED"));
+      document.head.appendChild(script);
+    });
+  }
+  return pdfOcrLoaderPromise;
+};
+
+const createPdfOcrWorker = async (progressContext, onProgress) => {
+  try {
+    const Tesseract = await ensurePdfOcr();
+    const worker = await Tesseract.createWorker(["kor", "eng"], 1, {
+      logger: (message) => {
+        if (message.status === "recognizing text") {
+          onProgress?.({
+            stage: "ocr",
+            pageNumber: progressContext.pageNumber,
+            totalPages: progressContext.totalPages,
+            percent: Math.round(message.progress * 100),
+          });
+        }
+      },
+    });
+    await worker.setParameters({
+      tessedit_pageseg_mode: "11",
+      preserve_interword_spaces: "1",
+      user_defined_dpi: "300",
+    });
+    return worker;
+  } catch (err) {
+    if (err instanceof PdfExcelConversionError) throw err;
+    throw createPdfExcelError("OCR_LOAD_FAILED", err);
+  }
+};
+
+const collectPdfOcrRuns = (result) => {
+  const blocks = result.data.blocks || [];
+  const lines = blocks.flatMap((block) =>
+    (block.paragraphs || []).flatMap((paragraph) => paragraph.lines || []),
+  );
+  const words = lines.flatMap((line) => line.words || []);
+  const source = words.length ? words : lines.length ? lines : result.data.lines || [];
+  return source
+    .filter((item) => item.text?.trim() && item.bbox && (item.confidence ?? 100) >= 20)
+    .map((item) => ({
+      text: item.text,
+      x: item.bbox.x0,
+      y: item.bbox.y0,
+      w: Math.max(1, item.bbox.x1 - item.bbox.x0),
+      h: Math.max(8, item.bbox.y1 - item.bbox.y0),
+      bold: false,
+    }));
+};
+
+const analyzeGenericPdfPages = async (inspection, onProgress) => {
+  const sheetSpecs = [];
+  const summary = {
+    textPages: 0,
+    ocrPages: 0,
+    blankPages: 0,
+    tablePages: 0,
+    documentPages: 0,
+    columnPages: 0,
+  };
+  const progressContext = { pageNumber: 0, totalPages: inspection.pages.length };
+  let ocrWorker = null;
+
+  try {
+    for (const pageInfo of inspection.pages) {
+      progressContext.pageNumber = pageInfo.pageNumber;
+      onProgress?.({ stage: "page", pageNumber: pageInfo.pageNumber, totalPages: inspection.pages.length });
+      const page = await inspection.pdf.getPage(pageInfo.pageNumber);
+      const targetWidth = Math.min(2200, Math.max(1200, pageInfo.width * 2));
+      const canvas = await renderPdfPageCanvas(page, targetWidth);
+      const scale = canvas.width / pageInfo.width;
+      const guides = detectPdfGridGuides(canvas, scale);
+      const hasGrid = isPdfGridLayout(guides);
+      let runs = [];
+      let sourceMode = "text";
+
+      if (pageInfo.textRuns.length >= 2) {
+        runs = pageInfo.textRuns.map((run) => ({
+          ...run,
+          x: run.x * scale,
+          y: run.y * scale,
+          w: run.w * scale,
+          h: run.h * scale,
+        }));
+        summary.textPages += 1;
+      } else {
+        sourceMode = "ocr";
+        if (!ocrWorker) ocrWorker = await createPdfOcrWorker(progressContext, onProgress);
+        let result;
+        try {
+          result = await ocrWorker.recognize(canvas, {}, { blocks: true, tsv: true });
+        } catch (err) {
+          throw createPdfExcelError("OCR_FAILED", err);
+        }
+        runs = collectPdfOcrRuns(result);
+        summary.ocrPages += 1;
+      }
+
+      if (!runs.length) summary.blankPages += 1;
+      const spec = hasGrid
+        ? {
+          ...positionedRunsToSheet(runs, `${pageInfo.pageNumber}페이지`, guides),
+          layoutMode: "table",
+        }
+        : pdfFlowRunsToSheet(
+          runs,
+          `${pageInfo.pageNumber}페이지`,
+          canvas.width,
+          canvas.height,
+          scale,
+        );
+      if (spec.layoutMode === "table") summary.tablePages += 1;
+      else if (spec.layoutMode === "columns") summary.columnPages += 1;
+      else summary.documentPages += 1;
+      const preview = createPdfPagePreview(canvas);
+      sheetSpecs.push({
+        ...spec,
+        sourceMode,
+        hasGrid,
+        pageWidth: pageInfo.width,
+        pageHeight: pageInfo.height,
+        preview,
+      });
+    }
+  } finally {
+    await ocrWorker?.terminate?.();
+  }
+
+  return { sheetSpecs, summary };
+};
+
+const coerceGenericPdfCell = (rawValue) => {
+  const text = cleanSpreadsheetText(rawValue);
+  if (!text) return { value: null, numFmt: null };
+  if (text.includes("\n")) return { value: text, numFmt: null };
+  const percent = /^(-?\d+(?:\.\d+)?)\s*%$/.exec(text);
+  if (percent) return { value: Number(percent[1]) / 100, numFmt: "0.0%" };
+  const normalized = text.replace(/,/g, "");
+  if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(normalized)) {
+    return { value: Number(normalized), numFmt: normalized.includes(".") ? "#,##0.00" : "#,##0" };
+  }
+  return { value: text, numFmt: null };
+};
+
+const excelColumnName = (columnNumber) => {
+  let value = columnNumber;
+  let name = "";
+  while (value > 0) {
+    value -= 1;
+    name = String.fromCharCode(65 + (value % 26)) + name;
+    value = Math.floor(value / 26);
+  }
+  return name || "A";
+};
+
+const validateGenericPdfWorkbook = async (ExcelJS, buffer, expectedSheetCount, expectedPreviewCount) => {
+  try {
+    const roundTrip = new ExcelJS.Workbook();
+    await roundTrip.xlsx.load(buffer);
+    if (roundTrip.worksheets.length !== expectedSheetCount) throw new Error("sheet-count");
+    const zip = await JSZip.loadAsync(buffer);
+    const requiredParts = ["[Content_Types].xml", "xl/workbook.xml"];
+    if (requiredParts.some((part) => !zip.file(part))) throw new Error("xlsx-parts");
+    const previewCount = Object.keys(zip.files).filter((name) => /^xl\/media\/image\d+\.(?:jpe?g|png)$/i.test(name)).length;
+    if (previewCount < expectedPreviewCount) throw new Error("page-preview-count");
+    if (zip.file("xl/vbaProject.bin") || Object.keys(zip.files).some((name) => name.startsWith("xl/externalLinks/"))) {
+      throw new Error("unsafe-xlsx-parts");
+    }
+  } catch (err) {
+    throw createPdfExcelError("WORKBOOK_VALIDATION_FAILED", err);
+  }
+};
+
+const buildGenericPdfWorkbookBlob = async (inspection, file, onProgress) => {
+  const ExcelJS = await ensureExcelJs();
+  const { sheetSpecs, summary } = await analyzeGenericPdfPages(inspection, onProgress);
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "KunhwaTools";
+  workbook.created = new Date();
+  workbook.modified = new Date();
+  const usedNames = new Set();
+
+  sheetSpecs.forEach((spec, index) => {
+    const rowCount = Math.max(1, spec.rows?.length || 0);
+    const colCount = Math.max(1, ...((spec.rows || []).map((row) => row.length)), spec.columnWidths?.length || 0);
+    const sheet = workbook.addWorksheet(uniqueSheetName(spec.name || `${index + 1}페이지`, usedNames));
+    sheet.views = [{ showGridLines: false }];
+    sheet.pageSetup = {
+      orientation: spec.pageWidth > spec.pageHeight ? "landscape" : "portrait",
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.35, right: 0.35, top: 0.45, bottom: 0.45, header: 0.2, footer: 0.2 },
+      printArea: `A1:${excelColumnName(colCount)}${rowCount}`,
+    };
+    sheet.columns = Array.from({ length: colCount }, (_, colIdx) => ({
+      width: spec.excelColumnWidths?.[colIdx]
+        || Math.max(6, Math.min(42, (spec.columnWidths?.[colIdx] || 84) / 7)),
+    }));
+
+    for (let rowIdx = 0; rowIdx < rowCount; rowIdx += 1) {
+      const estimatedWrappedHeight = Math.max(...Array.from({ length: colCount }, (_, colIdx) => {
+        const value = String(spec.rows?.[rowIdx]?.[colIdx] || "");
+        const width = spec.excelColumnWidths?.[colIdx] || 42;
+        return value ? Math.ceil(value.length / Math.max(12, width * 0.9)) * 15 : 0;
+      }));
+      const requestedHeight = spec.excelRowHeights?.[rowIdx]
+        || (spec.rowHeights?.[rowIdx] || 24) * 0.75;
+      sheet.getRow(rowIdx + 1).height = Math.max(9, Math.min(96, Math.max(requestedHeight, estimatedWrappedHeight)));
+      for (let colIdx = 0; colIdx < colCount; colIdx += 1) {
+        const cell = sheet.getCell(rowIdx + 1, colIdx + 1);
+        const converted = coerceGenericPdfCell(spec.rows?.[rowIdx]?.[colIdx] || "");
+        const meta = spec.cellMeta?.[rowIdx]?.[colIdx] || null;
+        cell.value = converted.value;
+        setExcelCellStyle(cell, {
+          size: meta?.size || 10,
+          bold: Boolean(meta?.bold),
+          color: meta?.color || "FF243247",
+          horizontal: typeof converted.value === "number" ? "right" : "left",
+          vertical: "top",
+          wrapText: true,
+          numFmt: converted.numFmt,
+        });
+        if (meta?.kind === "title") {
+          cell.border = { bottom: { style: "medium", color: { argb: "FF315EA8" } } };
+        } else if (meta?.kind === "heading") {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5FA" } };
+          cell.border = { bottom: { style: "thin", color: { argb: "FFB7C7DC" } } };
+        }
+        if (spec.hasGrid) {
+          cell.border = {
+            top: rowIdx === 0 ? EXCEL_BORDER_MEDIUM : EXCEL_BORDER_THIN,
+            bottom: rowIdx === rowCount - 1 ? EXCEL_BORDER_MEDIUM : EXCEL_BORDER_THIN,
+            left: colIdx === 0 ? EXCEL_BORDER_MEDIUM : EXCEL_BORDER_THIN,
+            right: colIdx === colCount - 1 ? EXCEL_BORDER_MEDIUM : EXCEL_BORDER_THIN,
+          };
+        }
+      }
+    }
+    (spec.merges || []).forEach((merge) => {
+      const start = `${excelColumnName(merge.col + 1)}${merge.row + 1}`;
+      const end = `${excelColumnName(merge.col + merge.colSpan)}${merge.row + merge.rowSpan}`;
+      sheet.mergeCells(`${start}:${end}`);
+    });
+    if (spec.preview?.dataUrl) {
+      const imageId = workbook.addImage({ base64: spec.preview.dataUrl, extension: "jpeg" });
+      const previewWidth = spec.pageWidth > spec.pageHeight ? 520 : 420;
+      const previewHeight = Math.min(640, previewWidth * spec.preview.height / spec.preview.width);
+      sheet.getColumn(colCount + 1).width = 3;
+      sheet.addImage(imageId, {
+        tl: { col: colCount + 1, row: 0 },
+        ext: { width: previewWidth, height: previewHeight },
+        editAs: "oneCell",
+      });
+    }
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  await validateGenericPdfWorkbook(
+    ExcelJS,
+    buffer,
+    sheetSpecs.length,
+    sheetSpecs.filter((spec) => spec.preview?.dataUrl).length,
+  );
+  const stem = String(file.name || "PDF")
+    .replace(/\.pdf$/i, "")
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "PDF";
+  return {
+    blob: new Blob([buffer], { type: PDF_TO_EXCEL_XLSX_TYPE }),
+    fileName: `${stem}_엑셀변환.xlsx`,
+    summary,
+    sheetCount: sheetSpecs.length,
+  };
+};
+
+const buildUniversalPdfExcelResult = async (inspection, file, profile, onProgress) => {
+  if (profile.type === "known-template") {
+    return {
+      blob: await buildPdfTemplateWorkbookBlob(profile.evaluation.template),
+      fileName: profile.evaluation.template.workbook.fileName,
+      resultText: `${profile.evaluation.template.displayName} 자동 최적화 · 앞쪽/뒤쪽 2개 시트 · 편집 가능한 셀과 수식 포함`,
+    };
+  }
+  const generic = await buildGenericPdfWorkbookBlob(inspection, file, onProgress);
+  return {
+    blob: generic.blob,
+    fileName: generic.fileName,
+    resultText: `범용 자동 분석 · ${generic.sheetCount}개 시트 · 문서 ${generic.summary.documentPages} / 2단 ${generic.summary.columnPages} / 표 ${generic.summary.tablePages} / OCR ${generic.summary.ocrPages}페이지`,
+  };
+};
+
 const setupPdfToExcel = () => {
   const fileInput = $("pdfExcelFile");
-  const modeSelect = $("pdfExcelMode");
   const convertBtn = $("runPdfToExcel");
   const previewBox = $("pdfExcelPreview");
-  if (!fileInput || !modeSelect || !convertBtn || !previewBox) return;
-  let activeFile = null;
-  $("runPdfToExcelIcon").innerHTML = ICONS.fileEarmarkSpreadsheet;
+  const clearBtn = $("clearPdfExcelFile");
+  const resultBox = $("pdfExcelResult");
+  const resultText = $("pdfExcelResultText");
+  const downloadBtn = $("downloadPdfExcelResult");
+  const resetBtn = $("resetPdfExcelConversion");
+  if (!fileInput || !convertBtn || !previewBox || !clearBtn || !resultBox || !resultText || !downloadBtn || !resetBtn) return;
 
-  const renderPreview = async (file) => {
-    previewBox.innerHTML = '<p class="status">PDF 미리보기 생성 중...</p>';
+  let activeFile = null;
+  let activeInspection = null;
+  let activeProfile = null;
+  let outputBlob = null;
+  let outputFileName = "";
+  let analysisSerial = 0;
+
+  $("runPdfToExcelIcon").innerHTML = ICONS.fileEarmarkSpreadsheet;
+  $("clearPdfExcelFileIcon").innerHTML = ICONS.x;
+  $("downloadPdfExcelResultIcon").innerHTML = ICONS.download;
+  $("resetPdfExcelConversionIcon").innerHTML = ICONS.arrowCounterclockwise;
+
+  const hideResult = () => {
+    outputBlob = null;
+    outputFileName = "";
+    resultBox.hidden = true;
+    resultText.textContent = "";
+  };
+
+  const setIdlePreview = () => {
+    previewBox.innerHTML = '<p class="status">PDF 첫 페이지 미리보기가 여기에 표시됩니다.</p>';
+  };
+
+  const releaseInspection = async () => {
+    const previous = activeInspection;
+    activeInspection = null;
+    activeProfile = null;
+    await previous?.pdf?.destroy?.();
+  };
+
+  const showPreview = async (file, inspection) => {
+    const page = await inspection.pdf.getPage(1);
+    const canvas = await renderPdfPageCanvas(page, 760);
+    canvas.className = "pdf-excel-preview-canvas";
+    const meta = document.createElement("p");
+    meta.className = "status pdf-excel-preview-meta";
+    const textPageCount = inspection.pages.filter((item) => item.textRuns.length >= 2).length;
+    const textLayerState = textPageCount === inspection.pages.length
+      ? "텍스트형 PDF"
+      : textPageCount === 0
+        ? "이미지형 PDF"
+        : "텍스트·이미지 혼합 PDF";
+    meta.textContent = `${file.name} · ${formatFileSize(file.size)} · ${inspection.pages.length}페이지 · ${textLayerState}`;
+    previewBox.replaceChildren(meta, canvas);
+  };
+
+  const analyzeSelection = async () => {
+    const serial = ++analysisSerial;
+    const file = fileInput.files?.[0] || null;
+    activeFile = file;
+    hideResult();
+    convertBtn.disabled = true;
+    clearBtn.hidden = !file;
+    if (!file) {
+      await releaseInspection();
+      setIdlePreview();
+      setStatus("pdfExcelStatus", "");
+      return;
+    }
+
+    await releaseInspection();
+    previewBox.innerHTML = '<p class="status">PDF 페이지와 텍스트 구조를 확인 중...</p>';
+    setStatus("pdfExcelStatus", "PDF를 자동 분석 중입니다.");
     try {
-      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await readAsArrayBuffer(file)) }).promise;
-      const page = await pdf.getPage(1);
-      const baseViewport = page.getViewport({ scale: 1 });
-      const scale = Math.min(1.2, 760 / baseViewport.width);
-      const viewport = page.getViewport({ scale });
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-      const textContent = await page.getTextContent();
-      const textCount = textContent.items.filter((item) => item.str?.trim()).length;
-      const meta = document.createElement("p");
-      meta.className = "status pdf-excel-preview-meta";
-      meta.textContent = `${file.name} · ${pdf.numPages}페이지 · ${textCount ? "텍스트 좌표 감지" : "이미지형 PDF (OCR 필요)"}`;
-      canvas.className = "pdf-excel-preview-canvas";
-      previewBox.replaceChildren(meta, canvas);
-      setStatus("pdfExcelStatus", `PDF 로드 완료: ${pdf.numPages}페이지`);
+      const inspection = await inspectPdfForExcel(file);
+      if (serial !== analysisSerial) {
+        await inspection.pdf.destroy?.();
+        return;
+      }
+      activeInspection = inspection;
+      await showPreview(file, inspection);
+      const knownTemplate = findKnownPdfTemplate(inspection);
+      activeProfile = knownTemplate
+        ? { type: "known-template", evaluation: knownTemplate }
+        : { type: "generic" };
+      if (knownTemplate) {
+        const confidence = Math.round(knownTemplate.confidence * 100);
+        setStatus("pdfExcelStatus", `자동 최적화 감지: ${knownTemplate.template.displayName} · 일치도 ${confidence}%`);
+      } else {
+        const textPages = inspection.pages.filter((page) => page.textRuns.length >= 2).length;
+        const imagePages = inspection.pages.length - textPages;
+        setStatus("pdfExcelStatus", `범용 변환 준비: ${inspection.pages.length}페이지 · 텍스트 ${textPages} / 이미지 OCR ${imagePages}`);
+      }
+      convertBtn.disabled = false;
     } catch (err) {
-      previewBox.innerHTML = `<p class="status">PDF 미리보기 실패: ${getErrorMessage(err)}</p>`;
-      setStatus("pdfExcelStatus", `PDF 로드 실패: ${getErrorMessage(err)}`);
+      if (serial !== analysisSerial) return;
+      activeProfile = null;
+      const message = err instanceof PdfExcelConversionError ? err.message : getErrorMessage(err);
+      setStatus("pdfExcelStatus", `변환 불가: ${message}`);
+      if (!activeInspection) previewBox.innerHTML = `<p class="status">PDF 미리보기 실패: ${message}</p>`;
     }
   };
 
-  fileInput.addEventListener("change", () => {
-    activeFile = fileInput.files?.[0] || null;
-    if (activeFile) renderPreview(activeFile);
+  const clearSelection = () => {
+    analysisSerial += 1;
+    fileInput.value = "";
+    fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  fileInput.addEventListener("change", analyzeSelection);
+  clearBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    clearSelection();
   });
 
   convertBtn.addEventListener("click", async () => {
-    if (!activeFile) {
-      setStatus("pdfExcelStatus", "먼저 PDF 파일을 넣어 주세요.");
+    if (!activeFile || !activeInspection || !activeProfile) {
+      setStatus("pdfExcelStatus", "변환할 PDF 파일을 먼저 선택해 주세요.");
       return;
     }
+    const conversionId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     beginGlobalBusy("PDF를 Excel로 변환 중...");
-    let ocrWorker = null;
+    convertBtn.disabled = true;
+    hideResult();
     try {
-      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await readAsArrayBuffer(activeFile)) }).promise;
-      const sheetSpecs = [];
-      let textPages = 0;
-      let ocrPages = 0;
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-        setGlobalBusyMessage(`PDF ${pageNumber}/${pdf.numPages}페이지 분석 중...`);
-        const page = await pdf.getPage(pageNumber);
-        const viewport = page.getViewport({ scale: 1 });
-        const content = await page.getTextContent();
-        const textRuns = content.items
-          .filter((item) => item.str?.trim())
-          .map((item) => ({
-            text: item.str,
-            x: item.transform[4],
-            y: viewport.height - item.transform[5],
-            w: item.width,
-            h: item.height || Math.abs(item.transform[3]) || 12,
-          }));
-        const useOcr = modeSelect.value === "ocr" || (modeSelect.value === "auto" && textRuns.length < 3);
-        if (!useOcr && textRuns.length) {
-          sheetSpecs.push(positionedRunsToSheet(textRuns, `${pageNumber}페이지`));
-          textPages += 1;
-          continue;
-        }
-        if (modeSelect.value === "text") {
-          throw new Error(`${pageNumber}페이지에서 PDF 텍스트를 찾지 못했습니다. 자동 감지 또는 한글 OCR을 선택해 주세요.`);
-        }
-        if (!ocrWorker) {
-          const Tesseract = await ensureTesseract();
-          ocrWorker = await Tesseract.createWorker(["kor", "eng"], 1, {
-            logger: (message) => {
-              if (message.status === "recognizing text") {
-                setGlobalBusyMessage(`PDF ${pageNumber}/${pdf.numPages}페이지 OCR ${Math.round(message.progress * 100)}%`);
-              }
-            },
-          });
-          await ocrWorker.setParameters({
-            tessedit_pageseg_mode: "11",
-            preserve_interword_spaces: "1",
-            user_defined_dpi: "300",
-          });
-        }
-        const ocrViewport = page.getViewport({ scale: 2 });
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.ceil(ocrViewport.width);
-        canvas.height = Math.ceil(ocrViewport.height);
-        const context = canvas.getContext("2d", { willReadFrequently: true });
-        context.fillStyle = "#ffffff";
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: context, viewport: ocrViewport }).promise;
-        const result = await ocrWorker.recognize(canvas, {}, { blocks: true, tsv: true });
-        const blockLines = (result.data.blocks || []).flatMap((block) =>
-          (block.paragraphs || []).flatMap((paragraph) =>
-            paragraph.lines || [],
-          ),
-        );
-        const ocrLines = blockLines.length ? blockLines : result.data.lines || [];
-        const ocrRuns = ocrLines
-          .filter((line) => line.text?.trim() && line.bbox && (line.confidence ?? 100) >= 20)
-          .map((line) => ({
-            text: line.text,
-            x: line.bbox.x0,
-            y: line.bbox.y0,
-            w: line.bbox.x1 - line.bbox.x0,
-            h: line.bbox.y1 - line.bbox.y0,
-          }));
-        if (!ocrRuns.length) throw new Error(`${pageNumber}페이지에서 OCR 텍스트를 찾지 못했습니다.`);
-        sheetSpecs.push(positionedRunsToSheet(ocrRuns, `${pageNumber}페이지 OCR`, detectCanvasGridGuides(canvas)));
-        ocrPages += 1;
-      }
-      const stem = activeFile.name.replace(/\.pdf$/i, "");
-      downloadStructuredWorkbook(sheetSpecs, `${stem}.xlsx`);
-      setStatus("pdfExcelStatus", `변환 완료: ${pdf.numPages}페이지 (텍스트 ${textPages}, OCR ${ocrPages})`);
+      const result = await buildUniversalPdfExcelResult(
+        activeInspection,
+        activeFile,
+        activeProfile,
+        ({ stage, pageNumber, totalPages, percent }) => {
+          if (stage === "ocr") {
+            setGlobalBusyMessage(`PDF ${pageNumber}/${totalPages}페이지 OCR ${percent}%`);
+            return;
+          }
+          setGlobalBusyMessage(`PDF ${pageNumber}/${totalPages}페이지 구조 분석 중...`);
+        },
+      );
+      outputBlob = result.blob;
+      outputFileName = result.fileName;
+      resultText.textContent = result.resultText;
+      resultBox.hidden = false;
+      setStatus("pdfExcelStatus", "변환 완료: Excel 문서를 내려받을 수 있습니다.");
     } catch (err) {
-      setStatus("pdfExcelStatus", `변환 실패: ${getErrorMessage(err)}`);
+      const error = err instanceof PdfExcelConversionError ? err : createPdfExcelError("WORKBOOK_GENERATION_FAILED", err);
+      console.error("[PDF_TO_EXCEL]", { conversionId, code: error.code, cause: error.cause || error.message });
+      setStatus("pdfExcelStatus", `변환 실패: ${error.message} · 참조 ID ${conversionId.slice(0, 8)}`);
     } finally {
-      await ocrWorker?.terminate?.();
+      convertBtn.disabled = !activeProfile;
       endGlobalBusy();
     }
   });
+
+  downloadBtn.addEventListener("click", () => {
+    if (!outputBlob || !outputFileName) return;
+    downloadBlob(outputBlob, outputFileName);
+    setStatus("pdfExcelStatus", `다운로드 완료: ${outputFileName}`);
+  });
+
+  resetBtn.addEventListener("click", () => {
+    hideResult();
+    convertBtn.disabled = !activeProfile;
+    if (activeProfile?.type === "known-template") {
+      const confidence = Math.round(activeProfile.evaluation.confidence * 100);
+      setStatus("pdfExcelStatus", `자동 최적화 감지: ${activeProfile.evaluation.template.displayName} · 일치도 ${confidence}%`);
+    } else if (activeProfile && activeInspection) {
+      const textPages = activeInspection.pages.filter((page) => page.textRuns.length >= 2).length;
+      const imagePages = activeInspection.pages.length - textPages;
+      setStatus("pdfExcelStatus", `범용 변환 준비: ${activeInspection.pages.length}페이지 · 텍스트 ${textPages} / 이미지 OCR ${imagePages}`);
+    }
+  });
+
+  clearBtn.hidden = true;
+  convertBtn.disabled = true;
+  resultBox.hidden = true;
 };
 
 const setupHangulWebEditor = () => {
