@@ -6903,6 +6903,74 @@ const buildGenericPdfWorkbookBlob = async (inspection, file, onProgress) => {
   };
 };
 
+const PDF_EXCEL_SERVICE_HEALTH_URL = "./api/pdf-to-excel/health";
+const PDF_EXCEL_SERVICE_CONVERT_URL = "./api/pdf-to-excel/convert";
+
+const checkPdfExcelPrecisionService = async () => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1800);
+  try {
+    const response = await fetch(PDF_EXCEL_SERVICE_HEALTH_URL, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return payload?.ok ? payload : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const decodePdfExcelReport = (headerValue) => {
+  if (!headerValue) return null;
+  try {
+    const binary = atob(headerValue.replace(/-/g, "+").replace(/_/g, "/"));
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return null;
+  }
+};
+
+const buildPdfPlumberWorkbookBlob = async (file) => {
+  setGlobalBusyMessage("pdfplumber로 문자·표·병합 구조 분석 중...");
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  const response = await fetch(PDF_EXCEL_SERVICE_CONVERT_URL, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+    throw new Error(payload?.error || payload?.detail || `정밀 변환 서버 오류 (${response.status})`);
+  }
+  const blob = await response.blob();
+  if (!blob.size) throw new Error("정밀 변환 결과가 비어 있습니다.");
+  const report = decodePdfExcelReport(response.headers.get("X-Kunhwa-Conversion-Report"));
+  const stem = String(file.name || "PDF")
+    .replace(/\.pdf$/i, "")
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "PDF";
+  const engine = report?.engine || "pdfplumber";
+  const resultText = report
+    ? `${engine} 정밀 분석 · ${report.pages}페이지 · 표 ${report.tables}개 · 편집 ${report.pages} / 원본 ${report.pages}개 시트`
+    : `${engine} 정밀 분석 완료`;
+  return {
+    blob,
+    fileName: `${stem}_엑셀변환.xlsx`,
+    resultText,
+  };
+};
+
 const buildUniversalPdfExcelResult = async (inspection, file, profile, onProgress) => {
   if (profile.type === "known-template") {
     return {
@@ -6911,11 +6979,17 @@ const buildUniversalPdfExcelResult = async (inspection, file, profile, onProgres
       resultText: `${profile.evaluation.template.displayName} 자동 최적화 · 앞쪽/뒤쪽 2개 시트 · 편집 가능한 셀과 수식 포함`,
     };
   }
+  if (profile.type === "pdfplumber") return buildPdfPlumberWorkbookBlob(file);
   const generic = await buildGenericPdfWorkbookBlob(inspection, file, onProgress);
+  const engineText = profile.type === "browser-fallback"
+    ? "브라우저 자동 분석 (pdfplumber 미연결)"
+    : profile.type === "browser-mixed"
+      ? "텍스트·이미지 혼합 자동 분석"
+      : "범용 자동 분석";
   return {
     blob: generic.blob,
     fileName: generic.fileName,
-    resultText: `범용 자동 분석 · ${generic.sheetCount}개 시트 · 문서 ${generic.summary.documentPages} / 2단 ${generic.summary.columnPages} / 표 ${generic.summary.tablePages} / OCR ${generic.summary.ocrPages}페이지`,
+    resultText: `${engineText} · ${generic.sheetCount}개 시트 · 문서 ${generic.summary.documentPages} / 2단 ${generic.summary.columnPages} / 표 ${generic.summary.tablePages} / OCR ${generic.summary.ocrPages}페이지`,
   };
 };
 
@@ -6928,11 +7002,15 @@ const setupPdfToExcel = () => {
   const resultText = $("pdfExcelResultText");
   const downloadBtn = $("downloadPdfExcelResult");
   const resetBtn = $("resetPdfExcelConversion");
-  if (!fileInput || !convertBtn || !previewBox || !clearBtn || !resultBox || !resultText || !downloadBtn || !resetBtn) return;
+  const engineBox = $("pdfExcelEngine");
+  const engineIcon = $("pdfExcelEngineIcon");
+  const engineText = $("pdfExcelEngineText");
+  if (!fileInput || !convertBtn || !previewBox || !clearBtn || !resultBox || !resultText || !downloadBtn || !resetBtn || !engineBox || !engineIcon || !engineText) return;
 
   let activeFile = null;
   let activeInspection = null;
   let activeProfile = null;
+  let activeService = null;
   let outputBlob = null;
   let outputFileName = "";
   let analysisSerial = 0;
@@ -6941,6 +7019,20 @@ const setupPdfToExcel = () => {
   $("clearPdfExcelFileIcon").innerHTML = ICONS.x;
   $("downloadPdfExcelResultIcon").innerHTML = ICONS.download;
   $("resetPdfExcelConversionIcon").innerHTML = ICONS.arrowCounterclockwise;
+
+  const setEngineState = (state, text) => {
+    engineBox.dataset.state = state;
+    engineText.textContent = text;
+    engineIcon.innerHTML = state === "ready"
+      ? ICONS.check2
+      : state === "fallback"
+        ? ICONS.arrowCounterclockwise
+        : state === "offline"
+          ? ICONS.x
+          : "";
+  };
+
+  const canConvert = () => Boolean(activeProfile);
 
   const hideResult = () => {
     outputBlob = null;
@@ -6957,6 +7049,7 @@ const setupPdfToExcel = () => {
     const previous = activeInspection;
     activeInspection = null;
     activeProfile = null;
+    activeService = null;
     await previous?.pdf?.destroy?.();
   };
 
@@ -6987,38 +7080,59 @@ const setupPdfToExcel = () => {
       await releaseInspection();
       setIdlePreview();
       setStatus("pdfExcelStatus", "");
+      setEngineState("pending", "정밀 변환 엔진 확인 전");
       return;
     }
 
     await releaseInspection();
     previewBox.innerHTML = '<p class="status">PDF 페이지와 텍스트 구조를 확인 중...</p>';
     setStatus("pdfExcelStatus", "PDF를 자동 분석 중입니다.");
+    setEngineState("pending", "정밀 변환 엔진 확인 중");
     try {
-      const inspection = await inspectPdfForExcel(file);
+      const [inspection, service] = await Promise.all([
+        inspectPdfForExcel(file),
+        checkPdfExcelPrecisionService(),
+      ]);
       if (serial !== analysisSerial) {
         await inspection.pdf.destroy?.();
         return;
       }
       activeInspection = inspection;
+      activeService = service;
       await showPreview(file, inspection);
       const knownTemplate = findKnownPdfTemplate(inspection);
-      activeProfile = knownTemplate
-        ? { type: "known-template", evaluation: knownTemplate }
-        : { type: "generic" };
+      const textPages = inspection.pages.filter((page) => page.textRuns.length >= 2).length;
+      const imagePages = inspection.pages.length - textPages;
       if (knownTemplate) {
+        activeProfile = { type: "known-template", evaluation: knownTemplate };
         const confidence = Math.round(knownTemplate.confidence * 100);
         setStatus("pdfExcelStatus", `자동 최적화 감지: ${knownTemplate.template.displayName} · 일치도 ${confidence}%`);
+        setEngineState("ready", "내장 정밀 양식 엔진");
+      } else if (textPages === 0) {
+        activeProfile = { type: "browser-ocr" };
+        setStatus("pdfExcelStatus", `이미지 OCR 변환 준비: ${inspection.pages.length}페이지`);
+        setEngineState("ready", "브라우저 한글·영문 OCR");
+      } else if (imagePages > 0) {
+        activeProfile = { type: "browser-mixed" };
+        setStatus("pdfExcelStatus", `혼합 PDF 변환 준비: 텍스트 ${textPages} / 이미지 OCR ${imagePages}페이지`);
+        setEngineState("fallback", "텍스트·이미지 혼합 자동 분석");
+      } else if (service) {
+        activeProfile = { type: "pdfplumber" };
+        setStatus("pdfExcelStatus", `정밀 변환 준비: ${inspection.pages.length}페이지 · 텍스트 ${textPages}`);
+        setEngineState("ready", service.engine || "pdfplumber 정밀 엔진");
       } else {
-        const textPages = inspection.pages.filter((page) => page.textRuns.length >= 2).length;
-        const imagePages = inspection.pages.length - textPages;
-        setStatus("pdfExcelStatus", `범용 변환 준비: ${inspection.pages.length}페이지 · 텍스트 ${textPages} / 이미지 OCR ${imagePages}`);
+        activeProfile = { type: "browser-fallback" };
+        setStatus("pdfExcelStatus", `브라우저 변환 준비: ${inspection.pages.length}페이지 · 정밀 엔진 없이 기본 분석을 사용합니다.`);
+        setEngineState("fallback", "브라우저 기본 변환");
       }
-      convertBtn.disabled = false;
+      convertBtn.disabled = !canConvert();
     } catch (err) {
       if (serial !== analysisSerial) return;
       activeProfile = null;
+      activeService = null;
       const message = err instanceof PdfExcelConversionError ? err.message : getErrorMessage(err);
       setStatus("pdfExcelStatus", `변환 불가: ${message}`);
+      setEngineState("offline", "정밀 변환 엔진 확인 실패");
       if (!activeInspection) previewBox.innerHTML = `<p class="status">PDF 미리보기 실패: ${message}</p>`;
     }
   };
@@ -7067,7 +7181,7 @@ const setupPdfToExcel = () => {
       console.error("[PDF_TO_EXCEL]", { conversionId, code: error.code, cause: error.cause || error.message });
       setStatus("pdfExcelStatus", `변환 실패: ${error.message} · 참조 ID ${conversionId.slice(0, 8)}`);
     } finally {
-      convertBtn.disabled = !activeProfile;
+      convertBtn.disabled = !canConvert();
       endGlobalBusy();
     }
   });
@@ -7080,14 +7194,27 @@ const setupPdfToExcel = () => {
 
   resetBtn.addEventListener("click", () => {
     hideResult();
-    convertBtn.disabled = !activeProfile;
+    convertBtn.disabled = !canConvert();
     if (activeProfile?.type === "known-template") {
       const confidence = Math.round(activeProfile.evaluation.confidence * 100);
       setStatus("pdfExcelStatus", `자동 최적화 감지: ${activeProfile.evaluation.template.displayName} · 일치도 ${confidence}%`);
-    } else if (activeProfile && activeInspection) {
+    } else if (activeProfile?.type === "pdfplumber" && activeInspection) {
+      const textPages = activeInspection.pages.filter((page) => page.textRuns.length >= 2).length;
+      setStatus("pdfExcelStatus", `정밀 변환 준비: ${activeInspection.pages.length}페이지 · 텍스트 ${textPages}`);
+      setEngineState("ready", activeService?.engine || "pdfplumber 정밀 엔진");
+    } else if (activeProfile?.type === "browser-ocr" && activeInspection) {
       const textPages = activeInspection.pages.filter((page) => page.textRuns.length >= 2).length;
       const imagePages = activeInspection.pages.length - textPages;
-      setStatus("pdfExcelStatus", `범용 변환 준비: ${activeInspection.pages.length}페이지 · 텍스트 ${textPages} / 이미지 OCR ${imagePages}`);
+      setStatus("pdfExcelStatus", `이미지 OCR 변환 준비: ${imagePages}페이지`);
+      setEngineState("ready", "브라우저 한글·영문 OCR");
+    } else if (activeProfile?.type === "browser-mixed" && activeInspection) {
+      const textPages = activeInspection.pages.filter((page) => page.textRuns.length >= 2).length;
+      const imagePages = activeInspection.pages.length - textPages;
+      setStatus("pdfExcelStatus", `혼합 PDF 변환 준비: 텍스트 ${textPages} / 이미지 OCR ${imagePages}페이지`);
+      setEngineState("fallback", "텍스트·이미지 혼합 자동 분석");
+    } else if (activeProfile?.type === "browser-fallback" && activeInspection) {
+      setStatus("pdfExcelStatus", `브라우저 변환 준비: ${activeInspection.pages.length}페이지 · 정밀 엔진 없이 기본 분석을 사용합니다.`);
+      setEngineState("fallback", "브라우저 기본 변환");
     }
   });
 

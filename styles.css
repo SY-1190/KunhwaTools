@@ -3145,6 +3145,65 @@ body.dark .yacht-meta-chips .chip {
   height: 16px;
 }
 
+.pdf-excel-engine {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pdf-excel-engine-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+}
+
+.pdf-excel-engine[data-state="ready"] {
+  border-color: #9bc6aa;
+  background: #f0f8f3;
+  color: #24613b;
+}
+
+.pdf-excel-engine[data-state="fallback"] {
+  border-color: #d4bd78;
+  background: #fff9e8;
+  color: #765b0e;
+}
+
+.pdf-excel-engine[data-state="offline"] {
+  border-color: #e2b1a8;
+  background: #fff5f3;
+  color: #9b3427;
+}
+
+body.dark .pdf-excel-engine[data-state="ready"] {
+  border-color: #37694a;
+  background: #17271e;
+  color: #a9d8b7;
+}
+
+body.dark .pdf-excel-engine[data-state="fallback"] {
+  border-color: #79672f;
+  background: #2b2515;
+  color: #ead68e;
+}
+
+body.dark .pdf-excel-engine[data-state="offline"] {
+  border-color: #79483f;
+  background: #2d1d1a;
+  color: #f0b6aa;
+}
+
 .pdf-excel-result {
   margin-top: 10px;
   padding: 12px;
@@ -3275,6 +3334,10 @@ body.dark .pdf-excel-result {
 
   .pdf-excel-result .btn-row,
   .pdf-excel-result .btn {
+    width: 100%;
+  }
+
+  .pdf-excel-engine {
     width: 100%;
   }
 

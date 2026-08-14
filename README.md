@@ -17,6 +17,14 @@ GitHub Pages에 바로 배포 가능한 정적 웹앱 초안입니다.
 
 `index.html`을 브라우저로 열면 한 페이지에서 모든 도구를 사용할 수 있습니다.
 
+PDF → Excel은 정적 웹에서도 브라우저 자동 분석으로 작동합니다. Python 기반 `pdfplumber` 정밀 엔진을 사용하려면 로컬 실행기를 시작합니다.
+
+```powershell
+.\start-kunhwa-tools.ps1
+```
+
+최초 실행 시 `.venv-pdf-excel`에 필요한 패키지를 설치하고 `http://127.0.0.1:8878/`에서 앱을 시작합니다. 변환 파일은 서버 디스크에 저장하지 않고 메모리에서 처리합니다. GitHub Pages처럼 정밀 엔진에 연결할 수 없는 환경에서는 기존 브라우저 변환으로 자동 전환됩니다.
+
 ## GitHub Pages 배포
 
 1. 이 폴더를 GitHub 저장소에 push
@@ -32,6 +40,8 @@ GitHub Pages에 바로 배포 가능한 정적 웹앱 초안입니다.
 - pdf.js (PDF 렌더링)
 - JSZip (ZIP 다운로드)
 - qrcodejs (QR 생성)
+- pdfplumber 0.11.9 (PDF 문자·선·표 구조 분석, MIT License)
+- openpyxl 3.1.5 (Excel 문서 생성)
 
 ## UX 강화 사항
 
