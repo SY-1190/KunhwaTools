@@ -5234,7 +5234,12 @@ const setupQr = () => {
       logging: false,
       imageTimeout: 15000,
       onclone: (clonedDocument) => {
-        const qrImage = clonedDocument.querySelector("#qrPreview img");
+        const clonedSource = clonedDocument.querySelector("#qrGenerator .qr-preview-shell");
+        clonedSource?.querySelector(".qr-preview-heading")?.remove();
+        clonedSource?.querySelector("#qrPayloadPreview")?.remove();
+        const pagePreview = clonedSource?.querySelector("#qrPagePreview");
+        if (pagePreview) pagePreview.style.marginTop = "0";
+        const qrImage = clonedSource?.querySelector("#qrPreview img");
         if (!qrImage) return;
         qrImage.removeAttribute("srcset");
         qrImage.setAttribute("src", qrDataUrl);
