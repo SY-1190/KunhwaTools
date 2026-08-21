@@ -5186,9 +5186,8 @@ const setupQr = () => {
       canvas.toBlob((blob) => resolve(blob), mime, quality);
     });
 
-  const buildQrAsset = async (options) => {
-    const canvas = await makeQrCanvas(options);
-    if (options.format === "svg") {
+  const buildCanvasAsset = async (canvas, format) => {
+    if (format === "svg") {
       const pngData = canvas.toDataURL("image/png");
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}"><image href="${pngData}" width="${canvas.width}" height="${canvas.height}" /></svg>`;
       return {
@@ -5198,18 +5197,63 @@ const setupQr = () => {
       };
     }
     const mime =
-      options.format === "jpeg"
+      format === "jpeg"
         ? "image/jpeg"
-        : options.format === "webp"
+        : format === "webp"
           ? "image/webp"
           : "image/png";
     const blob = await canvasToBlob(canvas, mime, 0.92);
+    if (!blob) throw new Error("이미지 파일을 생성하지 못했습니다.");
     const previewUrl = URL.createObjectURL(blob);
     return {
       blob,
       previewUrl,
-      ext: options.format === "jpeg" ? "jpg" : options.format,
+      ext: format === "jpeg" ? "jpg" : format,
     };
+  };
+
+  const buildQrAsset = async (options) => buildCanvasAsset(await makeQrCanvas(options), options.format);
+
+  const renderQrDesignCanvas = async (options, qrCanvas) => {
+    const source = document.querySelector("#qrGenerator .qr-preview-shell");
+    if (!source) throw new Error("저장할 QR 미리보기를 찾지 못했습니다.");
+    if (typeof globalThis.html2canvas !== "function") {
+      throw new Error("미리보기 저장 모듈을 불러오지 못했습니다.");
+    }
+    await document.fonts?.ready;
+    const bounds = source.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) throw new Error("QR 미리보기 크기를 확인하지 못했습니다.");
+    const targetWidth = Math.max(720, Math.min(2000, options.size));
+    const scale = targetWidth / bounds.width;
+    const qrDataUrl = qrCanvas.toDataURL("image/png");
+    return globalThis.html2canvas(source, {
+      backgroundColor: null,
+      scale,
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      imageTimeout: 15000,
+      onclone: (clonedDocument) => {
+        const qrImage = clonedDocument.querySelector("#qrPreview img");
+        if (!qrImage) return;
+        qrImage.removeAttribute("srcset");
+        qrImage.setAttribute("src", qrDataUrl);
+      },
+    });
+  };
+
+  const buildQrDesignAsset = async (options, qrCanvas) =>
+    buildCanvasAsset(await renderQrDesignCanvas(options, qrCanvas), options.format);
+
+  const getQrDesignFileName = (ext) => {
+    const values = state.formValues[state.selectedType] || {};
+    const rawName = values.title || values.name || values.ssid || qrPageTypes[state.selectedType].label;
+    const stem = String(rawName || "QR")
+      .replace(/[\\/:*?"<>|]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 80) || "QR";
+    return `${stem}_QR디자인.${ext}`;
   };
 
   const renderQrPreview = (url) => {
@@ -5351,14 +5395,17 @@ const setupQr = () => {
     try {
       state.previewRequest += 1;
       renderQrPreviewLoading("QR 생성 및 저장 중");
-      const asset = await buildQrAsset(options);
+      const qrCanvas = await makeQrCanvas(options);
+      const asset = await buildCanvasAsset(qrCanvas, options.format);
       if (state.renderUrl?.startsWith("blob:")) URL.revokeObjectURL(state.renderUrl);
-      state.lastBlob = asset.blob;
-      state.lastExt = asset.ext;
       state.renderUrl = asset.previewUrl;
       renderQrPreview(asset.previewUrl);
-      downloadBlob(asset.blob, `qrcode.${asset.ext}`);
-      setStatus("qrStatus", `QR ${asset.ext.toUpperCase()} 저장 완료`);
+      setGlobalBusyMessage("미리보기 디자인을 이미지로 합성 중...");
+      const designAsset = await buildQrDesignAsset(options, qrCanvas);
+      state.lastBlob = designAsset.blob;
+      state.lastExt = designAsset.ext;
+      downloadBlob(designAsset.blob, getQrDesignFileName(designAsset.ext));
+      setStatus("qrStatus", `QR 미리보기 디자인 ${designAsset.ext.toUpperCase()} 저장 완료`);
     } catch (err) {
       setStatus("qrStatus", `QR 저장 오류: ${err.message}`);
     } finally {

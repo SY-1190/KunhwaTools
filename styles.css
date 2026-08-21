@@ -2123,7 +2123,7 @@ input[type="color"]::-moz-color-swatch {
   --qr-page-ink: #17365c;
   min-height: 220px;
   margin-top: 12px;
-  border: 1px solid color-mix(in srgb, var(--qr-page-accent) 24%, #d9e3ef);
+  border: 1px solid #c8d5e4;
   border-radius: 8px;
   background: var(--qr-page-soft);
   color: var(--qr-page-ink);
@@ -2218,7 +2218,7 @@ input[type="color"]::-moz-color-swatch {
   height: 38px;
   border-radius: 8px;
   background: #fff;
-  border: 1px solid color-mix(in srgb, var(--qr-page-accent) 22%, #dce5ee);
+  border: 1px solid #d1dbe7;
 }
 
 .qr-page-preview-icon svg {
@@ -2248,7 +2248,8 @@ input[type="color"]::-moz-color-swatch {
 }
 
 .qr-page-preview-copy {
-  color: color-mix(in srgb, var(--qr-page-ink) 76%, #fff);
+  color: var(--qr-page-ink);
+  opacity: 0.78;
   font-size: 11px;
   line-height: 1.55;
   white-space: pre-line;
@@ -2259,7 +2260,7 @@ input[type="color"]::-moz-color-swatch {
 .qr-menu-row,
 .qr-guide-row,
 .qr-contact-lines {
-  border-top: 1px solid color-mix(in srgb, var(--qr-page-accent) 18%, #dce5ee);
+  border-top: 1px solid #d4dde8;
   padding-top: 8px;
   display: flex;
   align-items: center;
