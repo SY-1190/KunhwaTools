@@ -284,3 +284,61 @@ QR 기능 검증:
 작업:
 - ver_0.1.24 표시와 패치노트 항목을 제거하고 기존 ver_0.1.23 유지
 - QR 저장 범위 수정과 요청 기록만 main 브랜치에 커밋하고 origin으로 푸시
+
+[2026-10-06 08:55:07 KST]
+요청 및 승인:
+- PDF 글자·이미지 편집과 Word 변환 추가, UI 재설계 및 기존 숨김 게임 전체 제거 후 새 게임 하나 추가
+- 로컬 PyMuPDF(AGPL/상용), python-docx(MIT), Phaser(MIT) 의존성 도입 승인
+
+범위 및 결정:
+- 기존 HTML/CSS/Vanilla JS와 Python 서버, 도구 ID·이벤트·업로드·기존 PDF/Excel/QR 흐름 보존
+- PDF 원본은 덮어쓰지 않고 메모리에서 redaction·교체 후 새 파일 다운로드
+- Word 편집 모드와 원본 페이지 이미지 모드를 구분. 스캔 페이지는 이미지로 유지하고 OCR 미적용 표시
+- 공식 shadcn Sidebar는 디자인 참고만 적용. 호출 가능한 shadcn MCP가 없어 공식 문서 확인; 패키지 도입 없음
+- 공식 Bootstrap Icons 1.13.1 SVG와 MIT 라이선스 로컬 보존, Phaser 3.90.0 로컬 vendor 사용
+- 기존 12개 게임의 HTML·JS·CSS 제거. Orbit Courier 하나만 로고 더블 클릭/Shift+Enter로 진입
+- 신규 기능 범위에 맞춰 ver_0.2.0과 패치노트 갱신. 이전 QR 수정의 버전 유지 요청은 해당 수정에만 적용
+
+변경 파일:
+- index.html, app.js, styles.css, workspace.js/css: 분류 메뉴·검색·반응형 도구 화면 및 이전 게임 제거
+- pdf-studio.js, pdf_document_tools.py, server.py: PDF 실제 편집·미리보기·저장과 DOCX 변환 API/UI
+- requirements-pdf-excel.txt, start-kunhwa-tools.ps1: 승인된 의존성 및 기존 가상환경 갱신 검사
+- orbit-courier.js, assets/orbit-*.svg, assets/vendor/phaser*, assets/icons.svg와 라이선스: 신규 게임 및 아이콘
+- tests/test_pdf_document_tools.py, README.md, patch-notes.html, PROMPT_LOG.txt: 검증·운영/라이선스 한계·기록
+
+검증:
+- Python unittest 5개 통과: 원문 실제 제거·한글 교체·이미지 교체, Word 본문·표·media/병합, 회전·스캔·입력 검사
+- 실제 로컬 서버와 Chrome/Playwright: PDF 드래그 업로드·선택·삭제·undo/redo·글자/이미지 추가·페이지/확대·PDF 다운로드, DOCX 두 모드 다운로드 확인
+- 기존 이미지→PDF 다운로드 회귀 확인. 검색/분류/다크 모드, 1440x1000 및 390x844 화면 확인
+- 게임 실제 키보드/터치 이동·수집/충돌 물리·에너지·pause/resume·game over/restart·최고 점수·경로 이탈 정지 확인
+- 모바일 캔버스의 intrinsic 폭 때문에 발생한 화면/버튼 침범을 수정 후 screen.width 기준 390px 넘침 없음 확인
+- 새 화면 검증 중 JavaScript pageerror 없음. 기존 CDN 네트워크 제한은 실제 동일 버전 배포 파일의 테스트 route로 분리하며 PDF.js 미로드 시 앱 초기화가 중단되던 부분도 보호
+
+미확인/한계:
+- 임의의 모든 PDF·복잡한 다단/서식, 실제 MS Word 레이아웃 완전 일치, 기존 전체 업무 기능의 모든 조합은 검증하지 않음
+- 스캔 글자 OCR/직접 편집 미지원. 배포 시 PyMuPDF AGPL 조건 또는 상용 라이선스 검토 필요
+- 본 작업은 소스/로컬 실행 범위이며 공개 운영 배포·커밋·푸시는 별도 요청 없이 수행하지 않음
+
+[2026-10-06 09:03:57 KST]
+최종 로컬 반영 및 검증:
+- 실제 C:\Users\USER\Documents\KunhwaTools에 변경 파일 22개 반영, 스테이징 대비 SHA-256 일치 확인
+- 실제 .venv-pdf-excel에 승인된 의존성 설치 후 start-kunhwa-tools.ps1 -Port 8878 -NoInstall로 실행. PDF health 200 확인
+- 실제 환경에서 unittest 5/5 및 Chrome의 PDF/Word 다운로드·분류/검색/다크·게임 물리/재시작·모바일 터치 검증 통과
+- 기존 이미지→PDF와 텍스트형 PDF→Excel 다운로드 통과. Excel의 1페이지 및 1페이지_원본 시트 확인
+- 혼합 검증 파일의 한 줄 페이지가 기존 Excel OCR 분기로 분류되면서 외부 OCR 로딩으로 결과를 확인하지 못한 시도는 기존 경로/환경 한계로 기록. 해당 로직은 수정하지 않음
+- 실제 HTTP로 내려오는 index.html/app.js/workspace.css/pdf-studio.js/orbit-courier.js가 실제 소스 바이트와 일치
+- 게임 캔버스 1,199색 및 연속 프레임 차이 확인. 390px 터치 화면에서 화면 너비와 scrollWidth 일치 및 버튼 침범 없음
+- 모바일 PDF 페이지 이동 버튼을 분리되지 않는 그룹으로 정리. PDF 파일 열기/드롭 영역의 키보드 접근 추가
+- 임시 검증 서버와 끝나지 않은 이전 OCR 검증 프로세스만 종료. 실제 로컬 앱 http://127.0.0.1:8878/은 실행 유지
+- git diff --check 통과. 커밋·푸시·공개 배포는 하지 않음
+
+[2026-10-06 09:23:05 KST]
+요청:
+- 완료된 PDF 편집·Word 변환·UI 재설계·숨김 게임 교체 작업을 GitHub에 커밋하고 푸시
+
+범위 및 확인:
+- SY-1190/KunhwaTools의 main 브랜치와 origin 원격 확인, git fetch origin으로 원격 최신 상태 조회
+- 기존 ver_0.2.0과 해당 패치노트를 유지하며 추가 버전 상향 없음
+- 이번 작업의 소스·자산·의존성·테스트·문서 22개 파일만 커밋 대상에 포함. 가상환경·임시 검증 파일 제외
+- 실제 프로젝트 PDF/Word unittest 5/5 및 git diff --check 재확인 통과
+- 사용자 승인에 따라 main 커밋 및 origin/main 일반 푸시 진행. 강제 푸시·서버 설정 변경은 포함하지 않음

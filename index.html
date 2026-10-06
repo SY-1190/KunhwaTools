@@ -3,14 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kunhwa Utility Tools</title>
+    <title>KunhwaTools · 문서 작업 공간</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Sans:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=0.1.23" />
+    <link rel="stylesheet" href="./styles.css?v=0.2.0" />
+    <link rel="stylesheet" href="./workspace.css?v=0.2.0" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -21,12 +22,12 @@
   <body data-page="home">
     <header class="site-header">
       <div class="brand-wrap">
-        <div class="kunhwa-wordmark" id="brandMascot" role="button" tabindex="0" title="더블클릭: 게임 목록" aria-label="게임 목록으로 이동">
+        <div class="kunhwa-wordmark" id="brandMascot" role="button" tabindex="0" aria-label="KunhwaTools">
           <span>KUNHWA</span>
         </div>
         <div>
-          <h1>Utility Tools</h1>
-          <p class="brand-desc">핸디한 온라인 툴 모음 · 파일은 브라우저 내에서 처리</p>
+          <h1>문서 작업 공간</h1>
+          <p class="brand-desc">KunhwaTools</p>
         </div>
       </div>
       <div class="header-actions">
@@ -41,15 +42,17 @@
             <span>로그인</span>
           </button>
         </div>
-        <p class="commit-note">마지막 커밋: ver_0.1.23</p>
+        <p class="commit-note">ver_0.2.0</p>
       </div>
     </header>
 
     <main class="single-shell">
       <section class="content-panel">
         <section id="quickHub" class="quick-hub">
-          <h2>Tools</h2>
+          <div class="hub-heading"><div><h2>모든 도구</h2><p>문서 · 이미지 · 업무</p></div><label class="tool-search"><span data-ui-icon="search"></span><input id="toolSearch" type="search" placeholder="도구 검색" aria-label="도구 검색" /></label></div>
           <div class="quick-grid">
+            <a class="quick-btn" href="#pdfEditor"><span data-ui-icon="pencil-square"></span><strong>PDF 편집</strong></a>
+            <a class="quick-btn" href="#pdfToWord"><span data-ui-icon="file-earmark-word"></span><strong>PDF → Word</strong></a>
             <a class="quick-btn" href="#pdfToImage"><span>🗎</span><strong>PDF → 이미지</strong></a>
             <a class="quick-btn" href="#imageToPdf"><span>🖼</span><strong>이미지 → PDF</strong></a>
             <a class="quick-btn long-label" href="#pdfArrange"><span>↻</span><strong>PDF 순서변경/나누기/회전</strong></a>
@@ -80,9 +83,40 @@
             <a class="stage-chip" href="#qrGenerator" data-stage-target="qrGenerator">QR 코드 생성기</a>
             <a class="stage-chip" href="#hangulWebEditor" data-stage-target="hangulWebEditor">HWP/HWPX 에디터</a>
             <a class="stage-chip" href="#pdfToExcel" data-stage-target="pdfToExcel">PDF → Excel</a>
+            <a class="stage-chip" href="#pdfEditor" data-stage-target="pdfEditor">PDF 편집</a>
+            <a class="stage-chip" href="#pdfToWord" data-stage-target="pdfToWord">PDF → Word</a>
           </div>
           <p id="stageTitleText" class="stage-title-text"></p>
         </section>
+
+        <article class="tool-card tool-stage" id="pdfEditor">
+          <h2><span class="icon" data-ui-icon="pencil-square"></span>PDF 편집</h2>
+          <div class="studio-filebar"><button id="pdfEditOpen" class="btn ghost" type="button"><span data-ui-icon="folder2-open"></span>파일 열기</button><input class="visually-hidden" id="pdfEditFile" type="file" accept=".pdf,application/pdf" tabindex="-1" /><span id="pdfEditFileName">선택된 파일 없음</span><span class="studio-spacer"></span><button id="pdfEditSave" class="btn primary" disabled><span data-ui-icon="download"></span>PDF 저장</button></div>
+          <div id="pdfEditDrop" class="drop-zone large" data-file-input="pdfEditFile" data-file-kind="PDF" data-drop-multiple="false"><span data-ui-icon="file-earmark-pdf"></span><p class="drop-main">PDF 파일을 놓아주세요</p><p class="drop-file-name" id="pdfEditFileDropName">선택된 파일 없음</p></div>
+          <p class="status" id="pdfEditStatus" role="status"></p>
+          <div id="pdfStudio" class="pdf-studio" hidden>
+            <div class="studio-toolbar" role="toolbar" aria-label="PDF 편집 도구">
+              <button id="pdfEditSelect" class="icon-btn active" aria-label="선택" title="선택" data-ui-icon="cursor"></button>
+              <button id="pdfEditAddText" class="icon-btn" aria-label="글자 추가" title="글자 추가" data-ui-icon="fonts"></button>
+              <button id="pdfEditAddImage" class="icon-btn" aria-label="이미지 추가" title="이미지 추가" data-ui-icon="image"></button>
+              <input id="pdfEditImage" type="file" accept="image/png,image/jpeg,image/webp" class="visually-hidden" />
+              <span class="toolbar-divider"></span>
+              <button id="pdfEditUndo" class="icon-btn" aria-label="실행 취소" title="실행 취소" data-ui-icon="arrow-counterclockwise" disabled></button>
+              <button id="pdfEditRedo" class="icon-btn" aria-label="다시 실행" title="다시 실행" data-ui-icon="arrow-clockwise" disabled></button>
+              <button id="pdfEditDelete" class="icon-btn" aria-label="선택 항목 삭제" title="선택 항목 삭제" data-ui-icon="trash3" disabled></button>
+              <span class="studio-spacer"></span>
+              <div class="studio-page-controls"><button id="pdfEditPrev" class="icon-btn" aria-label="이전 페이지" data-ui-icon="chevron-left"></button><span id="pdfEditPageLabel"></span><button id="pdfEditNext" class="icon-btn" aria-label="다음 페이지" data-ui-icon="chevron-right"></button></div>
+              <label class="zoom-control">확대<select id="pdfEditZoom"><option value="fit">맞춤</option><option value="0.75">75%</option><option value="1">100%</option><option value="1.5">150%</option></select></label>
+            </div>
+            <div class="studio-body"><aside id="pdfEditPages" class="studio-pages" aria-label="페이지 목록"></aside><div class="studio-viewport" id="pdfEditViewport"><div id="pdfEditCanvas" class="studio-page"></div></div><aside class="studio-inspector"><h3>선택 항목</h3><p id="pdfEditSelection">항목을 선택하세요.</p><div id="pdfEditProperties" hidden><label>내용<textarea id="pdfEditText" rows="5"></textarea></label><div class="form-grid"><label>X<input id="pdfEditX" type="number" min="0" step="1" /></label><label>Y<input id="pdfEditY" type="number" min="0" step="1" /></label><label>너비<input id="pdfEditW" type="number" min="1" step="1" /></label><label>높이<input id="pdfEditH" type="number" min="1" step="1" /></label><label>글자 크기<input id="pdfEditSize" type="number" min="6" max="120" step="1" /></label><label>글자색<input id="pdfEditColor" type="color" value="#17202a" /></label></div><label>지울 영역 배경색<input id="pdfEditFill" type="color" value="#ffffff" /></label><button id="pdfEditApply" class="btn primary">적용</button><button id="pdfEditReplaceImage" class="btn ghost">이미지 교체</button></div></aside></div>
+          </div>
+        </article>
+
+        <article class="tool-card tool-stage" id="pdfToWord">
+          <h2><span class="icon" data-ui-icon="file-earmark-word"></span>PDF → Word</h2>
+          <div class="drop-zone large" data-file-input="pdfWordFile" data-file-kind="PDF" data-drop-multiple="false"><span data-ui-icon="file-earmark-pdf"></span><p class="drop-main">PDF 파일을 놓아주세요</p><p class="drop-file-name" id="pdfWordFileDropName">선택된 파일 없음</p></div><input id="pdfWordFile" type="file" accept=".pdf,application/pdf" class="visually-hidden" />
+          <div class="word-workspace"><div><h3>변환 설정</h3><label>변환 방식<select id="pdfWordMode"><option value="editable">편집 가능한 본문·표·이미지</option><option value="appearance">원본 페이지 모양 유지 (이미지)</option></select></label><button id="pdfWordConvert" class="btn primary" disabled><span data-ui-icon="file-earmark-word"></span>Word로 변환</button><p id="pdfWordStatus" class="status" role="status"></p></div><div id="pdfWordPreview" class="word-preview"><span data-ui-icon="file-earmark-word"></span></div></div>
+        </article>
 
         <article class="tool-card tool-stage" id="pdfToImage">
           <h2><span class="icon">🗎</span> 1. PDF → 이미지 변환기</h2>
@@ -745,269 +779,7 @@
           </div>
         </article>
 
-        <article class="tool-card tool-stage" id="gameHub">
-          <h2><span class="icon">🎮</span> Game Center</h2>
-          <p class="sub">로고를 더블클릭하면 들어오는 미니 게임 목록입니다.</p>
-          <div class="game-grid">
-            <a class="game-card-link" href="#gameYacht">
-              <h3>1. 야추 다이스</h3>
-              <p>5개의 주사위를 최대 3번 굴리고 13개 카테고리에 점수를 채우는 게임</p>
-            </a>
-            <a class="game-card-link" href="#gameRps">
-              <h3>2. 가위바위보</h3>
-              <p>컴퓨터와 빠르게 5판 승부 · 전적 자동 누적</p>
-            </a>
-            <a class="game-card-link" href="#gameTtt">
-              <h3>3. 틱택토</h3>
-              <p>2인 로컬 대전 · 3x3 빙고 게임</p>
-            </a>
-            <a class="game-card-link" href="#gameUpdown">
-              <h3>4. 업다운</h3>
-              <p>1~100 숫자 맞히기 · 힌트와 시도 횟수 제공</p>
-            </a>
-            <a class="game-card-link" href="#game2048">
-              <h3>5. 2048</h3>
-              <p>방향키로 타일을 합쳐 2048을 만드는 클래식 퍼즐</p>
-            </a>
-            <a class="game-card-link" href="#gameSnake">
-              <h3>6. Snake</h3>
-              <p>먹이를 먹으며 길어지는 스네이크 아케이드</p>
-            </a>
-            <a class="game-card-link" href="#gameTetris">
-              <h3>7. Tetris</h3>
-              <p>블록을 쌓고 줄을 지우는 기본 테트리스</p>
-            </a>
-            <a class="game-card-link" href="#gamePacman">
-              <h3>8. Pacman</h3>
-              <p>미로 안 점을 모으며 추격을 피하는 미니 팩맨</p>
-            </a>
-            <a class="game-card-link" href="#gameBreakout">
-              <h3>9. Brick Breaker</h3>
-              <p>패들로 공을 튕겨 벽돌을 모두 깨는 아케이드</p>
-            </a>
-            <a class="game-card-link" href="#gameMemory">
-              <h3>10. Memory Cards</h3>
-              <p>같은 카드 쌍을 기억해서 맞히는 집중력 퍼즐</p>
-            </a>
-            <a class="game-card-link" href="#gameMinesweeper">
-              <h3>11. Minesweeper</h3>
-              <p>숫자 힌트로 지뢰를 피해 모든 칸을 여는 클래식</p>
-            </a>
-            <a class="game-card-link" href="#gamePong">
-              <h3>12. Pong</h3>
-              <p>AI와 1:1 랠리를 펼치는 초창기 아케이드 테니스</p>
-            </a>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gameYacht">
-          <h2><span class="icon">🎲</span> 1. 야추 다이스 게임</h2>
-          <p class="sub">카드게임즈 스타일 점수표 흐름 + 콘솔 보드게임 느낌 UI · 한 턴 최대 3회 · 총 13턴</p>
-          <div class="yacht-layout">
-            <section class="yacht-main">
-              <div class="mode-row">
-                <label>모드
-                  <select id="yachtMode">
-                    <option value="solo">솔로 플레이</option>
-                    <option value="cpu">CPU 대결</option>
-                  </select>
-                </label>
-              </div>
-              <div class="yacht-meta-chips">
-                <span class="chip" id="yachtTurnMeta">턴 1/13</span>
-                <span class="chip" id="yachtRollsLeft">남은 굴림: 3</span>
-                <span class="chip" id="yachtCpuMeta">CPU 총점: 0</span>
-              </div>
-              <div id="yachtDiceRow" class="yacht-dice-row"></div>
-              <p class="order-line">주사위를 눌러 홀드/해제 · 점수표에서 카테고리를 선택해 턴을 종료합니다.</p>
-              <div class="btn-row">
-                <button class="btn primary" id="yachtRollBtn" type="button">굴리기</button>
-                <button class="btn ghost" id="yachtResetBtn" type="button">새 게임</button>
-              </div>
-              <p class="status" id="yachtStatus"></p>
-            </section>
-            <section class="yacht-score">
-              <div class="yacht-score-head">
-                <p>점수판 (행 클릭으로 확정)</p>
-                <strong>카테고리당 1회</strong>
-              </div>
-              <div id="yachtScoreTable" class="yacht-score-table"></div>
-            </section>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gameRps">
-          <h2><span class="icon">✌</span> 2. 가위바위보</h2>
-          <p class="sub">5판 중 더 많이 이기면 승리합니다.</p>
-          <div class="mini-game-panel">
-            <div class="rps-actions">
-              <button class="btn ghost" type="button" data-rps="rock">✊ 바위</button>
-              <button class="btn ghost" type="button" data-rps="scissors">✌ 가위</button>
-              <button class="btn ghost" type="button" data-rps="paper">✋ 보</button>
-              <button class="btn" type="button" id="rpsResetBtn">리셋</button>
-            </div>
-            <p class="order-line" id="rpsScoreText">내 점수 0 : 0 컴퓨터 · 0/5판</p>
-            <p class="status" id="rpsStatus">선택해서 게임을 시작하세요.</p>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gameTtt">
-          <h2><span class="icon">❌</span> 3. 틱택토</h2>
-          <p class="sub">X부터 시작합니다. 가로/세로/대각선 3칸을 먼저 완성하세요.</p>
-          <div class="mini-game-panel">
-            <div class="mode-row">
-              <label>모드
-                <select id="tttMode">
-                  <option value="local">2인 로컬</option>
-                  <option value="cpu">CPU 대결</option>
-                </select>
-              </label>
-            </div>
-            <div id="tttBoard" class="ttt-board"></div>
-            <div class="btn-row">
-              <button class="btn ghost" type="button" id="tttResetBtn">새 판</button>
-            </div>
-            <p class="status" id="tttStatus">플레이어 X 차례</p>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gameUpdown">
-          <h2><span class="icon">🔢</span> 4. 업다운</h2>
-          <p class="sub">1~100 사이 숫자를 맞혀보세요. 남은 시도는 10회입니다.</p>
-          <div class="mini-game-panel">
-            <div class="form-grid">
-              <label>숫자 입력 (1~100)
-                <input type="number" id="updownGuessInput" min="1" max="100" step="1" />
-              </label>
-            </div>
-            <div class="btn-row">
-              <button class="btn primary" type="button" id="updownSubmitBtn">확인</button>
-              <button class="btn ghost" type="button" id="updownResetBtn">새 게임</button>
-            </div>
-            <p class="order-line" id="updownMeta">남은 시도: 10</p>
-            <p class="status" id="updownStatus">숫자를 입력하고 확인을 누르세요.</p>
-            <div id="updownHistory" class="mini-log"></div>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="game2048">
-          <h2><span class="icon">▣</span> 5. 2048</h2>
-          <p class="sub">방향키/WASD로 이동합니다.</p>
-          <div class="mini-game-panel">
-            <div class="game-stat-row">
-              <strong id="g2048Score">점수 0</strong>
-              <button class="btn ghost" type="button" id="g2048ResetBtn">새 게임</button>
-            </div>
-            <div id="g2048Board" class="g2048-board"></div>
-            <p class="status" id="g2048Status">타일을 합쳐 2048을 만들어보세요.</p>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gameSnake">
-          <h2><span class="icon">◆</span> 6. Snake</h2>
-          <p class="sub">방향키/WASD로 이동합니다.</p>
-          <div class="mini-game-panel">
-            <div class="game-stat-row">
-              <strong id="snakeScore">점수 0</strong>
-              <div class="btn-row compact">
-                <button class="btn primary" type="button" id="snakeStartBtn">시작</button>
-                <button class="btn ghost" type="button" id="snakeResetBtn">리셋</button>
-              </div>
-            </div>
-            <canvas id="snakeCanvas" class="arcade-canvas" width="320" height="320"></canvas>
-            <p class="status" id="snakeStatus">시작을 눌러주세요.</p>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gameTetris">
-          <h2><span class="icon">▦</span> 7. Tetris</h2>
-          <p class="sub">방향키: 이동/회전/빠른낙하 · A/D/S/W도 지원합니다.</p>
-          <div class="mini-game-panel">
-            <div class="game-stat-row">
-              <strong id="tetrisScore">점수 0 · 줄 0</strong>
-              <div class="btn-row compact">
-                <button class="btn primary" type="button" id="tetrisStartBtn">시작</button>
-                <button class="btn ghost" type="button" id="tetrisResetBtn">리셋</button>
-              </div>
-            </div>
-            <canvas id="tetrisCanvas" class="tetris-canvas" width="240" height="480"></canvas>
-            <p class="status" id="tetrisStatus">시작을 눌러주세요.</p>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gamePacman">
-          <h2><span class="icon">●</span> 8. Pacman</h2>
-          <p class="sub">방향키/WASD로 이동해 점을 모으세요.</p>
-          <div class="mini-game-panel">
-            <div class="game-stat-row">
-              <strong id="pacmanScore">점수 0</strong>
-              <div class="btn-row compact">
-                <button class="btn primary" type="button" id="pacmanStartBtn">시작</button>
-                <button class="btn ghost" type="button" id="pacmanResetBtn">리셋</button>
-              </div>
-            </div>
-            <canvas id="pacmanCanvas" class="arcade-canvas" width="320" height="320"></canvas>
-            <p class="status" id="pacmanStatus">시작을 눌러주세요.</p>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gameBreakout">
-          <h2><span class="icon">▰</span> 9. Brick Breaker</h2>
-          <p class="sub">마우스/터치 또는 방향키/A,D로 패들을 움직여 벽돌을 깨세요.</p>
-          <div class="mini-game-panel">
-            <div class="game-stat-row">
-              <strong id="breakoutScore">점수 0 · 남은 벽돌 0</strong>
-              <div class="btn-row compact">
-                <button class="btn primary" type="button" id="breakoutStartBtn">시작</button>
-                <button class="btn ghost" type="button" id="breakoutResetBtn">리셋</button>
-              </div>
-            </div>
-            <canvas id="breakoutCanvas" class="arcade-canvas" width="320" height="320"></canvas>
-            <p class="status" id="breakoutStatus">시작을 눌러주세요.</p>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gameMemory">
-          <h2><span class="icon">◇</span> 10. Memory Cards</h2>
-          <p class="sub">카드를 뒤집어 같은 그림 8쌍을 모두 찾으세요.</p>
-          <div class="mini-game-panel">
-            <div class="game-stat-row">
-              <strong id="memoryScore">이동 0 · 발견 0/8</strong>
-              <button class="btn ghost" type="button" id="memoryResetBtn">새 게임</button>
-            </div>
-            <div id="memoryBoard" class="memory-board" aria-label="메모리 카드 보드"></div>
-            <p class="status" id="memoryStatus">카드 2장을 선택하세요.</p>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gameMinesweeper">
-          <h2><span class="icon">✦</span> 11. Minesweeper</h2>
-          <p class="sub">좌클릭으로 열기 · 우클릭 또는 길게 누르기로 깃발 표시</p>
-          <div class="mini-game-panel">
-            <div class="game-stat-row">
-              <strong id="mineScore">지뢰 10 · 깃발 0</strong>
-              <button class="btn ghost" type="button" id="mineResetBtn">새 게임</button>
-            </div>
-            <div id="mineBoard" class="mine-board" aria-label="지뢰찾기 보드"></div>
-            <p class="status" id="mineStatus">첫 칸을 열어 시작하세요.</p>
-          </div>
-        </article>
-
-        <article class="tool-card tool-stage" id="gamePong">
-          <h2><span class="icon">◐</span> 12. Pong</h2>
-          <p class="sub">마우스/터치 또는 방향키/W,S로 내 패들을 움직입니다. 먼저 5점이면 승리합니다.</p>
-          <div class="mini-game-panel">
-            <div class="game-stat-row">
-              <strong id="pongScore">플레이어 0 : 0 CPU</strong>
-              <div class="btn-row compact">
-                <button class="btn primary" type="button" id="pongStartBtn">시작</button>
-                <button class="btn ghost" type="button" id="pongResetBtn">리셋</button>
-              </div>
-            </div>
-            <canvas id="pongCanvas" class="arcade-canvas" width="320" height="320"></canvas>
-            <p class="status" id="pongStatus">시작을 눌러주세요.</p>
-          </div>
-        </article>
+        <article class="tool-card tool-stage orbit-stage" id="gameOrbit"><div class="orbit-top"><div><p>FLIGHT 01</p><h2>Orbit Courier</h2></div><div class="orbit-metrics"><span>점수 <b id="orbitScore">0</b></span><span>최고 <b id="orbitBest">0</b></span><span>에너지 <b id="orbitLives">3</b></span></div></div><div class="orbit-surface" id="orbitCanvas"><div id="orbitOverlay" class="orbit-overlay"><span>ORBIT COURIER</span><h3 id="orbitMessage">다음 궤도로</h3><button id="orbitStart" class="btn primary">비행 시작</button></div></div><div class="orbit-bottom"><button id="orbitPause" class="icon-btn" aria-label="일시 정지" title="일시 정지" data-ui-icon="pause-fill" disabled></button><button id="orbitSound" class="icon-btn" aria-label="소리 켜기" title="소리 켜기" data-ui-icon="volume-mute-fill"></button><p id="orbitStatus" role="status">비행 준비</p><span class="studio-spacer"></span><span id="orbitLevel">SECTOR 01</span></div></article>
       </section>
     </main>
     <div id="globalBusy" class="global-busy hidden" aria-live="polite" aria-busy="true">
@@ -1044,6 +816,9 @@
       </section>
     </div>
     <script src="./assets/vendor/html2canvas.min.js"></script>
-    <script src="./app.js?v=0.1.23"></script>
+    <script src="./app.js?v=0.2.0"></script>
+    <script src="./workspace.js?v=0.2.0"></script>
+    <script src="./pdf-studio.js?v=0.2.0"></script>
+    <script src="./orbit-courier.js?v=0.2.0"></script>
   </body>
 </html>

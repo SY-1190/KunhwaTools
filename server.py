@@ -15,6 +15,7 @@ from urllib.parse import quote, urlparse
 import pdfplumber
 
 from pdf_excel_converter import convert_pdf_bytes
+from pdf_document_tools import analyze_pdf, edit_pdf, convert_word
 
 
 ROOT = Path(__file__).resolve().parent
@@ -23,7 +24,7 @@ CONVERSION_LIMIT = threading.BoundedSemaphore(2)
 
 
 class KunhwaToolsHandler(SimpleHTTPRequestHandler):
-    server_version = "KunhwaTools/0.1.22"
+    server_version = "KunhwaTools/0.2.0"
 
     def _send_json(self, status: HTTPStatus, payload: dict) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -41,6 +42,9 @@ class KunhwaToolsHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
+        if path == "/api/pdf-document/health":
+            self._send_json(HTTPStatus.OK, {"ok": True, "mode": "local", "service": "KunhwaTools PDF Studio"})
+            return
         if path == "/api/pdf-to-excel/health":
             self._send_json(
                 HTTPStatus.OK,
@@ -55,12 +59,28 @@ class KunhwaToolsHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path != "/api/pdf-to-excel/convert":
+        path = urlparse(self.path).path
+        if path not in ("/api/pdf-to-excel/convert", "/api/pdf-document/analyze", "/api/pdf-document/edit", "/api/pdf-document/word"):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "요청한 변환 API를 찾을 수 없습니다."})
             return
         try:
-            file_name, pdf_bytes = self._read_pdf_upload()
+            file_name, pdf_bytes, fields = self._read_pdf_form()
             with CONVERSION_LIMIT:
+                if path.endswith("/analyze"):
+                    self._send_json(HTTPStatus.OK, analyze_pdf(pdf_bytes))
+                    return
+                if path.endswith("/edit"):
+                    try:
+                        operations = json.loads(fields.get("operations", "[]"))
+                    except json.JSONDecodeError as exc:
+                        raise ValueError("편집 데이터가 올바르지 않습니다.") from exc
+                    output = edit_pdf(pdf_bytes, operations)
+                    self._send_file(output, "application/pdf", f"{Path(file_name).stem}_편집.pdf", {"edits": len(operations)})
+                    return
+                if path.endswith("/word"):
+                    output, report = convert_word(pdf_bytes, fields.get("mode", "editable"))
+                    self._send_file(output, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", f"{Path(file_name).stem}.docx", report)
+                    return
                 workbook_bytes, report = convert_pdf_bytes(pdf_bytes, Path(file_name).stem)
             output_name = f"{Path(file_name).stem}_엑셀변환.xlsx"
             report_header = base64.urlsafe_b64encode(
@@ -83,10 +103,20 @@ class KunhwaToolsHandler(SimpleHTTPRequestHandler):
             self.log_error("PDF conversion failed: %s", error)
             self._send_json(
                 HTTPStatus.INTERNAL_SERVER_ERROR,
-                {"error": "PDF 정밀 변환 중 오류가 발생했습니다.", "detail": str(error)},
+                {"error": "PDF 처리 중 오류가 발생했습니다. 파일 상태를 확인한 뒤 다시 시도해 주세요."},
             )
 
-    def _read_pdf_upload(self) -> tuple[str, bytes]:
+    def _send_file(self, data, mime, filename, report):
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{quote(filename)}")
+        self.send_header("X-Kunhwa-Conversion-Report", base64.urlsafe_b64encode(json.dumps(report, ensure_ascii=False).encode("utf-8")).decode("ascii"))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _read_pdf_form(self) -> tuple[str, bytes, dict]:
         content_length = int(self.headers.get("Content-Length") or 0)
         if content_length <= 0:
             raise ValueError("업로드된 PDF 파일이 없습니다.")
@@ -99,14 +129,23 @@ class KunhwaToolsHandler(SimpleHTTPRequestHandler):
         message = BytesParser(policy=policy.default).parsebytes(
             f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("ascii") + body
         )
+        fields = {}
+        upload = None
         for part in message.iter_parts():
-            if part.get_content_disposition() != "form-data" or part.get_param("name", header="content-disposition") != "file":
+            if part.get_content_disposition() != "form-data":
+                continue
+            name = part.get_param("name", header="content-disposition")
+            if name != "file":
+                if name in ("operations", "mode"):
+                    fields[name] = (part.get_payload(decode=True) or b"").decode("utf-8")
                 continue
             file_name = part.get_filename() or "document.pdf"
             payload = part.get_payload(decode=True) or b""
             if not file_name.lower().endswith(".pdf") or not payload.startswith(b"%PDF-"):
                 raise ValueError("올바른 PDF 파일을 선택해 주세요.")
-            return Path(file_name).name, payload
+            upload = (Path(file_name).name, payload)
+        if upload:
+            return *upload, fields
         raise ValueError("업로드된 PDF 파일을 찾을 수 없습니다.")
 
 
