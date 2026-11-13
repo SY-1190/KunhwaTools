@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -6,6 +7,33 @@
   const hasUnsaved = () => state.file && (operations() !== state.savedOperations || state.inline);
   const status = (text, error = false) => { $("pdfEditStatus").textContent = text; $("pdfEditStatus").classList.toggle("error", error); };
   const localError = "로컬 PDF 엔진에 연결할 수 없습니다. start-kunhwa-tools.ps1로 실행한 주소에서 다시 열어 주세요.";
+  let worker, nextRequest = 0, previewTimer;
+  const pending = new Map();
+  function browserRequest(action, options) {
+    if (!worker) {
+      worker = new Worker(new URL("./pdf-browser-worker.mjs?v=0.2.2", document.baseURI), { type: "module" });
+      worker.onmessage = ({ data: { id, result, error } }) => {
+        const request = pending.get(id);
+        pending.delete(id);
+        if (error) request?.reject(new Error(error));
+        else request?.resolve(result);
+      };
+      worker.onerror = () => {
+        worker.terminate(); worker = null;
+        pending.forEach(({ reject }) => reject(new Error("브라우저 PDF 엔진이 중단되었습니다. 파일을 다시 열어 주세요.")));
+        pending.clear();
+      };
+    }
+    return new Promise((resolve, reject) => {
+      const id = ++nextRequest;
+      pending.set(id, { resolve, reject });
+      worker.postMessage({ id, action, ...options });
+    });
+  }
+  function clearPreview() {
+    if (state.preview) Object.values(state.preview).forEach((page) => URL.revokeObjectURL(page.image));
+    state.preview = null;
+  }
   $("pdfEditOpen").onclick = () => $("pdfEditFile").click();
   ["pdfEditFile", "pdfWordFile"].forEach((id) => {
     const zone = document.querySelector(`[data-file-input="${id}"]`);
@@ -43,28 +71,29 @@
     const list = structuredClone(operations());
     const index = list.findIndex((item) => item.id === op.id && item.page === op.page);
     if (index >= 0) list[index] = op; else list.push(op);
-    state.history = state.history.slice(0, state.step + 1); state.history.push(list); state.step++; state.preview = null;
+    state.history = state.history.slice(0, state.step + 1); state.history.push(list); state.step++; clearPreview();
     render(); refreshPreview();
   }
-  async function refreshPreview() {
+  function refreshPreview() {
+    clearTimeout(previewTimer);
     const generation = ++state.generation;
     if (!operations().length) {
-      state.preview = null; render(); status("원본 상태입니다.");
+      clearPreview(); render(); status("원본 상태입니다.");
       $("pdfEditSave").disabled = state.busy || !state.file;
       return;
     }
     status("편집 결과 확인 중…"); $("pdfEditSave").disabled = true;
-    try {
-      const result = await request("edit", state.file, { operations: JSON.stringify(operations()) });
-      const blob = await result.blob();
-      if (generation !== state.generation) return;
-      const response = await request("analyze", new File([blob], "preview.pdf", { type: "application/pdf" }));
-      const preview = await response.json();
-      if (generation !== state.generation) return;
-      state.preview = preview.pages; state.previewGeneration = generation; render(); status(`편집 ${operations().length}개 · 원본은 변경되지 않았습니다.`);
-    } catch (error) {
-      if (generation === state.generation) { state.preview = null; render(); status(error.message, true); }
-    } finally { if (generation === state.generation) $("pdfEditSave").disabled = !state.file || state.busy; }
+    previewTimer = setTimeout(async () => {
+      try {
+        const preview = await browserRequest("preview", { operations: operations() });
+        if (generation !== state.generation) return;
+        clearPreview();
+        state.preview = Object.fromEntries(Object.entries(preview).map(([page, data]) => [page, { image: URL.createObjectURL(data.image) }]));
+        state.previewGeneration = generation; render(); status(`편집 ${operations().length}개 · 원본은 변경되지 않았습니다.`);
+      } catch (error) {
+        if (generation === state.generation) { clearPreview(); render(); status(error.message, true); }
+      } finally { if (generation === state.generation) $("pdfEditSave").disabled = !state.file || state.busy; }
+    }, 140);
   }
   function render() {
     const page = state.pages[state.page]; if (!page) return;
@@ -81,8 +110,10 @@
         if (!op.deleted) {
           const draft = document.createElement(op.type === "image" ? "img" : "div"); draft.className = "studio-draft";
           position(draft, op.rect);
-          if (op.type === "image") draft.src = op.image;
-          else { draft.textContent = op.text; draft.style.fontSize = `${op.size * state.scale}px`; draft.style.color = op.color; }
+          if (op.type === "image") {
+            if (!op.image) return;
+            draft.src = op.image;
+          } else { draft.textContent = op.text; draft.style.fontSize = `${op.size * state.scale}px`; draft.style.color = op.color; }
           canvas.append(draft);
         }
       });
@@ -214,28 +245,32 @@
     const file = event.target.files[0]; if (!file) return;
     if (state.busy) { event.target.value = ""; return; }
     if (hasUnsaved() && !confirm("저장하지 않은 편집이 있습니다. 다른 파일을 열까요?")) { event.target.value = ""; return; }
-    const generation = ++state.generation; state.busy = true; $("pdfEditSave").disabled = true; status("PDF 분석 중…");
+    clearTimeout(previewTimer);
+    const generation = ++state.generation; state.busy = true; $("pdfEditSave").disabled = true; status("브라우저에서 PDF 분석 중…");
     try {
       if (file.size > 55 * 1024 * 1024) throw new Error("PDF는 55MB 이하만 열 수 있습니다.");
-      const response = await request("analyze", file); const data = await response.json(); if (generation !== state.generation) return;
-      Object.assign(state, { file, pages: data.pages, preview: null, page: 0, selected: null, inline: null, history: [[]], step: 0 });
+      const data = await browserRequest("open", { file }); if (generation !== state.generation) return;
+      clearPreview();
+      state.pages.forEach((page) => URL.revokeObjectURL(page.image));
+      const pages = data.pages.map((page) => ({ ...page, image: URL.createObjectURL(page.image) }));
+      Object.assign(state, { file, pages, preview: null, page: 0, selected: null, inline: null, history: [[]], step: 0 });
       state.savedOperations = operations();
       $("pdfEditFileName").textContent = file.name; $("pdfEditDrop").hidden = true; $("pdfStudio").hidden = false;
       render(); status(`${data.pageCount}페이지 · ${data.pages.reduce((n, p) => n + p.objects.length, 0)}개 항목`);
-    } catch (error) { if (generation === state.generation) status(error.message, true); }
+    } catch (error) { if (generation === state.generation) { event.target.value = ""; status(error.message, true); } }
     finally { if (generation === state.generation) { state.busy = false; $("pdfEditSave").disabled = !state.file; } }
   });
   $("pdfEditApply").onclick = () => {
     if (state.busy || state.inline) return;
     const item = selected(); if (!item) return;
-    const [x, y, w, h] = ["X", "Y", "W", "H"].map((key) => Number($("pdfEdit" + key).value));
+    const [x, y, w, h] = ["X", "Y", "W", "H"].map((key) => $("pdfEdit" + key).valueAsNumber);
     const rect = [x, y, x + w, y + h], page = state.pages[state.page];
     if (![x, y, w, h].every(Number.isFinite) || x < 0 || y < 0 || w < 1 || h < 1 || rect[2] > page.width || rect[3] > page.height) { status("항목이 페이지 밖에 있습니다. 위치와 크기를 확인해 주세요.", true); return; }
     commit({ ...item, rect, text: $("pdfEditText").value, size: Number($("pdfEditSize").value), color: $("pdfEditColor").value, fill: $("pdfEditFill").value });
   };
   $("pdfEditDelete").onclick = () => { const item = selected(); if (item && !state.busy && !state.inline) { state.selected = null; commit({ ...item, deleted: true }); } };
-  $("pdfEditUndo").onclick = () => { if (!state.busy && !state.inline && state.step) { state.step--; state.selected = null; state.preview = null; render(); refreshPreview(); } };
-  $("pdfEditRedo").onclick = () => { if (!state.busy && !state.inline && state.step < state.history.length - 1) { state.step++; state.preview = null; render(); refreshPreview(); } };
+  $("pdfEditUndo").onclick = () => { if (!state.busy && !state.inline && state.step) { state.step--; state.selected = null; clearPreview(); render(); refreshPreview(); } };
+  $("pdfEditRedo").onclick = () => { if (!state.busy && !state.inline && state.step < state.history.length - 1) { state.step++; clearPreview(); render(); refreshPreview(); } };
   $("pdfEditPrev").onclick = () => { if (state.page) { state.page--; state.selected = null; render(); } };
   $("pdfEditNext").onclick = () => { if (state.page + 1 < state.pages.length) { state.page++; state.selected = null; render(); } };
   $("pdfEditZoom").onchange = render;
@@ -255,13 +290,25 @@
   $("pdfEditAddImage").onclick = () => { if (!state.busy && !state.inline) { replaceImage = false; $("pdfEditImage").click(); } };
   $("pdfEditReplaceImage").onclick = () => { if (!state.busy && !state.inline) { replaceImage = true; $("pdfEditImage").click(); } };
   $("pdfEditImage").onchange = async (event) => {
-    const file = event.target.files[0], target = selected(); if (!file) return;
+    const file = event.target.files[0], target = selected(), source = state.file, index = state.page;
+    const replacing = replaceImage;
+    if (!file || !source || state.busy) return;
     try {
       if (file.size > 12 * 1024 * 1024) throw new Error("이미지는 12MB 이하만 사용할 수 있습니다.");
-      const image = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
-      const bitmap = await createImageBitmap(file), page = state.pages[state.page];
-      const width = Math.min(200, page.width - 60), height = Math.min(page.height - 60, width * bitmap.height / bitmap.width); bitmap.close();
-      const item = replaceImage && target?.type === "image" ? { ...target, image } : { id: crypto.randomUUID(), page: state.page, type: "image", rect: [30, 30, 30 + width, 30 + height], image, fill: "#ffffff" };
+      const bitmap = await createImageBitmap(file), page = state.pages[index];
+      if (state.file !== source || state.page !== index || state.busy) { bitmap.close(); return; }
+      const x = Math.min(30, page.width * .08), y = Math.min(30, page.height * .08);
+      const width = Math.min(200, page.width - x * 2, (page.height - y * 2) * bitmap.width / bitmap.height);
+      const height = width * bitmap.height / bitmap.width;
+      let image;
+      try {
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        image = canvas.toDataURL(file.type === "image/jpeg" ? "image/jpeg" : "image/png", .94);
+      } finally { bitmap.close(); }
+      const item = replacing && target?.type === "image" ? { ...target, image } : { id: crypto.randomUUID(), page: index, type: "image", rect: [x, y, x + width, y + height], image, fill: "#ffffff" };
       state.selected = item.id; commit(item);
     } catch (error) { status(error.message || "이미지를 읽을 수 없습니다.", true); }
     event.target.value = "";
@@ -274,7 +321,7 @@
     }
     state.busy = true; $("pdfEditSave").disabled = true; status("PDF 저장 중…");
     const saved = operations();
-    try { const response = await request("edit", state.file, { operations: JSON.stringify(saved) }); download(await response.blob(), state.file.name.replace(/\.pdf$/i, "_편집.pdf")); state.savedOperations = saved; status("편집 PDF 다운로드 완료 · 원본 파일은 그대로 유지됩니다."); }
+    try { const result = await browserRequest("save", { operations: saved }); download(result, state.file.name.replace(/\.pdf$/i, "_편집.pdf")); state.savedOperations = saved; status("편집 PDF 다운로드 완료 · 원본 파일은 그대로 유지됩니다."); }
     catch (error) { status(error.message, true); }
     finally { state.busy = false; $("pdfEditSave").disabled = false; }
   };

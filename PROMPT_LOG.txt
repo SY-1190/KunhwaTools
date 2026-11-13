@@ -363,3 +363,16 @@ QR 기능 검증:
 - 기존 Pages 게시 원본은 main / (root). 운영의 ver_0.2.0 및 로컬 ver_0.2.1 확인. 호스팅 설정 및 PDF API 배포 범위는 변경하지 않음.
 - 원격 fetch 후 분기 차이 없음, 대상 8개 파일의 해시 및 git diff --check 확인, PDF 엔진 자동 테스트 5/5 재통과.
 - 병합·순서 변경은 운영 웹에서 지원하고, PDF 내용 편집과 Word 변환은 기존 로컬 서버에서 지원.
+
+[2026-11-13 09:45:55 KST]
+요청 및 승인:
+- GitHub Pages 운영에서 로컬 서버 없이 PDF 글자·그림 추가 및 기존 내용 편집 지원.
+- MuPDF.js 1.28.6 도입, AGPL 조건 및 대응 소스 공개, ver_0.2.2 커밋·푸시와 운영 반영 승인.
+
+구현 및 검증:
+- pdf-browser-engine.mjs, pdf-browser-worker.mjs, pdf-studio.js: PDF 선택 시 WASM을 지연 로드하고 브라우저 워커에서 미리보기·원문 제거·글자/이미지 삽입·저장. PDF 파일은 서버에 전송하지 않음.
+- index.html, README.md, patch-notes.html: 버전·운영 지원 범위와 소스 안내. 기존 Python Word/Excel 경로와 GitHub Pages 설정 유지.
+- assets/vendor/mupdf-1.28.6: 공식 npm 배포본, 라이선스, SHA-256, 공식 대응 소스 아카이브와 빌드 안내. 같은 태그의 아카이브 접근 및 WASM/서드파티 소스 포함 확인. 통합 소스는 공개 저장소 및 운영 사이트에서 제공.
+- tests/test-pdf-browser.mjs 4/4. 한글 실제 교체·검색, 원본 이미지 교체/이동 및 새 이미지, 회전, 암호/잘못된 입력 검증.
+- Chrome/Playwright 1440px 및 390px 정적 서버 검증. PDF API 차단 상태에서 한글 교체·추가, 그림 추가, 실행 취소/다시 실행, 새 PDF 다운로드. API 요청 0건, JS 예외·가로 넘침 없음. 별도 PDF 엔진으로 저장본의 텍스트와 그림 픽셀 확인.
+- OCR 및 스캔 이미지 속 글자 직접 편집 미지원. 암호, 편집 제한, 서명 필드 PDF는 편집하지 않음. Word 변환은 로컬 유지.
