@@ -11,7 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css?v=0.2.0" />
-    <link rel="stylesheet" href="./workspace.css?v=0.2.1" />
+    <link rel="stylesheet" href="./workspace.css?v=0.2.3" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -42,7 +42,7 @@
             <span>로그인</span>
           </button>
         </div>
-        <p class="commit-note">ver_0.2.2</p>
+        <p class="commit-note">ver_0.2.3</p>
       </div>
     </header>
 
@@ -93,6 +93,14 @@
           <h2><span class="icon" data-ui-icon="pencil-square"></span>PDF 편집</h2>
           <div class="studio-filebar"><button id="pdfEditOpen" class="btn ghost" type="button"><span data-ui-icon="folder2-open"></span>파일 열기</button><input class="visually-hidden" id="pdfEditFile" type="file" accept=".pdf,application/pdf" tabindex="-1" /><span id="pdfEditFileName">선택된 파일 없음</span><span class="studio-spacer"></span><button id="pdfEditSave" class="btn primary" disabled><span data-ui-icon="download"></span>PDF 저장</button></div>
           <div id="pdfEditDrop" class="drop-zone large" data-file-input="pdfEditFile" data-file-kind="PDF" data-drop-multiple="false"><span data-ui-icon="file-earmark-pdf"></span><p class="drop-main">PDF 파일을 놓아주세요</p><p class="drop-file-name" id="pdfEditFileDropName">선택된 파일 없음</p></div>
+          <div id="pdfEditLoading" class="studio-loading" hidden>
+            <p id="pdfEditLoadingMessage" role="status"></p>
+            <span id="pdfEditLoadingFile" class="studio-loading-file"></span>
+            <div class="studio-loading-track">
+              <progress id="pdfEditLoadingProgress" aria-label="PDF 페이지 준비 진행률"></progress>
+              <span id="pdfEditLoadingCount" aria-hidden="true"></span>
+            </div>
+          </div>
           <p class="status" id="pdfEditStatus" role="status"></p>
           <a class="format-note" href="./assets/vendor/mupdf-1.28.6/SOURCE.html">PDF 편집 엔진 라이선스 및 소스</a>
           <div id="pdfStudio" class="pdf-studio" hidden>
@@ -825,7 +833,7 @@
     <script src="./assets/vendor/html2canvas.min.js"></script>
     <script src="./app.js?v=0.2.1"></script>
     <script src="./workspace.js?v=0.2.1"></script>
-    <script src="./pdf-studio.js?v=0.2.2"></script>
+    <script src="./pdf-studio.js?v=0.2.3"></script>
     <script src="./orbit-courier.js?v=0.2.0"></script>
   </body>
 </html>

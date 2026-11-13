@@ -34,6 +34,18 @@ const view = async (blob, fn) => {
   try { return fn(page); } finally { page.destroy(); doc.destroy(); }
 };
 
+test("reports each prepared page, including the initial total", () => {
+  const doc = new mupdf.PDFDocument(fixture());
+  doc.graftPage(-1, doc, 0);
+  const file = doc.saveToBuffer("");
+  const progress = [];
+  try {
+    const result = inspectPdf(file.asUint8Array(), (done, total) => progress.push([done, total]));
+    assert.equal(result.pageCount, 2);
+    assert.deepEqual(progress, [[0, 2], [1, 2], [2, 2]]);
+  } finally { file.destroy(); doc.destroy(); }
+});
+
 test("replaces real text with searchable Korean and keeps adjacent text", async () => {
   const original = fixture();
   const [line] = inspectPdf(original).pages[0].objects.filter((item) => item.type === "text");

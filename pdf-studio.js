@@ -9,11 +9,12 @@
   const localError = "로컬 PDF 엔진에 연결할 수 없습니다. start-kunhwa-tools.ps1로 실행한 주소에서 다시 열어 주세요.";
   let worker, nextRequest = 0, previewTimer;
   const pending = new Map();
-  function browserRequest(action, options) {
+  function browserRequest(action, options, onProgress) {
     if (!worker) {
-      worker = new Worker(new URL("./pdf-browser-worker.mjs?v=0.2.2", document.baseURI), { type: "module" });
-      worker.onmessage = ({ data: { id, result, error } }) => {
+      worker = new Worker(new URL("./pdf-browser-worker.mjs?v=0.2.3", document.baseURI), { type: "module" });
+      worker.onmessage = ({ data: { id, result, error, progress } }) => {
         const request = pending.get(id);
+        if (progress) { request?.onProgress?.(progress); return; }
         pending.delete(id);
         if (error) request?.reject(new Error(error));
         else request?.resolve(result);
@@ -26,13 +27,37 @@
     }
     return new Promise((resolve, reject) => {
       const id = ++nextRequest;
-      pending.set(id, { resolve, reject });
-      worker.postMessage({ id, action, ...options });
+      pending.set(id, { resolve, reject, onProgress });
+      try { worker.postMessage({ id, action, ...options }); }
+      catch (error) { pending.delete(id); reject(error); }
     });
   }
   function clearPreview() {
     if (state.preview) Object.values(state.preview).forEach((page) => URL.revokeObjectURL(page.image));
     state.preview = null;
+  }
+  function showOpenProgress({ phase, done, total }) {
+    const label = phase === "pages" ? "PDF 페이지 준비 중" : phase === "engine" ? "PDF 편집 엔진 준비 중" : "PDF 파일 읽는 중";
+    const message = $("pdfEditLoadingMessage");
+    if (message.textContent !== label) message.textContent = label;
+    const progress = $("pdfEditLoadingProgress");
+    if (total > 0) {
+      progress.max = total;
+      progress.value = done;
+    } else {
+      progress.removeAttribute("value");
+      progress.removeAttribute("max");
+    }
+    $("pdfEditLoadingCount").textContent = total > 0 ? `${done} / ${total}페이지` : "";
+  }
+  function setOpening(opening) {
+    state.busy = opening;
+    $("pdfEditLoading").hidden = !opening;
+    $("pdfEditDrop").hidden = opening || !!state.file;
+    $("pdfEditOpen").disabled = $("pdfEditFile").disabled = opening;
+    $("pdfEditSave").disabled = opening || !state.file;
+    $("pdfStudio").inert = opening;
+    $("pdfStudio").setAttribute("aria-busy", String(opening));
   }
   $("pdfEditOpen").onclick = () => $("pdfEditFile").click();
   ["pdfEditFile", "pdfWordFile"].forEach((id) => {
@@ -245,20 +270,38 @@
     const file = event.target.files[0]; if (!file) return;
     if (state.busy) { event.target.value = ""; return; }
     if (hasUnsaved() && !confirm("저장하지 않은 편집이 있습니다. 다른 파일을 열까요?")) { event.target.value = ""; return; }
+    const restoreFocus = document.activeElement === $("pdfEditOpen") || document.activeElement === $("pdfEditDrop");
     clearTimeout(previewTimer);
-    const generation = ++state.generation; state.busy = true; $("pdfEditSave").disabled = true; status("브라우저에서 PDF 분석 중…");
+    const generation = ++state.generation;
+    $("pdfEditLoadingFile").textContent = file.name;
+    showOpenProgress({ phase: "read" });
+    status("");
+    setOpening(true);
     try {
       if (file.size > 55 * 1024 * 1024) throw new Error("PDF는 55MB 이하만 열 수 있습니다.");
-      const data = await browserRequest("open", { file }); if (generation !== state.generation) return;
+      const data = await browserRequest("open", { file }, (progress) => {
+        if (generation === state.generation) showOpenProgress(progress);
+      });
+      if (generation !== state.generation) return;
       clearPreview();
       state.pages.forEach((page) => URL.revokeObjectURL(page.image));
       const pages = data.pages.map((page) => ({ ...page, image: URL.createObjectURL(page.image) }));
       Object.assign(state, { file, pages, preview: null, page: 0, selected: null, inline: null, history: [[]], step: 0 });
       state.savedOperations = operations();
-      $("pdfEditFileName").textContent = file.name; $("pdfEditDrop").hidden = true; $("pdfStudio").hidden = false;
+      $("pdfEditFileName").textContent = file.name; $("pdfStudio").hidden = false;
       render(); status(`${data.pageCount}페이지 · ${data.pages.reduce((n, p) => n + p.objects.length, 0)}개 항목`);
-    } catch (error) { if (generation === state.generation) { event.target.value = ""; status(error.message, true); } }
-    finally { if (generation === state.generation) { state.busy = false; $("pdfEditSave").disabled = !state.file; } }
+    } catch (error) {
+      if (generation === state.generation) {
+        event.target.value = "";
+        if (state.preview) state.previewGeneration = generation;
+        status(error.message, true);
+      }
+    } finally {
+      if (generation === state.generation) {
+        setOpening(false);
+        if (restoreFocus && document.activeElement === document.body) $("pdfEditOpen").focus({ preventScroll: true });
+      }
+    }
   });
   $("pdfEditApply").onclick = () => {
     if (state.busy || state.inline) return;

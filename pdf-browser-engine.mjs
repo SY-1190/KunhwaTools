@@ -76,11 +76,12 @@ function raster(page, { width, height }, limit) {
   finally { pix.destroy(); }
 }
 
-export function inspectPdf(data) {
+export function inspectPdf(data, onProgress) {
   const doc = openDocument(data);
   try {
     const count = doc.countPages(), pages = [];
     const limit = Math.min(1200, Math.floor(Math.sqrt(32_000_000 / count)));
+    onProgress?.(0, count);
     for (let i = 0; i < count; i++) {
       const page = doc.loadPage(i);
       try {
@@ -93,6 +94,7 @@ export function inspectPdf(data) {
         const box = geometry(page);
         pages.push({ width: box.width, height: box.height, image: raster(page, box, limit), objects: pageObjects(page, box).objects });
       } finally { page.destroy(); }
+      onProgress?.(i + 1, count);
     }
     return { pages, pageCount: count };
   } finally { doc.destroy(); }
