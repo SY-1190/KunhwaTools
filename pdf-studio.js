@@ -3,7 +3,7 @@
   const $ = (id) => document.getElementById(id);
   const state = { file: null, pages: [], preview: null, page: 0, selected: null, history: [[]], step: 0, scale: 1, generation: 0, busy: false };
   const operations = () => state.history[state.step];
-  const hasUnsaved = () => state.file && operations() !== state.savedOperations;
+  const hasUnsaved = () => state.file && (operations() !== state.savedOperations || state.inline);
   const status = (text, error = false) => { $("pdfEditStatus").textContent = text; $("pdfEditStatus").classList.toggle("error", error); };
   const localError = "로컬 PDF 엔진에 연결할 수 없습니다. start-kunhwa-tools.ps1로 실행한 주소에서 다시 열어 주세요.";
   $("pdfEditOpen").onclick = () => $("pdfEditFile").click();
@@ -48,7 +48,11 @@
   }
   async function refreshPreview() {
     const generation = ++state.generation;
-    if (!operations().length) { state.preview = null; render(); status("원본 상태입니다."); return; }
+    if (!operations().length) {
+      state.preview = null; render(); status("원본 상태입니다.");
+      $("pdfEditSave").disabled = state.busy || !state.file;
+      return;
+    }
     status("편집 결과 확인 중…"); $("pdfEditSave").disabled = true;
     try {
       const result = await request("edit", state.file, { operations: JSON.stringify(operations()) });
@@ -66,6 +70,7 @@
     const page = state.pages[state.page]; if (!page) return;
     const viewport = $("pdfEditViewport"), canvas = $("pdfEditCanvas");
     state.scale = $("pdfEditZoom").value === "fit" ? Math.min(1.6, Math.max(.2, (viewport.clientWidth - 40) / page.width)) : Number($("pdfEditZoom").value);
+    const inlineFocused = state.inline?.form.contains(document.activeElement);
     canvas.replaceChildren(); canvas.style.width = `${page.width * state.scale}px`; canvas.style.height = `${page.height * state.scale}px`;
     const bg = document.createElement("img"); bg.className = "studio-background"; bg.src = (state.preview?.[state.page] || page).image; bg.alt = `PDF ${state.page + 1}페이지`; bg.draggable = false; canvas.append(bg);
     const validPreview = state.preview && state.previewGeneration === state.generation;
@@ -85,13 +90,19 @@
     items().forEach((item) => {
       const button = document.createElement("button"); button.className = `studio-object ${item.type}${item.id === state.selected ? " selected" : ""}`;
       button.setAttribute("aria-label", item.type === "text" ? `글자: ${item.text}` : "이미지 선택"); button.title = item.type === "text" ? item.text : "이미지"; button.dataset.objectId = item.id;
-      position(button, item.rect); button.addEventListener("click", () => { state.selected = item.id; render(); });
+      position(button, item.rect); button.addEventListener("click", () => selectItem(item.id));
+      if (item.type === "text") button.addEventListener("dblclick", () => beginInlineEdit(item));
       button.addEventListener("pointerdown", (event) => beginDrag(event, item)); canvas.append(button);
     });
+    if (state.inline?.item.page === state.page) {
+      placeInlineEditor();
+      if (inlineFocused) state.inline.form.querySelector("textarea").focus({ preventScroll: true });
+    }
     $("pdfEditPageLabel").textContent = `${state.page + 1} / ${state.pages.length}`;
     $("pdfEditPrev").disabled = state.page === 0; $("pdfEditNext").disabled = state.page === state.pages.length - 1;
     $("pdfEditUndo").disabled = state.step === 0; $("pdfEditRedo").disabled = state.step === state.history.length - 1;
     $("pdfEditDelete").disabled = !selected();
+    $("pdfEditInline").disabled = selected()?.type !== "text";
     $("pdfEditPages").replaceChildren(...state.pages.map((p, number) => {
       const button = document.createElement("button"); button.className = `studio-thumbnail${number === state.page ? " active" : ""}`; button.setAttribute("aria-label", `${number + 1}페이지`);
       const image = document.createElement("img"); image.src = (state.preview?.[number] || p).image; image.alt = "";
@@ -102,6 +113,68 @@
   }
   function position(element, rect) {
     Object.assign(element.style, { left: `${rect[0] * state.scale}px`, top: `${rect[1] * state.scale}px`, width: `${(rect[2] - rect[0]) * state.scale}px`, height: `${(rect[3] - rect[1]) * state.scale}px` });
+  }
+  function selectItem(id) {
+    if (state.inline) return;
+    state.selected = id;
+    $("pdfEditCanvas").querySelectorAll(".studio-object").forEach((button) => {
+      button.classList.toggle("selected", button.dataset.objectId === id);
+    });
+    $("pdfEditDelete").disabled = !selected();
+    $("pdfEditInline").disabled = selected()?.type !== "text";
+    inspector();
+  }
+  function placeInlineEditor() {
+    const { item, form } = state.inline;
+    const canvas = $("pdfEditCanvas"), width = canvas.clientWidth;
+    const editorWidth = Math.min(width, Math.max(180, (item.rect[2] - item.rect[0]) * state.scale + 12));
+    form.style.width = `${editorWidth}px`;
+    form.style.left = `${Math.max(0, Math.min(width - editorWidth, item.rect[0] * state.scale - 6))}px`;
+    canvas.append(form);
+    form.style.top = `${Math.max(0, Math.min(canvas.clientHeight - form.offsetHeight, item.rect[1] * state.scale - 6))}px`;
+  }
+  function beginInlineEdit(item) {
+    if (state.busy || item?.type !== "text") return;
+    if (state.inline) {
+      state.page = state.inline.item.page;
+      render();
+      state.inline.form.querySelector("textarea").focus();
+      return;
+    }
+    selectItem(item.id);
+    const form = document.createElement("form");
+    form.className = "studio-inline-editor";
+    form.innerHTML = '<textarea rows="2" maxlength="10000" aria-label="PDF 글자 편집"></textarea><div class="studio-inline-actions"><button type="button" class="btn ghost">취소</button><button class="btn primary" type="submit">적용</button></div>';
+    const input = form.querySelector("textarea");
+    input.value = item.text;
+    const close = () => {
+      form.remove(); state.inline = null;
+      [...$("pdfEditCanvas").querySelectorAll(".studio-object")].find((node) => node.dataset.objectId === item.id)?.focus({ preventScroll: true });
+    };
+    form.querySelector('button[type="button"]').onclick = close;
+    form.onkeydown = (event) => {
+      if (event.isComposing) return;
+      if (event.key === "Escape") { event.preventDefault(); close(); }
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); form.requestSubmit(); }
+    };
+    form.onsubmit = (event) => {
+      event.preventDefault();
+      if (state.busy) return;
+      const text = input.value;
+      if (text === item.text) { close(); return; }
+      if (!text.trim()) { status("글자를 입력하거나 선택 항목 삭제를 사용해 주세요.", true); return; }
+      const page = state.pages[item.page];
+      const [x, y] = item.rect;
+      const measure = document.createElement("canvas").getContext("2d");
+      measure.font = `${item.size}px "Malgun Gothic", sans-serif`;
+      const longest = Math.max(...text.split("\n").map((line) => measure.measureText(line).width));
+      const right = Math.min(page.width, Math.max(item.rect[2], x + longest * 1.06 + 2));
+      const lines = text.split("\n").reduce((n, line) => n + Math.max(1, Math.ceil(measure.measureText(line).width / Math.max(1, right - x - 2))), 0);
+      const bottom = Math.min(page.height, Math.max(item.rect[3], y + item.size * (1.8 + (lines - 1) * 1.25)));
+      close(); commit({ ...item, text, rect: [x, y, right, bottom] });
+    };
+    state.inline = { item, form };
+    placeInlineEditor(); input.focus(); input.select();
   }
   function inspector() {
     const item = selected(); $("pdfEditProperties").hidden = !item;
@@ -120,7 +193,7 @@
     });
   }
   function beginDrag(event, item) {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || state.busy || state.inline) return;
     const target = event.currentTarget, startX = event.clientX, startY = event.clientY;
     target.setPointerCapture(event.pointerId); let rect = [...item.rect], moved = false;
     const move = (e) => {
@@ -130,17 +203,22 @@
       const x = Math.max(0, Math.min(page.width - width, item.rect[0] + dx)), y = Math.max(0, Math.min(page.height - height, item.rect[1] + dy));
       rect = [x, y, x + width, y + height]; position(target, rect);
     };
-    const finish = () => { target.removeEventListener("pointermove", move); target.removeEventListener("pointerup", finish); target.removeEventListener("pointercancel", finish); if (moved) { state.selected = item.id; commit({ ...item, rect }); } };
+    const finish = (e) => {
+      target.removeEventListener("pointermove", move); target.removeEventListener("pointerup", finish); target.removeEventListener("pointercancel", finish);
+      if (e.type === "pointercancel") { position(target, item.rect); return; }
+      if (moved) { state.selected = item.id; commit({ ...item, rect }); }
+    };
     target.addEventListener("pointermove", move); target.addEventListener("pointerup", finish); target.addEventListener("pointercancel", finish);
   }
   $("pdfEditFile").addEventListener("change", async (event) => {
     const file = event.target.files[0]; if (!file) return;
+    if (state.busy) { event.target.value = ""; return; }
     if (hasUnsaved() && !confirm("저장하지 않은 편집이 있습니다. 다른 파일을 열까요?")) { event.target.value = ""; return; }
     const generation = ++state.generation; state.busy = true; $("pdfEditSave").disabled = true; status("PDF 분석 중…");
     try {
       if (file.size > 55 * 1024 * 1024) throw new Error("PDF는 55MB 이하만 열 수 있습니다.");
       const response = await request("analyze", file); const data = await response.json(); if (generation !== state.generation) return;
-      Object.assign(state, { file, pages: data.pages, preview: null, page: 0, selected: null, history: [[]], step: 0 });
+      Object.assign(state, { file, pages: data.pages, preview: null, page: 0, selected: null, inline: null, history: [[]], step: 0 });
       state.savedOperations = operations();
       $("pdfEditFileName").textContent = file.name; $("pdfEditDrop").hidden = true; $("pdfStudio").hidden = false;
       render(); status(`${data.pageCount}페이지 · ${data.pages.reduce((n, p) => n + p.objects.length, 0)}개 항목`);
@@ -148,32 +226,34 @@
     finally { if (generation === state.generation) { state.busy = false; $("pdfEditSave").disabled = !state.file; } }
   });
   $("pdfEditApply").onclick = () => {
+    if (state.busy || state.inline) return;
     const item = selected(); if (!item) return;
     const [x, y, w, h] = ["X", "Y", "W", "H"].map((key) => Number($("pdfEdit" + key).value));
     const rect = [x, y, x + w, y + h], page = state.pages[state.page];
     if (![x, y, w, h].every(Number.isFinite) || x < 0 || y < 0 || w < 1 || h < 1 || rect[2] > page.width || rect[3] > page.height) { status("항목이 페이지 밖에 있습니다. 위치와 크기를 확인해 주세요.", true); return; }
     commit({ ...item, rect, text: $("pdfEditText").value, size: Number($("pdfEditSize").value), color: $("pdfEditColor").value, fill: $("pdfEditFill").value });
   };
-  $("pdfEditDelete").onclick = () => { const item = selected(); if (item) { commit({ ...item, deleted: true }); state.selected = null; render(); } };
-    $("pdfEditUndo").onclick = () => { if (state.step) { state.step--; state.selected = null; state.preview = null; render(); refreshPreview(); } };
-  $("pdfEditRedo").onclick = () => { if (state.step < state.history.length - 1) { state.step++; state.preview = null; render(); refreshPreview(); } };
+  $("pdfEditDelete").onclick = () => { const item = selected(); if (item && !state.busy && !state.inline) { state.selected = null; commit({ ...item, deleted: true }); } };
+  $("pdfEditUndo").onclick = () => { if (!state.busy && !state.inline && state.step) { state.step--; state.selected = null; state.preview = null; render(); refreshPreview(); } };
+  $("pdfEditRedo").onclick = () => { if (!state.busy && !state.inline && state.step < state.history.length - 1) { state.step++; state.preview = null; render(); refreshPreview(); } };
   $("pdfEditPrev").onclick = () => { if (state.page) { state.page--; state.selected = null; render(); } };
   $("pdfEditNext").onclick = () => { if (state.page + 1 < state.pages.length) { state.page++; state.selected = null; render(); } };
   $("pdfEditZoom").onchange = render;
   $("pdfEditSelect").onclick = () => { state.selected = null; render(); };
+  $("pdfEditInline").onclick = () => beginInlineEdit(selected());
   document.addEventListener("keydown", (event) => {
     if (location.hash !== "#pdfEditor" || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
     if (event.key === "Delete" && selected()) { event.preventDefault(); $("pdfEditDelete").click(); }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") { event.preventDefault(); $(event.shiftKey ? "pdfEditRedo" : "pdfEditUndo").click(); }
   });
   $("pdfEditAddText").onclick = () => {
-    const page = state.pages[state.page]; if (!page) return;
+    const page = state.pages[state.page]; if (!page || state.busy || state.inline) return;
     const item = { id: crypto.randomUUID(), page: state.page, type: "text", rect: [30, 30, Math.min(page.width - 10, 260), 70], text: "새 글자", size: 16, color: "#17202a", fill: "#ffffff" };
     state.selected = item.id; commit(item); $("pdfEditText").focus(); $("pdfEditText").select();
   };
   let replaceImage = false;
-  $("pdfEditAddImage").onclick = () => { replaceImage = false; $("pdfEditImage").click(); };
-  $("pdfEditReplaceImage").onclick = () => { replaceImage = true; $("pdfEditImage").click(); };
+  $("pdfEditAddImage").onclick = () => { if (!state.busy && !state.inline) { replaceImage = false; $("pdfEditImage").click(); } };
+  $("pdfEditReplaceImage").onclick = () => { if (!state.busy && !state.inline) { replaceImage = true; $("pdfEditImage").click(); } };
   $("pdfEditImage").onchange = async (event) => {
     const file = event.target.files[0], target = selected(); if (!file) return;
     try {
@@ -187,7 +267,12 @@
     event.target.value = "";
   };
   $("pdfEditSave").onclick = async () => {
-    if (!state.file || state.busy) return; state.busy = true; $("pdfEditSave").disabled = true; status("PDF 저장 중…");
+    if (!state.file || state.busy) return;
+    if (state.inline) {
+      state.page = state.inline.item.page; render(); state.inline.form.querySelector("textarea").focus();
+      status("글자 편집을 적용하거나 취소한 뒤 저장해 주세요.", true); return;
+    }
+    state.busy = true; $("pdfEditSave").disabled = true; status("PDF 저장 중…");
     const saved = operations();
     try { const response = await request("edit", state.file, { operations: JSON.stringify(saved) }); download(await response.blob(), state.file.name.replace(/\.pdf$/i, "_편집.pdf")); state.savedOperations = saved; status("편집 PDF 다운로드 완료 · 원본 파일은 그대로 유지됩니다."); }
     catch (error) { status(error.message, true); }

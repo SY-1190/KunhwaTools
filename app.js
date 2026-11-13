@@ -84,7 +84,7 @@ const refreshGlobalBusy = (message) => {
   const busyText = $("globalBusyText");
   if (!busyWrap) return;
   if (message) globalBusyState.message = message;
-  const anyOpRunning = Object.values(operationStates).some((s) => s.running);
+  const anyOpRunning = Object.entries(operationStates).some(([key, state]) => key !== "arrange" && state.running);
   const active = anyOpRunning || globalBusyState.manualCount > 0;
   busyWrap.classList.toggle("hidden", !active);
   if (busyText) busyText.textContent = globalBusyState.message;
@@ -1474,7 +1474,7 @@ const setupImageToPdf = () => {
 };
 
 const arrangeState = {
-  file: null,
+  files: [],
   pages: [],
   deletedStack: [],
   reorderOrder: [],
@@ -1484,20 +1484,12 @@ const arrangeState = {
     source: new Set(),
     reorder: new Set(),
   },
-  anchorIndex: {
+  anchorPage: {
     source: null,
     reorder: null,
   },
   dragCtx: null,
-  placeholder: null,
-};
-
-const ensureArrangePlaceholder = () => {
-  if (arrangeState.placeholder) return arrangeState.placeholder;
-  const ph = document.createElement("div");
-  ph.className = "drag-placeholder";
-  arrangeState.placeholder = ph;
-  return ph;
+  dropTarget: null,
 };
 
 const getArrangePageByNo = (pageNo) => arrangeState.pages.find((p) => p.pageNo === pageNo);
@@ -1588,6 +1580,10 @@ const createThumbNode = (pageNo, pane) => {
   item.draggable = true;
   item.dataset.page = String(pageNo);
   item.dataset.pane = pane;
+  const sourceName = arrangeState.files[page.fileIndex].name;
+  if (pane !== "split") item.tabIndex = 0;
+  item.title = `${sourceName} · ${page.sourceIndex + 1}쪽`;
+  item.setAttribute("aria-label", `페이지 ${pageNo}: ${item.title}`);
   item.innerHTML = `
     <button class="thumb-delete" type="button" title="페이지 삭제" aria-label="페이지 ${pageNo} 삭제">${ICONS.trash3}</button>
     <div class="thumb-rotate-actions">
@@ -1604,6 +1600,10 @@ const createThumbNode = (pageNo, pane) => {
   img.style.border = "1px solid #d4e2f1";
   img.style.borderRadius = "6px";
   item.prepend(img);
+  const source = document.createElement("div");
+  source.className = "arrange-source-name";
+  source.textContent = item.title;
+  item.append(source);
   const selectedSet =
     pane === "source"
       ? arrangeState.selection.source
@@ -1675,37 +1675,43 @@ const rerenderArrangeWorkspace = () => {
   renderSourceGrid();
   renderReorderGrid();
   renderSplitBuckets();
+  const order = arrangeState.reorderOrder;
+  const selected = arrangeState.selection.reorder;
+  $("undoArrangeDelete").disabled = !arrangeState.deletedStack.length;
+  $("deleteArrangeSelected").disabled = !selected.size;
+  $("moveArrangeEarlier").disabled = !order.some((n, i) => i > 0 && selected.has(n) && !selected.has(order[i - 1]));
+  $("moveArrangeLater").disabled = !order.some((n, i) => i < order.length - 1 && selected.has(n) && !selected.has(order[i + 1]));
+  $("runReorderPdf").disabled = !order.length;
+  $("runSplitPdf").disabled = !order.length;
+  $("resetArrangeFiles").disabled = !arrangeState.files.length;
 };
 
-const removeArrangePage = (pageNo) => {
-  const page = getArrangePageByNo(pageNo);
-  if (!page) return;
-  const idx = arrangeState.pages.findIndex((p) => p.pageNo === pageNo);
-  if (idx >= 0) {
-    arrangeState.deletedStack.push({
-      pageNo,
-      pageSnapshot: { ...arrangeState.pages[idx] },
-      sourceIndex: idx,
-    });
-  }
-  page.deleted = true;
-  cleanArrangeState();
+const removeArrangePages = (pageNos) => {
+  const removed = pageNos.map(getArrangePageByNo).filter((page) => page && !page.deleted);
+  if (!removed.length) return;
+  arrangeState.deletedStack.push(removed.map((page) => ({
+    page,
+    orderIndex: arrangeState.reorderOrder.indexOf(page.pageNo),
+    buckets: arrangeState.splitBuckets.map((bucket) => ({ id: bucket.id, index: bucket.pages.indexOf(page.pageNo) })).filter((entry) => entry.index >= 0),
+  })));
+  removed.forEach((page) => { page.deleted = true; });
   rerenderArrangeWorkspace();
 };
 
 const undoArrangeDelete = () => {
   const last = arrangeState.deletedStack.pop();
-  if (!last) return null;
-  const target = getArrangePageByNo(last.pageNo);
-  if (target) {
-    target.deleted = false;
-  } else {
-    const insertAt = Math.max(0, Math.min(last.sourceIndex, arrangeState.pages.length));
-    arrangeState.pages.splice(insertAt, 0, last.pageSnapshot);
-  }
-  cleanArrangeState();
+  if (!last) return 0;
+  last.sort((a, b) => a.orderIndex - b.orderIndex).forEach(({ page, orderIndex }) => {
+    page.deleted = false;
+    arrangeState.reorderOrder.splice(Math.max(0, orderIndex), 0, page.pageNo);
+  });
+  arrangeState.splitBuckets.forEach((bucket) => {
+    last.flatMap(({ page, buckets }) => buckets.filter((entry) => entry.id === bucket.id).map(({ index }) => ({ pageNo: page.pageNo, index })))
+      .sort((a, b) => a.index - b.index)
+      .forEach(({ pageNo, index }) => bucket.pages.splice(index, 0, pageNo));
+  });
   rerenderArrangeWorkspace();
-  return last.pageNo;
+  return last.length;
 };
 
 const setPaneSelection = (pane, selectedNos) => {
@@ -1713,40 +1719,43 @@ const setPaneSelection = (pane, selectedNos) => {
   if (pane === "reorder") arrangeState.selection.reorder = new Set(selectedNos);
 };
 
-const applyShiftSelection = (pane, clickedPageNo, shiftKey) => {
+const applyShiftSelection = (pane, clickedPageNo, shiftKey, toggleKey) => {
   const grid = pane === "source" ? $("pdfThumbGrid") : $("reorderThumbGrid");
   if (!grid) return;
   const items = [...grid.querySelectorAll(".thumb-item")];
   const indexMap = items.map((el) => Number(el.dataset.page));
   const clickedIndex = indexMap.indexOf(clickedPageNo);
   if (clickedIndex < 0) return;
-  if (!shiftKey || arrangeState.anchorIndex[pane] === null) {
-    arrangeState.anchorIndex[pane] = clickedIndex;
-    setPaneSelection(pane, [clickedPageNo]);
+  const anchor = indexMap.indexOf(arrangeState.anchorPage[pane]);
+  if (!shiftKey || anchor < 0) {
+    arrangeState.anchorPage[pane] = clickedPageNo;
+    if (toggleKey) {
+      const selected = new Set(arrangeState.selection[pane]);
+      if (selected.has(clickedPageNo)) selected.delete(clickedPageNo);
+      else selected.add(clickedPageNo);
+      setPaneSelection(pane, selected);
+    } else setPaneSelection(pane, [clickedPageNo]);
     rerenderArrangeWorkspace();
     return;
   }
-  const start = Math.min(arrangeState.anchorIndex[pane], clickedIndex);
-  const end = Math.max(arrangeState.anchorIndex[pane], clickedIndex);
+  const start = Math.min(anchor, clickedIndex);
+  const end = Math.max(anchor, clickedIndex);
   setPaneSelection(pane, indexMap.slice(start, end + 1));
   rerenderArrangeWorkspace();
 };
 
-const getDragAfterElement = (container, x, y) => {
-  return getPdfToImageDragAfterElement(container, x, y).afterEl;
+const clearArrangeDrop = () => {
+  const target = arrangeState.dropTarget;
+  target?.marker.classList.remove("arrange-drop-before", "arrange-drop-end");
+  arrangeState.dropTarget = null;
 };
 
-const placePlaceholderInGrid = (grid, x, y) => {
-  const placeholder = ensureArrangePlaceholder();
-  const intent = getPdfToImageDragAfterElement(grid, x, y);
-  const afterEl = intent.afterEl;
-  if (!afterEl) grid.appendChild(placeholder);
-  else grid.insertBefore(placeholder, afterEl);
-};
-
-const removePlaceholder = () => {
-  const ph = arrangeState.placeholder;
-  if (ph && ph.parentElement) ph.parentElement.removeChild(ph);
+const markArrangeDrop = (grid, x, y) => {
+  clearArrangeDrop();
+  const { afterEl } = getPdfToImageDragAfterElement(grid, x, y);
+  const marker = afterEl || grid.lastElementChild || grid;
+  marker.classList.add(afterEl ? "arrange-drop-before" : "arrange-drop-end");
+  arrangeState.dropTarget = { grid, before: afterEl, marker };
 };
 
 const setupArrangeDnD = () => {
@@ -1762,7 +1771,7 @@ const setupArrangeDnD = () => {
     const pane = item.dataset.pane;
     const pageNo = Number(item.dataset.page);
     if (pane === "source" || pane === "reorder") {
-      applyShiftSelection(pane, pageNo, e.shiftKey);
+      applyShiftSelection(pane, pageNo, e.shiftKey, e.ctrlKey || e.metaKey);
     }
   };
 
@@ -1772,7 +1781,7 @@ const setupArrangeDnD = () => {
     const item = e.target.closest(".thumb-item");
     if (!item) return;
     const pageNo = Number(item.dataset.page);
-    removeArrangePage(pageNo);
+    removeArrangePages([pageNo]);
     setStatus("arrangePdfStatus", `페이지 ${pageNo} 삭제됨`);
   };
 
@@ -1814,31 +1823,30 @@ const setupArrangeDnD = () => {
       el.classList.toggle("selected-range", selected);
     });
 
-    const selected =
-      pane === "source"
-        ? [...arrangeState.selection.source]
-        : pane === "reorder"
-          ? [...arrangeState.selection.reorder]
-          : [pageNo];
+    const selected = pane === "split" ? [pageNo] :
+      (pane === "source" ? getAvailablePageNos() : arrangeState.reorderOrder)
+        .filter((n) => arrangeState.selection[pane].has(n));
     arrangeState.dragCtx = { pane, pageNos: selected, bucketId: item.dataset.bucketId || null };
     item.classList.add("dragging");
     e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(pageNo));
   };
 
   const handleDragEnd = () => {
-    removePlaceholder();
+    clearArrangeDrop();
     arrangeState.dragCtx = null;
     document.querySelectorAll(".thumb-item.dragging").forEach((el) => el.classList.remove("dragging"));
   };
 
   const applyDropToReorder = () => {
-    const ph = arrangeState.placeholder;
+    const drop = arrangeState.dropTarget;
     const ctx = arrangeState.dragCtx;
-    if (!ctx || !ph || !ph.parentElement) return;
+    if (!ctx || drop?.grid !== reorderGrid) return;
     const moving = ctx.pageNos.filter((n) => !isPageDeleted(n));
     if (!moving.length) return;
     const filtered = arrangeState.reorderOrder.filter((n) => !moving.includes(n));
-    const nextThumb = ph.nextElementSibling?.closest?.(".thumb-item");
+    let nextThumb = drop.before;
+    while (nextThumb && moving.includes(Number(nextThumb.dataset.page))) nextThumb = nextThumb.nextElementSibling;
     if (nextThumb) {
       const nextPage = Number(nextThumb.dataset.page);
       const idx = filtered.indexOf(nextPage);
@@ -1853,14 +1861,15 @@ const setupArrangeDnD = () => {
 
   const applyDropToSplitBucket = (bucketId) => {
     const ctx = arrangeState.dragCtx;
-    const ph = arrangeState.placeholder;
-    if (!ctx || !ph || !ph.parentElement) return;
+    const drop = arrangeState.dropTarget;
+    if (!ctx || Number(drop?.grid.dataset.bucketGrid) !== bucketId) return;
     const bucket = arrangeState.splitBuckets.find((b) => b.id === bucketId);
     if (!bucket) return;
     const moving = ctx.pageNos.filter((n) => !isPageDeleted(n));
     if (!moving.length) return;
     const filtered = bucket.pages.filter((n) => !moving.includes(n));
-    const nextThumb = ph.nextElementSibling?.closest?.(".thumb-item");
+    let nextThumb = drop.before;
+    while (nextThumb && moving.includes(Number(nextThumb.dataset.page))) nextThumb = nextThumb.nextElementSibling;
     if (nextThumb) {
       const nextPage = Number(nextThumb.dataset.page);
       const idx = filtered.indexOf(nextPage);
@@ -1875,6 +1884,13 @@ const setupArrangeDnD = () => {
 
   [sourceGrid, reorderGrid].forEach((grid) => {
     grid.addEventListener("click", onThumbClick);
+    grid.addEventListener("keydown", (event) => {
+      const item = event.target;
+      if (!item.matches(".thumb-item") || !["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      onThumbClick(event);
+      grid.querySelector(`[data-page="${item.dataset.page}"]`)?.focus();
+    });
     grid.addEventListener("click", onDeleteClick);
     grid.addEventListener("click", onRotateClick);
     grid.addEventListener("dragstart", handleDragStart);
@@ -1884,13 +1900,14 @@ const setupArrangeDnD = () => {
   reorderGrid.addEventListener("dragover", (e) => {
     if (!arrangeState.dragCtx) return;
     e.preventDefault();
-    placePlaceholderInGrid(reorderGrid, e.clientX, e.clientY);
+    markArrangeDrop(reorderGrid, e.clientX, e.clientY);
   });
   reorderGrid.addEventListener("drop", (e) => {
     if (!arrangeState.dragCtx) return;
     e.preventDefault();
+    markArrangeDrop(reorderGrid, e.clientX, e.clientY);
     applyDropToReorder();
-    removePlaceholder();
+    handleDragEnd();
   });
 
   splitWrap.addEventListener("click", (e) => {
@@ -1918,72 +1935,125 @@ const setupArrangeDnD = () => {
     const grid = e.target.closest(".split-bucket-grid");
     if (!arrangeState.dragCtx || !grid) return;
     e.preventDefault();
-    placePlaceholderInGrid(grid, e.clientX, e.clientY);
+    markArrangeDrop(grid, e.clientX, e.clientY);
   });
   splitWrap.addEventListener("drop", (e) => {
     const grid = e.target.closest(".split-bucket-grid");
     if (!arrangeState.dragCtx || !grid) return;
     e.preventDefault();
     const bucketId = Number(grid.dataset.bucketGrid);
+    markArrangeDrop(grid, e.clientX, e.clientY);
     applyDropToSplitBucket(bucketId);
-    removePlaceholder();
+    handleDragEnd();
   });
 };
 
-const renderArrangeThumbs = async (file) => {
-  startOperation("arrange", "썸네일 자동 불러오는 중...");
+const withArrangeOperation = async (message, task) => {
+  if (operationStates.arrange.running) return;
+  const input = $("arrangePdfFile");
+  const panels = document.querySelectorAll("#pdfArrange .rotation-toolbar, #pdfArrange .arrange-workspace");
+  input.disabled = $("resetArrangeFiles").disabled = true;
+  panels.forEach((panel) => { panel.inert = true; });
+  startOperation("arrange", message);
   try {
-    const buffer = await readAsArrayBuffer(file);
-    checkCancelled("arrange");
-    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-    arrangeState.file = file;
-    arrangeState.pages = [];
-    arrangeState.deletedStack = [];
-    arrangeState.reorderOrder = [];
-    arrangeState.splitBuckets = [];
-    arrangeState.nextBucketId = 1;
-    arrangeState.selection.source = new Set();
-    arrangeState.selection.reorder = new Set();
-    arrangeState.anchorIndex.source = null;
-    arrangeState.anchorIndex.reorder = null;
-
-    for (let i = 1; i <= pdf.numPages; i += 1) {
-      checkCancelled("arrange");
-      setStatus("arrangePdfStatus", `썸네일 렌더링 중 (${i}/${pdf.numPages})`);
-      const page = await pdf.getPage(i);
-      const baseViewport = page.getViewport({ scale: 1 });
-      const targetWidth = 130;
-      const scale = targetWidth / baseViewport.width;
-      const viewport = page.getViewport({ scale });
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({
-        canvasContext: canvas.getContext("2d"),
-        viewport,
-      }).promise;
-      const thumbDataUrl = canvas.toDataURL("image/png");
-      arrangeState.pages.push({
-        pageNo: i,
-        originalThumbDataUrl: thumbDataUrl,
-        thumbDataUrl,
-        sourceRotation: normalizeArrangeRotation(page.rotate || 0),
-        rotation: 0,
-        deleted: false,
-      });
-      arrangeState.reorderOrder.push(i);
-      updateProgress("arrange", i, pdf.numPages);
-    }
-
-    if (!arrangeState.splitBuckets.length) {
-      arrangeState.splitBuckets.push({ id: arrangeState.nextBucketId++, pages: [] });
-    }
-    rerenderArrangeWorkspace();
+    const result = await task();
     updateProgress("arrange", 100, 100);
-    endOperation("arrange", `완료: ${pdf.numPages}개 페이지 자동 로드됨`);
+    endOperation("arrange", result);
   } catch (err) {
     handleOperationError("arrange", err);
+  } finally {
+    input.disabled = false;
+    panels.forEach((panel) => { panel.inert = false; });
+    rerenderArrangeWorkspace();
   }
+};
+
+const renderArrangeThumbs = (files) => withArrangeOperation("PDF 페이지 불러오는 중...", async () => {
+  const pending = dedupeFiles([...arrangeState.files, ...files]).slice(arrangeState.files.length);
+  const addedFiles = [], addedPages = [], rejected = [];
+  for (const [index, file] of pending.entries()) {
+    checkCancelled("arrange");
+    const buffer = await readAsArrayBuffer(file);
+    checkCancelled("arrange");
+    const loading = pdfjsLib.getDocument({ data: buffer, isEvalSupported: false });
+    const pages = [];
+    try {
+      const pdf = await loading.promise;
+      const fileIndex = arrangeState.files.length + addedFiles.length;
+      for (let sourceIndex = 0; sourceIndex < pdf.numPages; sourceIndex += 1) {
+        checkCancelled("arrange");
+        const page = await pdf.getPage(sourceIndex + 1);
+        setStatus("arrangePdfStatus", `${file.name} · ${sourceIndex + 1}/${pdf.numPages}페이지 불러오는 중`);
+        const base = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({ scale: Math.min(130 / base.width, 230 / base.height) });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.ceil(viewport.width));
+        canvas.height = Math.max(1, Math.ceil(viewport.height));
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        const thumbDataUrl = canvas.toDataURL("image/png");
+        pages.push({
+          pageNo: arrangeState.pages.length + addedPages.length + pages.length + 1,
+          fileIndex, sourceIndex, originalThumbDataUrl: thumbDataUrl, thumbDataUrl,
+          sourceRotation: normalizeArrangeRotation(page.rotate || 0),
+          rotation: 0, deleted: false,
+        });
+        updateProgress("arrange", index + (sourceIndex + 1) / pdf.numPages, pending.length);
+      }
+      addedFiles.push(file);
+      addedPages.push(...pages);
+    } catch (error) {
+      if (error.message === CANCELLED_ERROR) throw error;
+      rejected.push(file.name);
+    } finally {
+      await loading.destroy();
+    }
+  }
+  checkCancelled("arrange");
+  arrangeState.files.push(...addedFiles);
+  arrangeState.pages.push(...addedPages);
+  arrangeState.reorderOrder.push(...addedPages.map((page) => page.pageNo));
+  if (addedPages.length && !arrangeState.splitBuckets.length) {
+    arrangeState.splitBuckets.push({ id: arrangeState.nextBucketId++, pages: [] });
+  }
+  const count = arrangeState.files.length;
+  $("arrangePdfFileDropName").textContent = count ? `PDF ${count}개 · 원본 ${arrangeState.pages.length}페이지` : "선택된 파일 없음";
+  const skipped = rejected.length ? ` · 열 수 없음: ${rejected.join(", ")}` : "";
+  return addedPages.length ? `추가: PDF ${addedFiles.length}개 · ${addedPages.length}페이지${skipped}` :
+    rejected.length ? `열 수 있는 PDF가 없습니다${skipped}` : "이미 추가된 PDF입니다.";
+});
+
+const buildArrangedPdf = async (pageNos, sources, onPage) => {
+  const out = await PDFLib.PDFDocument.create();
+  const pages = pageNos.map(getArrangePageByNo);
+  // Copy by source, then assemble in the requested cross-file order.
+  const bySource = new Map();
+  pages.forEach((page, index) => {
+    if (!bySource.has(page.fileIndex)) bySource.set(page.fileIndex, []);
+    bySource.get(page.fileIndex).push({ page, index });
+  });
+  const copied = [];
+  for (const [fileIndex, group] of bySource) {
+    checkCancelled("arrange");
+    const file = arrangeState.files[fileIndex];
+    if (!sources.has(fileIndex)) {
+      try {
+        sources.set(fileIndex, await PDFLib.PDFDocument.load(await readAsArrayBuffer(file)));
+      } catch {
+        throw new Error(`${file.name}: PDF를 저장할 수 없습니다. 암호 또는 파일 상태를 확인해 주세요.`);
+      }
+    }
+    const batch = await out.copyPages(sources.get(fileIndex), group.map(({ page }) => page.sourceIndex));
+    group.forEach(({ index }, i) => { copied[index] = batch[i]; });
+  }
+  copied.forEach((page, index) => {
+    checkCancelled("arrange");
+    applyArrangeRotation(page, pageNos[index]);
+    out.addPage(page);
+    onPage?.(index + 1);
+  });
+  const result = await out.save();
+  checkCancelled("arrange");
+  return result;
 };
 
 const setupPdfArrange = () => {
@@ -1994,13 +2064,56 @@ const setupPdfArrange = () => {
   setIconButton("rotateAllLeftIcon", "arrowCounterclockwise");
   setIconButton("rotateAllRightIcon", "arrowClockwise");
   setIconButton("applyArrangeAbsoluteRotationIcon", "check2");
+  setIconButton("moveArrangeEarlier", "arrowLeft");
+  setIconButton("moveArrangeLater", "arrowRight");
+  setIconButton("deleteArrangeSelected", "trash3");
   setupArrangeDnD();
   rerenderArrangeWorkspace();
 
-  $("arrangePdfFile").addEventListener("change", async () => {
-    const file = $("arrangePdfFile").files[0];
-    if (!file) return;
-    await renderArrangeThumbs(file);
+  const input = $("arrangePdfFile");
+  input.addEventListener("change", () => {
+    const files = [...input.files];
+    input.value = "";
+    if (files.length) renderArrangeThumbs(files);
+  });
+  const drop = document.querySelector('[data-file-input="arrangePdfFile"]');
+  drop.addEventListener("keydown", (event) => {
+    if (!["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    input.click();
+  });
+  drop.addEventListener("drop", () => {
+    $("arrangePdfFileDropName").textContent = arrangeState.files.length ? `PDF ${arrangeState.files.length}개 · 원본 ${arrangeState.pages.length}페이지` : "선택된 파일 없음";
+  });
+  $("resetArrangeFiles").addEventListener("click", () => {
+    if (operationStates.arrange.running || !confirm("불러온 PDF와 페이지 배치를 모두 비울까요?")) return;
+    Object.assign(arrangeState, {
+      files: [], pages: [], deletedStack: [], reorderOrder: [], splitBuckets: [], nextBucketId: 1,
+      selection: { source: new Set(), reorder: new Set() }, anchorPage: { source: null, reorder: null },
+    });
+    $("splitInput").value = "";
+    $("arrangePdfFileDropName").textContent = "선택된 파일 없음";
+    updateProgress("arrange", 0, 100);
+    setStatus("arrangePdfStatus", "");
+    rerenderArrangeWorkspace();
+  });
+  const moveSelection = (direction) => {
+    const order = arrangeState.reorderOrder;
+    const selected = arrangeState.selection.reorder;
+    for (let i = direction < 0 ? 1 : order.length - 2; i >= 0 && i < order.length; i -= direction) {
+      const next = i + direction;
+      if (next >= 0 && next < order.length && selected.has(order[i]) && !selected.has(order[next])) {
+        [order[i], order[next]] = [order[next], order[i]];
+      }
+    }
+    rerenderArrangeWorkspace();
+  };
+  $("moveArrangeEarlier").addEventListener("click", () => moveSelection(-1));
+  $("moveArrangeLater").addEventListener("click", () => moveSelection(1));
+  $("deleteArrangeSelected").addEventListener("click", () => {
+    const selected = [...arrangeState.selection.reorder];
+    removeArrangePages(selected);
+    setStatus("arrangePdfStatus", `${selected.length}페이지 삭제됨`);
   });
 
   $("undoArrangeDelete")?.addEventListener("click", () => {
@@ -2009,7 +2122,7 @@ const setupPdfArrange = () => {
       setStatus("arrangePdfStatus", "되돌릴 삭제 내역이 없습니다.");
       return;
     }
-    setStatus("arrangePdfStatus", `페이지 ${restored} 복원 완료`);
+    setStatus("arrangePdfStatus", `${restored}페이지 복원 완료`);
   });
 
   $("addSplitBucket").addEventListener("click", () => {
@@ -2039,79 +2152,41 @@ const setupPdfArrange = () => {
   });
 
   $("runReorderPdf").addEventListener("click", async () => {
-    const file = $("arrangePdfFile").files[0];
-    if (!file) {
-      setStatus("arrangePdfStatus", "PDF 파일을 먼저 선택해주세요.");
-      return;
-    }
-    if (!arrangeState.pages.length) await renderArrangeThumbs(file);
-
     const finalOrder = arrangeState.reorderOrder.filter((n) => !isPageDeleted(n));
     if (!finalOrder.length) {
       setStatus("arrangePdfStatus", "저장할 페이지가 없습니다.");
       return;
     }
 
-    startOperation("arrange", "정렬 순서로 PDF 생성 중...");
-    try {
-      const src = await PDFLib.PDFDocument.load(await readAsArrayBuffer(file));
-      const out = await PDFLib.PDFDocument.create();
-      const copied = await out.copyPages(
-        src,
-        finalOrder.map((n) => n - 1)
-      );
-      copied.forEach((p, idx) => {
-        checkCancelled("arrange");
-        applyArrangeRotation(p, finalOrder[idx]);
-        out.addPage(p);
-        updateProgress("arrange", idx + 1, copied.length);
-      });
-      const result = await out.save();
-      downloadBlob(new Blob([result], { type: "application/pdf" }), "reordered.pdf");
-      updateProgress("arrange", 100, 100);
-      endOperation("arrange", "완료: 순서 변경 PDF 저장");
-    } catch (err) {
-      handleOperationError("arrange", err);
-    }
+    await withArrangeOperation("정렬 순서로 PDF 생성 중...", async () => {
+      const result = await buildArrangedPdf(finalOrder, new Map(), (count) => updateProgress("arrange", count, finalOrder.length));
+      const name = arrangeState.files.length > 1 ? "merged-reordered.pdf" : "reordered.pdf";
+      downloadBlob(new Blob([result], { type: "application/pdf" }), name);
+      return `완료: ${finalOrder.length}페이지 PDF 저장`;
+    });
   });
 
   $("runSplitPdf").addEventListener("click", async () => {
-    const file = $("arrangePdfFile").files[0];
     const splitText = $("splitInput").value.trim();
-    if (!file) {
-      setStatus("arrangePdfStatus", "PDF 파일을 선택해주세요.");
-      return;
-    }
-    if (!arrangeState.pages.length) await renderArrangeThumbs(file);
-
-    startOperation("arrange", "PDF 분할 처리 중...");
-    try {
-      const src = await PDFLib.PDFDocument.load(await readAsArrayBuffer(file));
+    await withArrangeOperation("PDF 분할 처리 중...", async () => {
       let groups = arrangeState.splitBuckets
         .map((b) => b.pages.filter((n) => !isPageDeleted(n)))
         .filter((g) => g.length);
 
       if (!groups.length) {
         if (!splitText) throw new Error("분할 박스가 비어있습니다. 페이지를 끌어다 놓거나 텍스트 분할값을 입력해주세요.");
-        groups = parseSplitGroups(splitText, src.getPageCount()).filter((g) => g.length);
+        groups = parseSplitGroups(splitText, arrangeState.pages.length)
+          .map((group) => group.filter((n) => !isPageDeleted(n))).filter((g) => g.length);
       }
       if (!groups.length) throw new Error("유효한 분할 대상이 없습니다.");
 
       const outputs = [];
+      const sources = new Map();
       for (let i = 0; i < groups.length; i += 1) {
         checkCancelled("arrange");
-        const out = await PDFLib.PDFDocument.create();
-        const pages = await out.copyPages(
-          src,
-          groups[i].map((n) => n - 1)
-        );
-        pages.forEach((p, pageIndex) => {
-          applyArrangeRotation(p, groups[i][pageIndex]);
-          out.addPage(p);
-        });
         outputs.push({
           name: `split-${i + 1}.pdf`,
-          bytes: await out.save(),
+          bytes: await buildArrangedPdf(groups[i], sources),
         });
         updateProgress("arrange", i + 1, groups.length);
       }
@@ -2122,18 +2197,13 @@ const setupPdfArrange = () => {
         const zip = new JSZip();
         outputs.forEach((out) => zip.file(out.name, out.bytes));
         const blob = await zip.generateAsync({ type: "blob" });
+        checkCancelled("arrange");
         downloadBlob(blob, "split-pdfs.zip");
       }
-      updateProgress("arrange", 100, 100);
-      endOperation(
-        "arrange",
-        outputs.length === 1
+      return outputs.length === 1
           ? "완료: 1개 분할 PDF 단건 다운로드"
-          : `완료: ${outputs.length}개 파일로 분할 (ZIP 다운로드)`
-      );
-    } catch (err) {
-      handleOperationError("arrange", err);
-    }
+          : `완료: ${outputs.length}개 파일로 분할 (ZIP 다운로드)`;
+    });
   });
 };
 

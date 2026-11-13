@@ -94,6 +94,14 @@ body[data-page="home"] .drop-zone:focus-visible { outline:2px solid var(--ws-acc
 .studio-object { position:absolute; border:1px solid transparent; border-radius:0; background:none; color:transparent; cursor:move; padding:0; touch-action:none; }
 .studio-object:hover { border-color:#167d6680; background:#167d6615; }
 .studio-object.selected { border:2px solid #167d66; outline:2px solid #fff; }
+.studio-inline-editor { position:absolute; z-index:3; display:grid; gap:6px; padding:6px; background:var(--ws-surface); border:1px solid var(--ws-accent); border-radius:4px; box-shadow:0 2px 8px #0003; }
+.studio-inline-editor textarea { width:100%; min-width:0; resize:vertical; line-height:1.2; }
+.studio-inline-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
+.arrange-source-name { font-size:11px; color:var(--ws-muted); overflow-wrap:anywhere; }
+.arrange-selection-actions { margin:4px 0 8px; }
+#pdfArrange .arrange-drop-before { box-shadow:inset 3px 0 var(--ws-accent); }
+#pdfArrange .arrange-drop-end { box-shadow:inset -3px 0 var(--ws-accent); }
+#pdfArrange .thumb-item:focus-visible { outline:2px solid var(--ws-accent); outline-offset:1px; }
 .studio-draft { position:absolute; color:#17202a; text-align:left; overflow:hidden; white-space:pre-wrap; word-break:break-word; line-height:1.15; pointer-events:none; font-family:"Malgun Gothic",sans-serif; }
 .studio-draft-cover { position:absolute; pointer-events:none; }
 .studio-inspector { padding:16px; overflow:auto; border-left:1px solid var(--ws-line); }

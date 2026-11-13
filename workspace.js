@@ -1,6 +1,6 @@
 (() => {
   const groups = [
-    { label: "문서", tools: [["pdfEditor", "PDF 편집", "pencil-square"], ["pdfToWord", "PDF → Word", "file-earmark-word"], ["pdfToExcel", "PDF → Excel", "file-earmark-spreadsheet"], ["pdfToImage", "PDF → 이미지", "file-earmark-pdf"], ["imageToPdf", "이미지 → PDF", "images"], ["pdfArrange", "PDF 순서 · 나누기 · 회전", "layers"], ["pdfMerge", "PDF 합치기", "intersect"], ["pdfCompress", "PDF 압축", "file-zip"], ["hangulWebEditor", "한글(hwp/hwpx) 포맷 에디터", "file-earmark-text"]] },
+    { label: "문서", tools: [["pdfEditor", "PDF 편집", "pencil-square"], ["pdfToWord", "PDF → Word", "file-earmark-word"], ["pdfToExcel", "PDF → Excel", "file-earmark-spreadsheet"], ["pdfToImage", "PDF → 이미지", "file-earmark-pdf"], ["imageToPdf", "이미지 → PDF", "images"], ["pdfArrange", "PDF 순서 · 병합 · 나누기 · 회전", "layers"], ["pdfMerge", "PDF 합치기", "intersect"], ["pdfCompress", "PDF 압축", "file-zip"], ["hangulWebEditor", "한글(hwp/hwpx) 포맷 에디터", "file-earmark-text"]] },
     { label: "이미지", tools: [["imageResize", "이미지 크기 조정", "aspect-ratio"], ["imageFormat", "이미지 포맷 변환", "image"]] },
     { label: "업무", tools: [["fileRename", "파일명 일괄 변경", "input-cursor-text"], ["processTimer", "공정 작업시간 측정", "stopwatch"], ["qrGenerator", "QR 코드 생성기", "qr-code"]] },
   ];
